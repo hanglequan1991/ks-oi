@@ -101,6 +101,37 @@
     margin: 6px 0 0;
     font: 12px/1.4 ui-monospace, Consolas, monospace;
   }
+  .media { margin-top: 10px; white-space: normal; }
+  .media-title { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+  .gallery button { padding: 0; border: none; background: var(--border); border-radius: 8px; overflow: hidden; aspect-ratio: 4 / 3; cursor: zoom-in; }
+  .gallery img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .media-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .media-links a {
+    font-size: 12px;
+    color: var(--accent);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 10px;
+    text-decoration: none;
+  }
+  .media-links a:hover { border-color: var(--accent); }
+  #lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    z-index: 10;
+    cursor: zoom-out;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img { max-width: 100%; max-height: calc(100% - 40px); border-radius: 8px; }
+  #lightbox p { color: #ddd; font-size: 13px; margin: 0; text-align: center; }
   .suggestions { display: flex; flex-wrap: wrap; gap: 8px; }
   .suggestions button {
     background: var(--panel);
@@ -174,6 +205,7 @@
     <button id="send" type="submit">Gửi</button>
   </form>
 </div>
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Xem ảnh"><img alt="" referrerpolicy="no-referrer"><p></p></div>
 
 <script>
   const log = document.getElementById("log");
@@ -206,6 +238,60 @@
     bubble.appendChild(details);
   }
 
+  const lightbox = document.getElementById("lightbox");
+  lightbox.addEventListener("click", () => lightbox.classList.remove("open"));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") lightbox.classList.remove("open"); });
+
+  function openImage(img) {
+    lightbox.querySelector("img").src = img.full;
+    lightbox.querySelector("p").textContent = img.title;
+    lightbox.classList.add("open");
+  }
+
+  function linkChip(label, url) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = label;
+    return a;
+  }
+
+  function addMedia(bubble, media) {
+    if (!media || (!media.images.length && !media.links.length)) return;
+    const box = document.createElement("div");
+    box.className = "media";
+    if (media.images.length) {
+      const title = document.createElement("div");
+      title.className = "media-title";
+      title.textContent = "📷 " + media.hotel + (media.album && media.album.name ? " · " + media.album.name : "");
+      box.appendChild(title);
+      const gallery = document.createElement("div");
+      gallery.className = "gallery";
+      for (const img of media.images) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.title = img.title;
+        const el = document.createElement("img");
+        el.src = img.thumb;
+        el.alt = img.title;
+        el.loading = "lazy";
+        el.referrerPolicy = "no-referrer";
+        el.onerror = () => btn.remove();
+        btn.appendChild(el);
+        btn.addEventListener("click", () => openImage(img));
+        gallery.appendChild(btn);
+      }
+      box.appendChild(gallery);
+    }
+    const links = document.createElement("div");
+    links.className = "media-links";
+    if (media.album) links.appendChild(linkChip("Xem album ↗", media.album.url));
+    for (const l of media.links) links.appendChild(linkChip((l.label || "Xem ảnh") + " ↗", l.url));
+    if (links.children.length) box.appendChild(links);
+    bubble.appendChild(box);
+  }
+
   async function ask(question) {
     suggestions.remove();
     addMessage("user", question);
@@ -225,6 +311,7 @@
       if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
       pending.className = "msg bot";
       pending.textContent = data.answer || "(không có câu trả lời)";
+      addMedia(pending, data.media);
       addSources(pending, data.sources);
       history.push({ role: "user", content: question }, { role: "assistant", content: data.answer });
       history = history.slice(-12);

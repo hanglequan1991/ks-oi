@@ -48,9 +48,10 @@
 			}
 		]
 	},
-	// 13:00 and 18:00 Vietnam time (UTC+7, no daylight saving)
+	// 13:00 and 18:00 Vietnam time (UTC+7, no daylight saving), plus a photo-folder
+	// refresh at 03:00 Sunday Vietnam time (MEDIA_REFRESH_CRON in src/index.ts)
 	"triggers": {
-		"crons": ["0 6,11 * * *"]
+		"crons": ["0 6,11 * * *", "0 20 * * 6"]
 	},
 	"vars": {
 		"DRIVE_FOLDER_ID": "1DnRvtjrOSN35DWYlZMyPxhVsswvX98vM",

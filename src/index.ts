@@ -1,6 +1,6 @@
 import { clearSessionCookie, createSessionCookie, readSession, verifyGoogleIdToken } from "./auth";
 import { chat, search, type ChatTurn } from "./rag";
-import { handleMessage, planSync, syncStatus, type Bindings, type SyncMessage } from "./sync";
+import { handleMessage, planSync, syncStatus, tabMedia, type Bindings, type SyncMessage } from "./sync";
 
 function isAdmin(req: Request, env: Bindings): boolean {
 	return !!env.ADMIN_TOKEN && req.headers.get("authorization") === `Bearer ${env.ADMIN_TOKEN}`;
@@ -33,6 +33,9 @@ async function handleAuth(req: Request, env: Bindings, url: URL): Promise<Respon
 	return new Response("Not found", { status: 404 });
 }
 
+// Must match the weekly entry in wrangler.jsonc triggers.crons.
+const MEDIA_REFRESH_CRON = "0 20 * * 6";
+
 export default {
 	async fetch(req: Request, env: Bindings): Promise<Response> {
 		const url = new URL(req.url);
@@ -44,7 +47,8 @@ export default {
 				if (url.pathname === "/admin/reindex" && req.method === "POST") {
 					const force = url.searchParams.get("force") === "1";
 					const fileId = url.searchParams.get("file") ?? undefined;
-					return Response.json(await planSync(env, { force, fileId }));
+					const refreshMedia = url.searchParams.get("media") === "1";
+					return Response.json(await planSync(env, { force, fileId, refreshMedia }));
 				}
 				if (url.pathname === "/admin/status") return Response.json(await syncStatus(env));
 				return new Response("Not found", { status: 404 });
@@ -67,7 +71,9 @@ export default {
 			if (url.pathname === "/chat" && req.method === "POST") {
 				const { question, history } = (await req.json()) as { question?: string; history?: ChatTurn[] };
 				if (!question?.trim()) return Response.json({ error: "question is required" }, { status: 400 });
-				return Response.json(await chat(env.AI, env.VECTORIZE, question.trim(), history ?? []));
+				return Response.json(
+					await chat(env.AI, env.VECTORIZE, question.trim(), history ?? [], (fileId, gid) => tabMedia(env, fileId, gid)),
+				);
 			}
 			if (url.pathname === "/search") {
 				return Response.json(await search(env.AI, env.VECTORIZE, url.searchParams.get("q") ?? ""));
@@ -78,9 +84,10 @@ export default {
 		}
 	},
 
-	async scheduled(_event: ScheduledController, env: Bindings, ctx: ExecutionContext) {
+	async scheduled(event: ScheduledController, env: Bindings, ctx: ExecutionContext) {
+		const refreshMedia = event.cron === MEDIA_REFRESH_CRON;
 		ctx.waitUntil(
-			planSync(env).then(
+			planSync(env, { refreshMedia }).then(
 				(r) => console.log("sync planned", JSON.stringify(r)),
 				(e) => console.error("sync planning failed", e),
 			),
