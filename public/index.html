@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hotel Assistant</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --panel: #ffffff;
+    --text: #1d1d1b;
+    --muted: #6b6a66;
+    --border: #e3e1dc;
+    --accent: #2f6f5e;
+    --accent-text: #ffffff;
+    --bot: #f0efeb;
+    --error: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615;
+      --panel: #1f1f1d;
+      --text: #ecebe8;
+      --muted: #9a9993;
+      --border: #33322f;
+      --accent: #4f9d86;
+      --accent-text: #0e1513;
+      --bot: #2a2a27;
+      --error: #f2b8b5;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+  }
+  .app {
+    width: 100%;
+    max-width: 760px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+  header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  header h1 { font-size: 17px; margin: 0; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  #clear {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .user { align-self: flex-end; background: var(--accent); color: var(--accent-text); border-bottom-right-radius: 4px; }
+  .bot { align-self: flex-start; background: var(--bot); border-bottom-left-radius: 4px; }
+  .bot.error { color: var(--error); }
+  .bot.thinking { color: var(--muted); font-style: italic; }
+  details { margin-top: 8px; font-size: 12px; color: var(--muted); white-space: normal; }
+  details summary { cursor: pointer; }
+  details pre {
+    white-space: pre-wrap;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    margin: 6px 0 0;
+    font: 12px/1.4 ui-monospace, Consolas, monospace;
+  }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .suggestions button {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .suggestions button:hover, #clear:hover { border-color: var(--accent); }
+  form {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+  textarea {
+    flex: 1;
+    resize: none;
+    min-height: 44px;
+    max-height: 140px;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  form button {
+    border: none;
+    border-radius: 10px;
+    padding: 0 18px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  form button:disabled { opacity: 0.5; cursor: default; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Đà Lạt Wonder Resort</h1>
+      <p>Hỏi về giá phòng, gói nghỉ dưỡng, phụ thu…</p>
+    </div>
+    <button id="clear" type="button">Xoá</button>
+  </header>
+
+  <main id="log" aria-live="polite">
+    <div class="msg bot">Xin chào! Tôi có thể giúp gì về giá phòng và dịch vụ của resort?</div>
+    <div class="suggestions" id="suggestions">
+      <button type="button">Giá phòng Deluxe Lake View cuối tuần?</button>
+      <button type="button">Gói Summer 3N2Đ bao gồm những gì?</button>
+      <button type="button">Phụ thu trẻ em 6–11 tuổi?</button>
+      <button type="button">Giá villa 6 phòng ngủ ngày lễ?</button>
+    </div>
+  </main>
+
+  <form id="form">
+    <textarea id="input" rows="1" placeholder="Nhập câu hỏi… (Enter để gửi, Shift+Enter xuống dòng)" required></textarea>
+    <button id="send" type="submit">Gửi</button>
+  </form>
+</div>
+
+<script>
+  const log = document.getElementById("log");
+  const form = document.getElementById("form");
+  const input = document.getElementById("input");
+  const send = document.getElementById("send");
+  const suggestions = document.getElementById("suggestions");
+  let history = [];
+
+  function addMessage(role, text, extraClass) {
+    const div = document.createElement("div");
+    div.className = "msg " + role + (extraClass ? " " + extraClass : "");
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  }
+
+  function addSources(bubble, sources) {
+    if (!sources || !sources.length) return;
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Nguồn (" + sources.length + ")";
+    details.appendChild(summary);
+    for (const s of sources) {
+      const pre = document.createElement("pre");
+      pre.textContent = s.id + " · score " + s.score.toFixed(2) + "\n" + s.text;
+      details.appendChild(pre);
+    }
+    bubble.appendChild(details);
+  }
+
+  async function ask(question) {
+    suggestions.remove();
+    addMessage("user", question);
+    const pending = addMessage("bot", "Đang tìm câu trả lời…", "thinking");
+    send.disabled = true;
+    try {
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question, history }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+      pending.className = "msg bot";
+      pending.textContent = data.answer || "(không có câu trả lời)";
+      addSources(pending, data.sources);
+      history.push({ role: "user", content: question }, { role: "assistant", content: data.answer });
+      history = history.slice(-12);
+    } catch (err) {
+      pending.className = "msg bot error";
+      pending.textContent = "Lỗi: " + err.message;
+    } finally {
+      send.disabled = false;
+      input.focus();
+      log.scrollTop = log.scrollHeight;
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = input.value.trim();
+    if (!q || send.disabled) return;
+    input.value = "";
+    input.style.height = "";
+    ask(q);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  input.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 140) + "px";
+  });
+
+  suggestions.addEventListener("click", (e) => {
+    if (e.target.tagName === "BUTTON") ask(e.target.textContent);
+  });
+
+  document.getElementById("clear").addEventListener("click", () => location.reload());
+</script>
+</body>
+</html>
