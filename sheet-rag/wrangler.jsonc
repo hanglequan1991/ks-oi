@@ -39,7 +39,18 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
 	 */
 	// "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
-	"ai": { "binding": "AI" },
-  	"vectorize": [{ "binding": "VECTORIZE", "index_name": "sheet-rag" }],
-  	"vars": { "SHEET_CSV_URL": "https://docs.google.com/spreadsheets/d/1gSYnyPGZ-N5K2-3M8hva63Pr0MxUXd8X/export?format=csv&gid=0" }
+	"ai": {
+		"binding": "AI",
+		"remote": true
+	},
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "sheet-rag",
+			"remote": true
+		}
+	],
+	"vars": {
+		"SHEET_CSV_URL": "https://docs.google.com/spreadsheets/d/1gSYnyPGZ-N5K2-3M8hva63Pr0MxUXd8X/export?format=csv&gid=2119236801"
+	}
 }
