@@ -55,11 +55,18 @@
 	"vars": {
 		"DRIVE_FOLDER_ID": "1DnRvtjrOSN35DWYlZMyPxhVsswvX98vM",
 		// "<file name>/<tab name>" pairs that must never be indexed (contact lists, internal notes)
-		"SKIP_TABS": ["Danh sách Đối Tác Du lịch.xlsx/Đầu Mối Khách Sạn"]
+		"SKIP_TABS": ["Danh sách Đối Tác Du lịch.xlsx/Đầu Mối Khách Sạn"],
+		// OAuth "Web application" client ID from Google Cloud Console (public, not a secret)
+		"GOOGLE_CLIENT_ID": "",
+		// Who may sign in: exact emails, or "@domain.com" for a whole domain
+		"ALLOWED_EMAILS": []
 	},
-	// GET / serves public/index.html; any path without a matching file (/chat, /search, /ingest) falls through to the Worker
+	// The Worker runs first on every request so the chat page is only served after Google sign-in;
+	// it serves public/ files itself through the ASSETS binding.
 	"assets": {
-		"directory": "./public/"
+		"directory": "./public/",
+		"binding": "ASSETS",
+		"run_worker_first": true
 	}
 	/**
 	 * Smart Placement

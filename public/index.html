@@ -58,7 +58,10 @@
   }
   header h1 { font-size: 17px; margin: 0; }
   header p { margin: 0; color: var(--muted); font-size: 13px; }
-  #clear {
+  .actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  #who { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+  @media (max-width: 480px) { #who { display: none; } }
+  #clear, #logout {
     background: none;
     border: 1px solid var(--border);
     color: var(--muted);
@@ -109,7 +112,7 @@
     font-size: 13px;
     cursor: pointer;
   }
-  .suggestions button:hover, #clear:hover { border-color: var(--accent); }
+  .suggestions button:hover, #clear:hover, #logout:hover { border-color: var(--accent); }
   form {
     display: flex;
     gap: 8px;
@@ -149,7 +152,11 @@
       <h1>Khách Sạn Ơi 🏨</h1>
       <p>Trợ lý giá phòng, gói nghỉ dưỡng và phụ thu</p>
     </div>
-    <button id="clear" type="button">Xoá</button>
+    <div class="actions">
+      <span id="who"></span>
+      <button id="clear" type="button">Xoá</button>
+      <button id="logout" type="button">Đăng xuất</button>
+    </div>
   </header>
 
   <main id="log" aria-live="polite">
@@ -210,6 +217,10 @@
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ question, history }),
       });
+      if (res.status === 401) {
+        location.replace("/");
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
       pending.className = "msg bot";
@@ -253,6 +264,16 @@
   });
 
   document.getElementById("clear").addEventListener("click", () => location.reload());
+
+  document.getElementById("logout").addEventListener("click", async () => {
+    await fetch("/auth/logout", { method: "POST" });
+    window.google?.accounts?.id?.disableAutoSelect();
+    location.replace("/");
+  });
+
+  fetch("/me")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((me) => { if (me) document.getElementById("who").textContent = me.email; });
 </script>
 </body>
 </html>

@@ -1,8 +1,10 @@
+import type { AuthConfig } from "./auth";
 import { fetchTabCsv, listFolder, listTabs } from "./google";
 import { embed } from "./rag";
 import { sha256Hex, sheetToChunks } from "./sheet";
 
-export interface Bindings {
+export interface Bindings extends AuthConfig {
+	ASSETS: Fetcher;
 	AI: Ai;
 	VECTORIZE: VectorizeIndex;
 	SYNC_STATE: KVNamespace;
