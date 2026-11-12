@@ -22,8 +22,40 @@
 			"remote": true
 		}
 	],
+	"kv_namespaces": [
+		{
+			"binding": "SYNC_STATE",
+			"id": "c2f5c49451b04b3e90956a525e5c944e"
+		}
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "REINDEX_QUEUE",
+				"queue": "sheet-rag-reindex"
+			}
+		],
+		"consumers": [
+			{
+				"queue": "sheet-rag-reindex",
+				// One message per invocation so each tab gets its own 50-subrequest budget;
+				// low concurrency keeps the request rate to Google gentle.
+				"max_batch_size": 1,
+				"max_batch_timeout": 1,
+				"max_concurrency": 3,
+				"max_retries": 3,
+				"retry_delay": 60
+			}
+		]
+	},
+	// 13:00 and 18:00 Vietnam time (UTC+7, no daylight saving)
+	"triggers": {
+		"crons": ["0 6,11 * * *"]
+	},
 	"vars": {
-		"SHEET_CSV_URL": "https://docs.google.com/spreadsheets/d/1gSYnyPGZ-N5K2-3M8hva63Pr0MxUXd8X/export?format=csv&gid=2119236801"
+		"DRIVE_FOLDER_ID": "1DnRvtjrOSN35DWYlZMyPxhVsswvX98vM",
+		// "<file name>/<tab name>" pairs that must never be indexed (contact lists, internal notes)
+		"SKIP_TABS": ["Danh sách Đối Tác Du lịch.xlsx/Đầu Mối Khách Sạn"]
 	},
 	// GET / serves public/index.html; any path without a matching file (/chat, /search, /ingest) falls through to the Worker
 	"assets": {
