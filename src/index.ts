@@ -63,23 +63,31 @@ function sheetToChunks(csv: string): { id: string; text: string }[] {
 	if (current.length) blocks.push(current);
 
 	const chunks: { id: string; text: string }[] = [];
+	// A block that is a single one-cell row (e.g. "SUMMER PACKAGE 3N2Đ") is a section
+	// heading; the blocks after it belong to that section, so they carry it along.
+	let section = "";
 	blocks.forEach((block, b) => {
+		const isHeading = block.length === 1 && block[0].filter(Boolean).length === 1;
+		if (isHeading) section = block[0].find(Boolean)!;
+
 		let group = "";
 		const lines = block.map((r) => {
 			if (r[0]) group = r[0];
 			else if (group) r = [group, ...r.slice(1)];
 			return r.filter(Boolean).join(" | ");
 		});
-		const header = lines.slice(0, HEADER_ROWS);
+		const context = [title];
+		if (section && section !== title && !isHeading) context.push(section);
+		const header = lines.slice(0, HEADER_ROWS).filter((l) => l !== title);
 		const body = lines.slice(HEADER_ROWS);
 		if (!body.length) {
-			chunks.push({ id: `b${b}-0`, text: `${title}\n${header.join("\n")}` });
+			chunks.push({ id: `b${b}-0`, text: [...context, ...header].join("\n") });
 			return;
 		}
 		for (let i = 0; i < body.length; i += ROWS_PER_CHUNK) {
 			chunks.push({
 				id: `b${b}-${i / ROWS_PER_CHUNK}`,
-				text: [title, ...header, ...body.slice(i, i + ROWS_PER_CHUNK)].join("\n"),
+				text: [...context, ...header, ...body.slice(i, i + ROWS_PER_CHUNK)].join("\n"),
 			});
 		}
 	});
