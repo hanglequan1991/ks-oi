@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Khách Sạn Ơi · Đăng nhập</title>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --panel: #ffffff;
+    --text: #1d1d1b;
+    --muted: #6b6a66;
+    --border: #e3e1dc;
+    --accent: #2f6f5e;
+    --error: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615;
+      --panel: #1f1f1d;
+      --text: #ecebe8;
+      --muted: #9a9993;
+      --border: #33322f;
+      --accent: #4f9d86;
+      --error: #f2b8b5;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+  }
+  .card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 24px;
+    text-align: center;
+  }
+  .logo { font-size: 40px; line-height: 1; }
+  h1 { font-size: 22px; margin: 12px 0 4px; }
+  p { margin: 0; color: var(--muted); }
+  #signin { margin: 24px auto 0; display: flex; justify-content: center; min-height: 44px; }
+  #status { margin-top: 16px; min-height: 1.5em; font-size: 14px; }
+  #status.error { color: var(--error); }
+  .foot { margin-top: 20px; font-size: 12px; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="logo" aria-hidden="true">🏨</div>
+  <h1>Khách Sạn Ơi</h1>
+  <p>Trợ lý giá phòng, gói nghỉ dưỡng và phụ thu</p>
+  <div id="signin"></div>
+  <div id="status" role="status"></div>
+  <p class="foot">Chỉ dành cho tài khoản đã được cấp quyền.</p>
+</main>
+
+<script>
+  const statusEl = document.getElementById("status");
+
+  function showStatus(text, isError) {
+    statusEl.textContent = text;
+    statusEl.className = isError ? "error" : "";
+  }
+
+  async function onCredential(response) {
+    showStatus("Đang đăng nhập…");
+    try {
+      const res = await fetch("/auth/google", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+      location.replace("/");
+    } catch (err) {
+      showStatus(err.message, true);
+    }
+  }
+
+  async function init() {
+    const { clientId } = await (await fetch("/auth/config")).json();
+    if (!clientId) {
+      showStatus("Chưa cấu hình GOOGLE_CLIENT_ID trên máy chủ.", true);
+      return;
+    }
+    const start = () => {
+      google.accounts.id.initialize({ client_id: clientId, callback: onCredential, ux_mode: "popup" });
+      google.accounts.id.renderButton(document.getElementById("signin"), {
+        theme: matchMedia("(prefers-color-scheme: dark)").matches ? "filled_black" : "outline",
+        size: "large",
+        shape: "pill",
+        text: "signin_with",
+        locale: "vi",
+      });
+    };
+    if (window.google?.accounts?.id) start();
+    else window.addEventListener("load", start);
+  }
+
+  init().catch((err) => showStatus("Không tải được trang đăng nhập: " + err.message, true));
+</script>
+</body>
+</html>

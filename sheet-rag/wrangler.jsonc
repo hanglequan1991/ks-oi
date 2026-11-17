@@ -6,11 +6,69 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "sheet-rag",
 	"main": "src/index.ts",
-	"compatibility_date": "2026-11-10",
+	"compatibility_date": "2026-11-03",
 	"observability": {
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	"ai": {
+		"binding": "AI",
+		"remote": true
+	},
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "sheet-rag",
+			"remote": true
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SYNC_STATE",
+			"id": "c2f5c49451b04b3e90956a525e5c944e"
+		}
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "REINDEX_QUEUE",
+				"queue": "sheet-rag-reindex"
+			}
+		],
+		"consumers": [
+			{
+				"queue": "sheet-rag-reindex",
+				// One message per invocation so each tab gets its own 50-subrequest budget;
+				// low concurrency keeps the request rate to Google gentle.
+				"max_batch_size": 1,
+				"max_batch_timeout": 1,
+				"max_concurrency": 3,
+				"max_retries": 3,
+				"retry_delay": 60
+			}
+		]
+	},
+	// 13:00 and 18:00 Vietnam time (UTC+7, no daylight saving), plus a photo-folder
+	// refresh at 03:00 Sunday Vietnam time (MEDIA_REFRESH_CRON in src/index.ts)
+	"triggers": {
+		"crons": ["0 6,11 * * *", "0 20 * * 6"]
+	},
+	"vars": {
+		"DRIVE_FOLDER_ID": "1DnRvtjrOSN35DWYlZMyPxhVsswvX98vM",
+		// "<file name>/<tab name>" pairs that must never be indexed (contact lists, internal notes)
+		"SKIP_TABS": ["Danh sách Đối Tác Du lịch.xlsx/Đầu Mối Khách Sạn"],
+		// OAuth "Web application" client ID from Google Cloud Console (public, not a secret)
+		"GOOGLE_CLIENT_ID": "",
+		// Who may sign in: exact emails, or "@domain.com" for a whole domain
+		"ALLOWED_EMAILS": []
+	},
+	// The Worker runs first on every request so the chat page is only served after Google sign-in;
+	// it serves public/ files itself through the ASSETS binding.
+	"assets": {
+		"directory": "./public/",
+		"binding": "ASSETS",
+		"run_worker_first": true
+	}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -39,18 +97,4 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
 	 */
 	// "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
-	"ai": {
-		"binding": "AI",
-		"remote": true
-	},
-	"vectorize": [
-		{
-			"binding": "VECTORIZE",
-			"index_name": "sheet-rag",
-			"remote": true
-		}
-	],
-	"vars": {
-		"SHEET_CSV_URL": "https://docs.google.com/spreadsheets/d/1gSYnyPGZ-N5K2-3M8hva63Pr0MxUXd8X/export?format=csv&gid=2119236801"
-	}
 }
