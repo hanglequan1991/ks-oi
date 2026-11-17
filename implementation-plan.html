@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hotel Dictionary: Implementation Plan</title>
+<style>
+:root{
+  --bg:#f6f1e8; --card:#ffffff; --ink:#1b2a2f; --muted:#4b5b5f; --line:#e3dacb;
+  --accent:#0f6b5c; --accent-ink:#ffffff; --warn:#8a5a00; --warn-bg:#fff4dc; --code-bg:#efe8da;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#14201f; --card:#1b2b2a; --ink:#eef2ee; --muted:#a9b9b6; --line:#2d4140;
+         --accent:#59c3ae; --accent-ink:#0b1f1b; --warn:#ffd27a; --warn-bg:#3a2e12; --code-bg:#10201f; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}
+header.top{padding:40px 24px 24px;max-width:1100px;margin:0 auto}
+header.top h1{margin:0 0 8px;font-size:34px;line-height:1.15;letter-spacing:-.02em}
+header.top p{margin:0;color:var(--muted);max-width:760px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 24px 64px;display:grid;grid-template-columns:220px minmax(0,1fr);gap:40px}
+nav.toc{position:sticky;top:16px;align-self:start;font-size:14px}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+nav.toc a{text-decoration:none;color:var(--muted)}
+nav.toc a:hover{color:var(--accent)}
+section{margin:0 0 48px}
+h2{font-size:26px;margin:0 0 16px;letter-spacing:-.01em;scroll-margin-top:16px}
+h3{font-size:18px;margin:28px 0 10px}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 12px;padding-left:22px}
+li{margin:4px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px}
+table{width:100%;border-collapse:collapse;font-size:14.5px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-top:1px solid var(--line)}
+thead th{border-top:0;color:var(--muted);font-size:13px;background:transparent}
+.scroll{overflow-x:auto;margin:0 0 16px}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+code{background:var(--code-bg);padding:1px 6px;border-radius:6px}
+pre{background:var(--code-bg);padding:14px 16px;border-radius:12px;overflow-x:auto;margin:0 0 16px}
+pre code{background:none;padding:0}
+.tag{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px;margin-right:6px;border:1px solid var(--line);color:var(--muted)}
+.tag.s{color:var(--accent);border-color:var(--accent)}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:12px 16px;margin:0 0 16px;font-size:14.5px}
+.phase{border:1px solid var(--line);border-radius:14px;background:var(--card);margin:0 0 14px}
+.phase > summary{cursor:pointer;list-style:none;padding:16px 20px;font-weight:700;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.phase > summary::-webkit-details-marker{display:none}
+.phase > summary .n{background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:2px 10px;font-size:13px}
+.phase > summary .meta{margin-left:auto;font-weight:500;font-size:13px;color:var(--muted)}
+.phase .body{padding:0 20px 18px;border-top:1px solid var(--line)}
+.flow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 12px}
+.flow .box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}
+.flow .arrow{color:var(--muted)}
+@media (max-width:860px){
+  .wrap{grid-template-columns:1fr}
+  nav.toc{position:static}
+  nav.toc ol{flex-direction:row;flex-wrap:wrap;gap:6px 16px}
+  header.top h1{font-size:28px}
+}
+@media print{ nav.toc{display:none} .wrap{display:block} .phase{break-inside:avoid} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>Hotel Dictionary: Implementation Plan</h1>
+  <p>A bilingual (Vietnamese default, English) website that lists hotels, locations, images, facilities, furniture, building details and rooms. Data comes from the Google Sheets already indexed by <code>sheet-rag</code>, optionally enriched with facts from mytour.vn through a Cloudflare Browser Run job. Prices shown to guests are the sheet base price plus a configurable service fee.</p>
+</header>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+<ol>
+  <li><a href="#decisions">1. Decisions</a></li>
+  <li><a href="#architecture">2. Architecture</a></li>
+  <li><a href="#data">3. Data model</a></li>
+  <li><a href="#phases">4. Phases</a></li>
+  <li><a href="#rules">5. Business rules</a></li>
+  <li><a href="#stories">6. Team stories</a></li>
+  <li><a href="#testing">7. Testing</a></li>
+  <li><a href="#risks">8. Risks</a></li>
+  <li><a href="#open">9. Open items</a></li>
+</ol>
+</nav>
+
+<main>
+
+<section id="decisions">
+<h2>1. Decisions already made</h2>
+<div class="scroll"><table>
+<thead><tr><th>Topic</th><th>Decision</th></tr></thead>
+<tbody>
+<tr><td>Website data source</td><td>A database (Cloudflare D1) filled by a sync worker. The website reads only from D1, never from the RAG index.</td></tr>
+<tr><td>RAG (<code>sheet-rag</code>)</td><td>Stays for chat and semantic search. It is not used to build the directory, because vector search returns only the closest matches, not complete lists.</td></tr>
+<tr><td>Languages</td><td>Vietnamese and English. Vietnamese is the default. The visitor's choice is saved in <code>localStorage</code> (key <code>hd_lang</code>).</td></tr>
+<tr><td>Pricing</td><td>Sheet price is the base price. A global service fee percentage (default 10%) is added on the server. Result is rounded to the nearest 1,000 VND.</td></tr>
+<tr><td>Fee note</td><td>The page may show "Includes 10% service fee". This overrides the earlier default of showing the final price only; it can be switched off in config.</td></tr>
+<tr><td>Disclaimer</td><td>One sentence, in both languages, shown on every hotel and every room (see section 5).</td></tr>
+<tr><td>Booking</td><td>Out of scope. Guests call to confirm and book.</td></tr>
+<tr><td>Mytour</td><td>Optional secondary source for plain facts only (name, address, stars, facilities). No photos, descriptions, prices or reviews until the hotel consents. Gated by the checks in Phase 0.</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="architecture">
+<h2>2. Architecture</h2>
+<div class="card">
+<div class="flow">
+  <span class="box">Google Sheets (Drive folder)</span><span class="arrow">→</span>
+  <span class="box">Sync worker (cron + queue)</span><span class="arrow">→</span>
+  <span class="box">Staging &amp; validation</span><span class="arrow">→</span>
+  <span class="box"><strong>D1 database</strong></span><span class="arrow">→</span>
+  <span class="box">Website Worker + pages</span>
+</div>
+<div class="flow">
+  <span class="box">mytour.vn</span><span class="arrow">→</span>
+  <span class="box">Browser Run <code>/crawl</code> job</span><span class="arrow">→</span>
+  <span class="box">Match &amp; review queue</span><span class="arrow">→</span>
+  <span class="box">fills empty fields in D1</span>
+</div>
+<div class="flow">
+  <span class="box">Same sync worker</span><span class="arrow">→</span>
+  <span class="box">Vectorize (existing)</span><span class="arrow">→</span>
+  <span class="box">/chat and /search</span>
+</div>
+</div>
+<ul>
+<li><strong>One Worker, several entry points:</strong> <code>fetch</code> (website pages and API), <code>scheduled</code> (cron), <code>queue</code> (sync steps). The deployed <code>sheet-rag</code> already uses this shape.</li>
+<li><strong>Static pages</strong> are served from the same Worker through an assets binding. No separate hosting.</li>
+<li><strong>Price calculation</strong> happens in the API. The browser never receives the base price.</li>
+</ul>
+</section>
+
+<section id="data">
+<h2>3. Data model (D1 sketch)</h2>
+<pre><code>CREATE TABLE hotels (
+  id TEXT PRIMARY KEY,              -- hash of fileId + gid
+  city TEXT NOT NULL,               -- from the sheet file name
+  name TEXT NOT NULL,               -- from the tab name
+  stars INTEGER, address TEXT, description TEXT,
+  lat REAL, lng REAL,
+  status TEXT NOT NULL DEFAULT 'review',   -- review | published | hidden
+  source_file_id TEXT, source_gid TEXT, source_hash TEXT, synced_at TEXT
+);
+CREATE TABLE hotel_facilities (hotel_id TEXT, category TEXT, label TEXT);  -- facility | furniture | building
+CREATE TABLE hotel_images (hotel_id TEXT, url TEXT, position INTEGER);
+CREATE TABLE rooms (id TEXT PRIMARY KEY, hotel_id TEXT, type TEXT, furniture TEXT,
+                    max_guests INTEGER, base_price INTEGER);
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);   -- service_fee_percent, show_fee_note
+CREATE TABLE overrides (hotel_id TEXT, field TEXT, value TEXT);
+CREATE TABLE mytour_staging (url TEXT PRIMARY KEY, city TEXT, name TEXT, address TEXT,
+                             stars INTEGER, facilities TEXT, fetched_at TEXT);
+CREATE TABLE hotel_source_map (hotel_id TEXT, source TEXT, source_id TEXT, score REAL,
+                               status TEXT, matched_at TEXT);   -- auto | confirmed | rejected</code></pre>
+<p>Add an FTS5 index on hotel name, address and city for dictionary-style search.</p>
+</section>
+
+<section id="phases">
+<h2>4. Phases</h2>
+<p>Size: <span class="tag s">S</span> small, <span class="tag">M</span> medium, <span class="tag">L</span> large. Phases 1 to 4 are independent of Mytour.</p>
+
+<details class="phase" open>
+<summary><span class="n">Phase 0</span> Prerequisites and checks <span class="meta">Size S · blocks everything</span></summary>
+<div class="body">
+<ul>
+<li>Recover the deployed <code>sheet-rag</code> source into the repo. The committed <code>src/index.ts</code> is an old prototype; deploying it would overwrite production.</li>
+<li>Confirm the Vectorize index dimension (bge-m3 is 1024) and the actual sheet layouts: get about 20 rows from two tabs in different cities.</li>
+<li>Fill the <code>TODO</code> placeholders in <code>.team/config.md</code> (build, tests, e2e, test folders). The team stops on placeholders.</li>
+<li>Read mytour.vn <code>robots.txt</code> and terms, and get a legal opinion. Needs the host allowed in the session network.</li>
+</ul>
+<p><strong>Done when:</strong> source is in the repo and builds, config has no TODO, sample sheets reviewed, Mytour go/no-go recorded in <code>.team/decision.md</code>.</p>
+</div>
+</details>
+
+<details class="phase">
+<summary><span class="n">Phase 1</span> D1 schema and settings <span class="meta">Size S · needs Phase 0</span></summary>
+<div class="body">
+<ul>
+<li>Create the D1 database and a migration for the tables in section 3.</li>
+<li>Seed <code>settings</code>: <code>service_fee_percent = 10</code>, <code>show_fee_note = true</code>.</li>
+<li>Add D1 and assets bindings to <code>wrangler.jsonc</code>; run <code>wrangler types</code>.</li>
+</ul>
+<p><strong>Done when:</strong> migration applies cleanly on a fresh database and a test reads the settings.</p>
+</div>
+</details>
+
+<details class="phase">
+<summary><span class="n">Phase 2</span> Sheet to D1 extraction <span class="meta">Size L · the main risk</span></summary>
+<div class="body">
+<ul>
+<li>Extend the existing <code>syncTab</code>: after the CSV is fetched and the hash differs, extract a structured record and upsert it into D1. Keep the Vectorize step.</li>
+<li><strong>Hybrid extraction:</strong> a parser for tabular parts (rooms, prices); an LLM with a fixed JSON schema for free text (description, facilities, furniture, building). Image URLs are taken by pattern, never by the model.</li>
+<li><strong>Validation:</strong> price numeric, stars 1 to 5, URLs start with <code>https</code>. Failures set <code>status = review</code> and stay off the public site.</li>
+<li>Apply <code>overrides</code> after every sync so manual corrections survive.</li>
+<li>Extend <code>dropTab</code> to hide or remove the hotel when its tab disappears.</li>
+<li>Replace child rows (facilities, images, rooms) in one batch per hotel, keyed by the stable hotel id.</li>
+</ul>
+<p><strong>Done when:</strong> a forced reindex of sample sheets fills D1; rerunning changes nothing; an edited tab updates only that hotel; a deleted tab hides it.</p>
+</div>
+</details>
+
+<details class="phase">
+<summary><span class="n">Phase 3</span> Website API <span class="meta">Size M · needs Phase 1</span></summary>
+<div class="body">
+<div class="scroll"><table>
+<thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>GET /api/hotels?city=&amp;q=&amp;stars=&amp;facility=&amp;sort=&amp;page=</code></td><td>Directory list with search and filters. Published hotels only.</td></tr>
+<tr><td><code>GET /api/hotels/:id</code></td><td>Hotel detail: facilities, furniture, building, images, rooms.</td></tr>
+<tr><td><code>GET /api/cities</code></td><td>City tabs and A to Z index.</td></tr>
+<tr><td><code>GET /api/config</code></td><td>Public settings (fee note on/off, disclaimer text). Never the base price.</td></tr>
+</tbody></table></div>
+<ul>
+<li>Apply the fee on the server (formula in section 5).</li>
+<li>Add CORS only if the pages are served from another domain, and rate limiting, because <code>/search</code> and <code>/chat</code> currently call a large model without limits.</li>
+<li>Cache list responses briefly; invalidate after a sync.</li>
+</ul>
+<p><strong>Done when:</strong> unit tests cover the fee formula, filters and unpublished hotels never appearing.</p>
+</div>
+</details>
+
+<details class="phase">
+<summary><span class="n">Phase 4</span> Website pages <span class="meta">Size M · needs Phase 3</span></summary>
+<div class="body">
+<ul>
+<li>Pages from the approved mockup: directory (home), hotel detail, mobile layout.</li>
+<li>Language: <code>vi</code> by default; the VI/EN toggle writes <code>hd_lang</code> to <code>localStorage</code> inside <code>try/catch</code>, and reads it on load.</li>
+<li>Disclaimer on every hotel card, every room row and the price panel, in the chosen language.</li>
+<li>Server-rendered or pre-rendered hotel pages with titles and descriptions for search engines.</li>
+<li>Accessibility basics: labels, focus order, 44 px touch targets, text contrast.</li>
+</ul>
+<p><strong>Done when:</strong> an e2e test loads the home page in Vietnamese, switches to English, reloads and still sees English, and finds the disclaimer on every card.</p>
+</div>
+</details>
+
+<details class="phase">
+<summary><span class="n">Phase 5</span> Mytour crawl with Browser Run <span class="meta">Size L · only if Phase 0 approves</span></summary>
+<div class="body">
+<ul>
+<li><strong>Job:</strong> a weekly cron calls the Browser Run <code>/crawl</code> endpoint for each city listing, with structured JSON output and an include pattern limited to hotel pages. Store the job id; a queue consumer fetches results into <code>mytour_staging</code>.</li>
+<li><strong>Behaviour to expect:</strong> the crawler honours <code>robots.txt</code> and <code>crawl-delay</code>, identifies itself as a bot, and does not bypass bot protection. Disallowed URLs return <code>robots_disallowed</code>; do not work around that.</li>
+<li><strong>Fallback:</strong> Puppeteer or Playwright through a Worker binding, with guardrails limiting the session to <code>mytour.vn</code>, run from a queue with reused sessions.</li>
+<li><strong>Keep only facts:</strong> name, address, stars, facilities list, source URL, fetch time.</li>
+<li><strong>Matching:</strong> compare each sheet hotel with Mytour hotels in the same city. Normalise names (no diacritics, drop "khách sạn" or "hotel"), score name, address, phone and coordinates, then auto-link above a high threshold, send the middle band to review, and ignore the rest. Store results in <code>hotel_source_map</code>; confirmed and rejected links are never re-decided.</li>
+<li><strong>Merge rule:</strong> Mytour fills empty fields only; the sheet value always wins. Unmatched Mytour hotels stay <code>review</code> and hidden.</li>
+</ul>
+<p><strong>Done when:</strong> a test crawl of one city fills staging, a labelled sample of about 50 hotels is matched correctly at the chosen thresholds, and nothing from Mytour overwrites a sheet value.</p>
+</div>
+</details>
+
+<details class="phase">
+<summary><span class="n">Phase 6</span> Admin and review tools <span class="meta">Size M · overlaps STORY-7, 8, 9</span></summary>
+<div class="body">
+<ul>
+<li>Protected admin page (single admin role, sign-in).</li>
+<li>Fee settings: edit <code>service_fee_percent</code> (0 to 100) and the fee note switch, with a price preview.</li>
+<li>Review queue: hotels with failed validation and uncertain Mytour matches; approve, edit or reject; edits go into <code>overrides</code>.</li>
+<li>Sync status: last sync time, hotels per status, errors.</li>
+</ul>
+</div>
+</details>
+
+<details class="phase">
+<summary><span class="n">Phase 7</span> Hardening and release <span class="meta">Size M</span></summary>
+<div class="body">
+<ul>
+<li>Rate limiting and an admin token on <code>/admin/*</code>; no secrets in <code>wrangler.jsonc</code> vars.</li>
+<li>Observability: log each sync with counts of created, updated, failed hotels.</li>
+<li>Run staging first with real sheets; compare counts with the sheets before publishing.</li>
+<li>Rollback: keep the previous Worker version; hotels can be hidden with one status update.</li>
+<li>Have the disclaimer, fee note and terms reviewed by a lawyer before launch.</li>
+</ul>
+</div>
+</details>
+</section>
+
+<section id="rules">
+<h2>5. Business rules</h2>
+<h3>Final price</h3>
+<pre><code>fee   = clamp(settings.service_fee_percent, 0, 100)      // default 10
+final = round(base * (1 + fee / 100) / 1000) * 1000      // nearest 1,000 VND
+// 1,250,000 -&gt; 1,375,000</code></pre>
+<h3>Disclaimer (every hotel and room)</h3>
+<div class="card">
+<p><strong>English:</strong> Prices and room availability change with the rooms remaining and hotel reports and are not guaranteed, so please call us to confirm before booking.</p>
+<p><strong>Vietnamese:</strong> Giá và tình trạng phòng thay đổi theo số phòng còn lại và báo cáo từ khách sạn, chúng tôi không cam kết, vui lòng gọi điện để xác nhận trước khi đặt phòng.</p>
+</div>
+<div class="note">A visible sentence reduces risk but does not guarantee legal protection. Have a lawyer review the wording and consider a short Terms page linked from the footer.</div>
+<h3>Merge priority</h3>
+<ol><li>Manual overrides</li><li>Google Sheets</li><li>Mytour facts (empty fields only)</li></ol>
+</section>
+
+<section id="stories">
+<h2>6. Mapping to the team workflow</h2>
+<p>The team in <code>.claude/rules/team-coordinator.md</code> works from stories. Existing stories already cover part of this plan:</p>
+<div class="scroll"><table>
+<thead><tr><th>Plan phase</th><th>Existing story</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td>2 Sheet extraction</td><td>STORY-2 (import from Sheets)</td><td>Update: target is D1, hybrid extraction, review status</td></tr>
+<tr><td>3 Pricing</td><td>STORY-4 (final price), STORY-8 (fee settings)</td><td>Update: one global percentage, optional fee note</td></tr>
+<tr><td>4 Website</td><td>STORY-10 (public web page)</td><td>New story: directory website (the existing one is chat-focused)</td></tr>
+<tr><td>6 Admin</td><td>STORY-7, STORY-8, STORY-9</td><td>Reuse; add review queue</td></tr>
+<tr><td>5 Mytour</td><td>none</td><td>New story: crawl, match, review (blocked until Phase 0 go)</td></tr>
+<tr><td>4 Languages and disclaimer</td><td>none</td><td>New story</td></tr>
+</tbody></table></div>
+<p>Dispatch needs <code>.team/config.md</code> filled first. Suggested values: unit tests <code>npm test -- --run</code> in <code>sheet-rag/</code>, build <code>npx wrangler deploy --dry-run</code>, e2e Playwright (to be added). The unit test setup currently needs <code>CLOUDFLARE_API_TOKEN</code> because the AI and Vectorize bindings run remotely, so tests should mock those bindings.</p>
+</section>
+
+<section id="testing">
+<h2>7. Testing</h2>
+<ul>
+<li><strong>Unit:</strong> fee formula and rounding, parser on sample tabs, validation rules, name normalisation and match scoring, i18n dictionary completeness (every key in both languages).</li>
+<li><strong>Integration:</strong> sync of a fixture sheet into a local D1; idempotent rerun; deleted tab; override survives resync.</li>
+<li><strong>E2E (Playwright):</strong> language default and persistence, disclaimer on every card and room, price equals base times 1.10 rounded, unpublished hotels never listed.</li>
+<li><strong>Matching quality:</strong> a labelled sample of about 50 hotels to choose thresholds, measured before enabling auto-link.</li>
+</ul>
+</section>
+
+<section id="risks">
+<h2>8. Risks</h2>
+<div class="scroll"><table>
+<thead><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr></thead>
+<tbody>
+<tr><td>Sheets are layouts, not tables</td><td>Extraction errors</td><td>Hybrid parser plus LLM, validation, review queue, overrides</td></tr>
+<tr><td>Images pasted into cells, not links</td><td>CSV export drops them</td><td>Ask for image links, or host images in R2</td></tr>
+<tr><td>Overwriting production with the repo's old code</td><td>Chat and sync stop</td><td>Recover deployed source first (Phase 0)</td></tr>
+<tr><td>Mytour terms or bot protection</td><td>Crawl refused or legal claim</td><td>Phase 0 checks; facts only; no evasion</td></tr>
+<tr><td>Public <code>/search</code> and <code>/chat</code> with no limits</td><td>Cost abuse</td><td>Rate limiting before launch</td></tr>
+<tr><td>Prices change after the page loads</td><td>Guest disputes</td><td>Disclaimer, call to confirm, legal review</td></tr>
+<tr><td>Long chunks vs embedding input size</td><td>Weaker chat matches</td><td>Check how bge-m3 truncates; shorten chunks if needed</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="open">
+<h2>9. Open items</h2>
+<ol>
+<li>Sample sheet rows and whether images are links or pasted pictures.</li>
+<li>Mytour <code>robots.txt</code>, terms and legal go/no-go.</li>
+<li>Whether to show the fee note to guests (currently yes, switchable).</li>
+<li>Whether the fee can ever differ per hotel (currently one global value).</li>
+<li>Browser Run pricing and D1 limits at your data size (not yet checked).</li>
+<li>Hotels' consent for photos and descriptions.</li>
+</ol>
+<p style="color:var(--muted);font-size:14px">Prepared from the discussion and the approved mockup. Nothing in this plan has been implemented or deployed.</p>
+</section>
+
+</main>
+</div>
+</body>
+</html>
