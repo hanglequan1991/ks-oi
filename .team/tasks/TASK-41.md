@@ -50,8 +50,12 @@ Shared files: none besides TASK-40's (done).
 - Extra test: empty `PW_CHROMIUM_PATH` is ignored.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework
-1. Specific, actionable note. -->
+Verdict: approve
+
+- Unit suite: 43 files, 297 tests pass. TC-11 on the chromium project passes using the config's launchOptions.
+- AC1-AC5 each have a test; AC6 was verified by running TC-11. The resolution order matches the design (env, then default exists, then chromium-*, then headless shell, then undefined). `--no-sandbox` is added only when root. Both projects share one `launchOptions`. `webServer`, `testIgnore` and `testMatch` are unchanged.
+- `git diff` shows only the two listed files changed (plus this task file). `package.json` and `e2e/TC-11.e2e.ts` are untouched.
+- Minor, not blocking: the "share launchOptions" test recomputes its expected value from the same logic, so the non-root branch (no `args`) is not exercised by an independent assertion on this root machine.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
