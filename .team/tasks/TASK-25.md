@@ -3,7 +3,7 @@
 - id: TASK-25
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-23 (hotel routes), TASK-24 (meta routes), TASK-3 (seeded settings), TASK-14 (`createApp`)
