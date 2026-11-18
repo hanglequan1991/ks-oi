@@ -3,10 +3,10 @@
 - id: TASK-34
 - story: [STORY-11](../stories/STORY-11.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 0
-- depends on: TASK-6 (it also edits `package.json` and `package-lock.json`: run **after** TASK-6, never in parallel with TASK-6 or TASK-39), TASK-1 (`test` script)
+- depends on: TASK-6 (it also edits `package.json` and `package-lock.json`: run **after** TASK-6, never in parallel with TASK-6 or TASK-39), TASK-1 (`test` script), TASK-26 (creates `src/domain/money.ts` with `parseVnd`, imported by the AC-B1/B2 test entry; this task does not touch it)
 - size: fits a 100k-token context (one small script, one test, three config lines)
 
 ## Why
@@ -50,3 +50,4 @@ In `test/client/build.spec.ts` (outputs go to a temp folder, never into `public/
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
+Q (dev, technical, to lead): AC-B1 and AC-B2 and the first unit test require the temp entry to import `src/domain/money.ts` and the bundled output to contain `parseVnd`. Neither exists: `sheet-rag/src/domain/` has only `fold.ts` and `pricing.ts`, and `parseVnd` is not defined anywhere in `sheet-rag/src` or `sheet-rag/test`. TASK-34 does not list `money.ts` as a file it may touch. Options: (a) another task creates `src/domain/money.ts` with `parseVnd` first and TASK-34 depends on it; (b) the test imports an existing domain module instead (e.g. `src/domain/pricing.ts` `finalPrice`) and AC-B2 checks for that function name. Which one should dev use? No code or package.json changes made yet.
