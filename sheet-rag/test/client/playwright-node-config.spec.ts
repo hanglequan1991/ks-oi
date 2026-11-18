@@ -1,7 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { launchArgs, resolveChromiumPath } from "../../playwright.node.config";
 
 const ROOT = join(__dirname, "..", "..");
 
@@ -63,5 +65,101 @@ describe("playwright node config", () => {
 		} finally {
 			if (saved !== undefined) process.env.E2E_BASE_URL = saved;
 		}
+	});
+});
+
+describe("chromium path selection", () => {
+	let root: string;
+
+	beforeEach(() => {
+		root = mkdtempSync(join(tmpdir(), "pw-browsers-"));
+	});
+
+	afterEach(() => {
+		rmSync(root, { recursive: true, force: true });
+	});
+
+	function touch(rel: string): string {
+		const full = join(root, rel);
+		mkdirSync(dirname(full), { recursive: true });
+		writeFileSync(full, "");
+		return full;
+	}
+
+	const noDefault = () => join(root, "no-such-default", "chrome");
+
+	it("PW_CHROMIUM_PATH wins over everything", () => {
+		const resolved = resolveChromiumPath(
+			{ PW_CHROMIUM_PATH: "/custom/chrome" },
+			() => true,
+			() => "/default/chrome",
+			root,
+		);
+		expect(resolved).toBe("/custom/chrome");
+	});
+
+	it("returns undefined when the default browser exists", () => {
+		const resolved = resolveChromiumPath(
+			{},
+			(p) => p === "/default/chrome",
+			() => "/default/chrome",
+			root,
+		);
+		expect(resolved).toBeUndefined();
+	});
+
+	it("an empty PW_CHROMIUM_PATH is ignored", () => {
+		const resolved = resolveChromiumPath(
+			{ PW_CHROMIUM_PATH: "" },
+			(p) => p === "/default/chrome",
+			() => "/default/chrome",
+			root,
+		);
+		expect(resolved).toBeUndefined();
+	});
+
+	it("picks the first chromium-* chrome when default is missing", () => {
+		touch("chromium-1300/chrome-linux64/chrome");
+		const first = touch("chromium-1243/chrome-linux64/chrome");
+		touch("chromium-1100/chrome-linux64/readme.txt");
+		touch("chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell");
+		expect(resolveChromiumPath({}, existsSync, noDefault, root)).toBe(first);
+	});
+
+	it("falls back to headless shell, then undefined", () => {
+		touch("chromium/chrome-linux64/chrome");
+		const shell = touch(
+			"chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+		);
+		expect(resolveChromiumPath({}, existsSync, noDefault, root)).toBe(shell);
+
+		const empty = mkdtempSync(join(tmpdir(), "pw-empty-"));
+		try {
+			expect(resolveChromiumPath({}, existsSync, noDefault, empty)).toBeUndefined();
+		} finally {
+			rmSync(empty, { recursive: true, force: true });
+		}
+	});
+
+	it("launchArgs adds --no-sandbox only for root", () => {
+		expect(launchArgs(true)).toEqual(["--no-sandbox"]);
+		expect(launchArgs(false)).toEqual([]);
+	});
+
+	it("chromium and mobile projects share the resolved launchOptions", async () => {
+		const mod = await import("../../playwright.node.config");
+		const isRoot = process.getuid?.() === 0;
+		const executablePath = resolveChromiumPath();
+		const expected = {
+			...(executablePath ? { executablePath } : {}),
+			...(isRoot ? { args: launchArgs(true) } : {}),
+		};
+		const projects = mod.default.projects ?? [];
+		const chromiumProject = projects.find((p) => p.name === "chromium");
+		const mobileProject = projects.find((p) => p.name === "mobile");
+
+		expect(chromiumProject?.use?.launchOptions).toStrictEqual(expected);
+		expect(mobileProject?.use?.launchOptions).toStrictEqual(expected);
+		expect(mod.default.webServer).toBeUndefined();
 	});
 });

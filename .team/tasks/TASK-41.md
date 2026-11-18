@@ -44,6 +44,10 @@ Shared files: none besides TASK-40's (done).
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red first: 7 new tests failed (helpers not exported), then green: spec 12/12, full unit suite 297/297 (43 files).
+- Added `resolveChromiumPath`, `launchArgs` (named exports) and shared `launchOptions` to both projects in `playwright.node.config.ts`.
+- Playwright checks: TC-11 (chromium, no inline override in config) passed; TC-1 passed (1 skipped by its own test); `--list` exit 0. playwright install not run.
+- Extra test: empty `PW_CHROMIUM_PATH` is ignored.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework
