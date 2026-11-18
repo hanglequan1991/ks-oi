@@ -39,7 +39,7 @@ export const SAMPLE_BASE_PRICE_STRINGS: string[] = [
 const SYNCED_AT = "2026-11-18T03:00:00Z";
 const SOURCE_FILE = "sample-file";
 
-/** Minimal shape of the D1 binding used here. Kept local so this file needs no runtime import. */
+/** The D1 binding type (global from worker-configuration.d.ts). Type-only, so no runtime import. */
 type Db = D1Database;
 
 async function run(db: Db, statements: Array<{ sql: string; params: unknown[] }>): Promise<void> {
@@ -183,8 +183,7 @@ export async function seedApiSample(db: Db): Promise<void> {
 
 /**
  * Adds `n` published hotels `bulk-1` .. `bulk-n` in `ha-noi` (3 stars, no rooms), for paging
- * tests. Ids and slugs are unique per `n`, so calling it again with a different range
- * is safe only if the names do not repeat; call it once per fresh database.
+ * tests. Ids collide with an earlier call, so call it at most once per fresh database.
  */
 export async function seedManyPublished(db: Db, n: number): Promise<void> {
 	const statements = [];

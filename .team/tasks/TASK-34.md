@@ -3,7 +3,7 @@
 - id: TASK-34
 - story: [STORY-11](../stories/STORY-11.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-6 (it also edits `package.json` and `package-lock.json`: run **after** TASK-6, never in parallel with TASK-6 or TASK-39), TASK-1 (`test` script), TASK-26 (creates `src/domain/money.ts` with `parseVnd`, imported by the AC-B1/B2 test entry; this task does not touch it)
@@ -44,6 +44,10 @@ In `test/client/build.spec.ts` (outputs go to a temp folder, never into `public/
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: test failed on missing `scripts/build-client.mjs`. Green: 5/5 tests in `test/client/build.spec.ts` pass with `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/client/build.spec.ts`.
+- `esbuild` added with `npm install --save-dev esbuild@^0.28.2`; lockfile diff is one line (resolved to 0.28.2).
+- Direct run with no entry prints the esbuild error and exits 1 (entry `src/client/bill/main.ts` does not exist yet); no output file is written.
+- Commit `8b925dd` (someone else's "Approve TASK-11..." commit) already contains my in-progress files; dev did not commit.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

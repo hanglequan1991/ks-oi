@@ -1,3 +1,4 @@
+import process from "node:process";
 import { describe, expect, it } from "vitest";
 import { createFakeD1, type FakeD1 } from "../fakes/d1";
 import { applyMigrations } from "../fakes/migrations";
