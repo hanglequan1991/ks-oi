@@ -39,6 +39,9 @@
 
 ## Review
 <!-- Written by qalead. -->
+Verdict: approve
+
+Re-ran the test: 1 passed. It follows steps 1-6. It checks the default status `review` and that all four invalid inserts (live, Published, '', NULL) are rejected with a constraint error. It checks that the row count stays at 4 and that the update to `archived` is rejected with the old status kept. It asserts the final counts `{hidden:1, published:1, review:2}`. No sleeps, and it touches only its own file.
 
 ## Questions
 <!-- Q: ...   A: ... -->
