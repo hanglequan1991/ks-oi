@@ -21,15 +21,17 @@ Run note (all stories): e2e TCs run via `npx playwright test -c playwright.node.
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
 | [TC-1](testcases/TC-1.md) | qa | e2e/TC-1.e2e.ts | qa | done | 0 | qalead approved; TASK-40 done |
-| [TC-2](testcases/TC-2.md) | qa | e2e/TC-2.e2e.ts | qa | in-progress | 0 | |
-| [TC-3](testcases/TC-3.md) | qa | e2e/TC-3.e2e.ts | - | todo | 0 | |
-| [TC-4](testcases/TC-4.md) | qa | e2e/TC-4.e2e.ts | - | todo | 0 | |
-| [TC-5](testcases/TC-5.md) | qa | e2e/TC-5.e2e.ts | - | todo | 0 | |
-| [TC-6](testcases/TC-6.md) | qa | e2e/TC-6.e2e.ts | - | todo | 0 | |
-| [TC-7](testcases/TC-7.md) | qa | e2e/TC-7.e2e.ts | - | todo | 0 | |
-| [TC-8](testcases/TC-8.md) | qa | e2e/TC-8.e2e.ts | - | todo | 0 | |
-| [TC-9](testcases/TC-9.md) | qa | e2e/TC-9.e2e.ts | - | todo | 0 | |
-| [TC-10](testcases/TC-10.md) | qa | e2e/TC-10.e2e.ts | - | todo | 0 | needs a live deployment (real Cloudflare D1) |
+| [TC-2](testcases/TC-2.md) | qa | e2e/TC-2.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-3](testcases/TC-3.md) | qa | e2e/TC-3.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-4](testcases/TC-4.md) | qa | e2e/TC-4.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-5](testcases/TC-5.md) | qa | e2e/TC-5.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-6](testcases/TC-6.md) | qa | e2e/TC-6.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-7](testcases/TC-7.md) | qa | e2e/TC-7.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-8](testcases/TC-8.md) | qa | e2e/TC-8.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-9](testcases/TC-9.md) | qa | e2e/TC-9.e2e.ts | qa | review | 0 | awaiting qalead review |
+| [TC-10](testcases/TC-10.md) | qa | e2e/TC-10.e2e.ts | - | blocked | 0 | needs live Cloudflare D1; owner runs |
+
+Follow-up candidate (lead): booking_rules does not enforce that room_id belongs to the same hotel_id (composite FK or trigger + a new TC); raised by qa/qalead in TC-6; low-medium priority.
 
 ## STORY-16: Web shell (app, layout, i18n, middleware)
 
@@ -51,7 +53,7 @@ QA test cases for STORY-16 (TC-11 to TC-22 need Playwright from TASK-39 and, for
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TC-11](testcases/TC-11.md) | qa | e2e/TC-11.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
+| [TC-11](testcases/TC-11.md) | qa | e2e/TC-11.e2e.ts | qa | in-progress | 0 | needs Playwright (TASK-39) |
 | [TC-12](testcases/TC-12.md) | qa | e2e/TC-12.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
 | [TC-13](testcases/TC-13.md) | qa | e2e/TC-13.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
 | [TC-14](testcases/TC-14.md) | qa | e2e/TC-14.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |

@@ -3,7 +3,7 @@
 - id: TC-9
 - story: [STORY-13](../stories/STORY-13.md)
 - verifies: AC10 (also re-checks AC3, AC4, AC5 through the application code)
-- status: todo
+- status: review
 - rework count: 0
 - automation test file: `sheet-rag/e2e/TC-9.e2e.ts`
 - runs without Cloudflare credentials: yes (imports `getSettings` from `sheet-rag/src/db/settings.ts` and the fake D1 cast `as unknown as D1Database`)
