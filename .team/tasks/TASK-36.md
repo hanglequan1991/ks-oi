@@ -64,7 +64,13 @@ In `test/client/bill-config.spec.ts` and `test/client/bill-guard.spec.ts`.
 - Not verified: a standalone `tsc --noEmit` (not part of the allowed test command). The bundle test (`buildClient` on `main.ts`) passes, so the bundle builds.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve (lead, 2026-11-18). Full run: 40 files, 269 tests passed (bill-config 7 tests, bill-guard 7 tests). Only the four listed files are new.
+- `config.ts`: pure; invalid JSON, arrays, non-object labels, oversized text return null, never throw; non-string labels dropped, missing keys fall back to key name, `__proto__` skipped; limits always from `money.ts`.
+- `main.ts` wiring: state store, storage (`loadDraft`/`saveDraft`/`createSaver`/`clearDraft`), combobox (`comboStep`/`comboAria`/`filterOptions`), `createBillApi` + `createSuggester`, `format`, `viewModel`/`render` are all used. Picks on `mousedown`, Clear all confirms, Clear draft clears storage and resets, Print sets `[data-bill-date]` first, `pagehide` flushes, draft restore reloads rooms per slug and a failed load is silent. No `innerHTML` (bundle test checks too); only network calls are the two GETs in `api.ts` (`/api/suggest`, `/api/hotels/:slug?lang=`, `credentials: 'omit'`); no localStorage outside `main.ts` (wrapped in try/catch) and the only key is `hd_bill_v1` in `storage.ts`; no tel/zalo/phone.
+- `div.bill-rows` wrapper: compatible, no change needed in any task. `Bill.tsx` (TASK-37) renders `#bill-app.bill-grid` (display: block) holding the server `.bill-head`; `main.ts` appends `.bill-rows` after it, so `replaceChildren()` in `renderRows` only clears the rows and keeps the head. `public/bill.css` (TASK-33) has no rule for `.bill-rows` and no child combinators (`>`), so it is an unstyled block; the grid templates sit on `.bill-head`, `.bill-row` and `.bill-note`, which stay in the same relative order (`.bill-head`, then `.bill-item` > `.bill-row` + `.bill-note`), and the mobile and print rules select by class only. Column alignment holds because head, row and note all use the same 7-column template. Only effect: if config parsing fails, `app.textContent` replaces the head too (acceptable, shows the fallback message).
+- JS-required path: `<noscript>` message and static head are in `Bill.tsx`; `/bill.js` is deferred.
+- Guard test covers: forbidden APIs, HTTP methods, `/admin`, dynamic import, imports outside `./` and `../../domain/`, fetch only in `main.ts` and `api.ts`, localStorage only in `main.ts`, single key. Judgement call on `\btel:` word boundary accepted (avoids a false hit on `hotel:` in `render.ts`).
+- Not verified (accepted): no browser run; behaviour is for qa's Playwright TCs.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

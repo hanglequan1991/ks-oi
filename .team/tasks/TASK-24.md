@@ -53,7 +53,12 @@ In `test/web/api/meta.spec.ts`, using `createApp` with `mount` + fake D1 + `seed
 - Full unit run: 255 of 256 pass. The one failure is `test/web/api/hotels.spec.ts` (oversized limit test, another dev's file), not my files.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve (lead, 2026-11-18). Full run: 40 files, 269 tests passed.
+- Tests cover AC1 to AC7 (8 tests, 7 named plus invalid-lang on /api/cities). Only `src/web/api/meta.ts` and its spec are new.
+- `/api/config` returns exactly `disclaimer {vi,en}`, `showFeeNote`, `serviceFeePercent`, `languages`; no phone, Zalo or contact field; settings read once; test checks key names and value patterns.
+- `/api/suggest`: `parseSuggestParams` before any query (400 `invalid_q`/`invalid_param`), limit 1 to 10 default 8, items are only `slug`, `name`, `city` (language with Vietnamese fallback via `toCityItem`), no settings read, Cache-Control 30 on 200 only. Hostile text test passes (no 500, table unchanged).
+- `/api/cities`: both names, fallback for `ha-noi`, only cities with published hotels (`hue` absent).
+- Only GET routes. No file outside the list changed. Note: the dev saw one failing hotels.spec test during their run; it is green now.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

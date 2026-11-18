@@ -60,7 +60,14 @@ In `test/web/api/hotels.spec.ts`: build `createApp({ getSettings: stub, mount: (
 - Settings are read once per request (`deps.getSettings()`), only after validation passes and, for detail, only when the hotel is found.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve (lead, 2026-11-18). Full run `env -u CLOUDFLARE_API_TOKEN npm test -- --run`: 40 files, 269 tests passed.
+- Tests cover AC1 to AC11 (14 tests, 11 named plus 3 extras). Only `src/web/api/hotels.ts` and its spec are new.
+- Language decision: correct. STORY-15 AC4 only says the detail returns facilities, images, rooms, rules; this task's AC4 and TC-28 (steps 2 and 4, expected results 3 and 5) both call `GET /api/hotels/mong-hotel?lang=en`, and TC-27/TC-33/TC-34/TC-37 also use `?lang=`. A `/en/api/...` path would not match the `/api/hotels/*` rate-limit and noindex rules of `createApp`, so the query parameter is required. No TC conflict found; no change to scope or file list. Reading confirmed: `lang` is a query parameter on all JSON routes (default vi, `fr` gives 400 `invalid_param`).
+- Base price: `hotels.ts` never reads `base_price`/`min_base_price`; prices go through `toHotelListItem`/`toHotelDetail` (`hotelView.ts`, `priceView` applies the fee; public view types have no base price field). Test `no base price appears...` checks the response text against `SAMPLE_BASE_PRICE_STRINGS`.
+- Page size cap 50 (`limit=500` gives 200 with limit 50, `limit=abc` 400); response returns the effective `limit`; `totalPages` 0 when empty.
+- Fee: `getSettings()` called once per request, after validation (detail: only when found); stub tests for 20, 150 (clamped) and note flag.
+- 404 for review, hidden, unknown and malformed slugs (regex before query). Only `app.get` is registered; other methods fall to the app's default. Cache-Control only on 200.
+- No file outside the list changed.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
