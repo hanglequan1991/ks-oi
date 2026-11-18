@@ -77,6 +77,15 @@ In `test/client/bill-viewmodel.spec.ts`.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag/ gives 28 files, 182 tests, all passing. `bill-viewmodel.spec.ts` has 10 tests, one per AC 1-10, with the names listed in the task.
+- Files: only `viewModel.ts`, `render.ts` and `bill-viewmodel.spec.ts` belong to this task. The same commit also touches `src/db/hotelList.ts` and `test/db/hotelList.spec.ts`. These belong to TASK-20 (already in review), not to this task.
+- Class contract: every class in `render.ts` (`C` object) exists in `public/bill.css`, and the test enforces it. No `style` attribute and no `className` assignment.
+- AC10 / no HTML injection: no `innerHTML`, `outerHTML`, `insertAdjacentHTML` or `document.write` in either file. User text goes through `textContent`, `.value` or `setAttribute`. `li.setAttribute("data-value", ...)` is an attribute, not HTML.
+- Note label: the visible label is `labels.noteLabel` (NOTE / GHI CHÚ) with no number. `noteAria` keeps the row number ("Note, row 2" / "Ghi chú, dòng 2"). `RowView` has no `noteLabel` field.
+- No phone or Zalo reference in either file.
+- Non-blocking observations: (a) the AC2 test only checks that no string field matches `NOTE\s*\d`. That is acceptable since the visible label is a pure label lookup. (b) The remove button text "×" is hard-coded. It is a glyph and the aria-label comes from the view, so it is fine.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
