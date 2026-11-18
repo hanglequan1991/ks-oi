@@ -3,7 +3,8 @@
 - id: TASK-5
 - story: [STORY-13](../stories/STORY-13.md)
 - type: backend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-3 (seeded settings) and TASK-4 (`parseFeePercent`, `parseBoolSetting`, `DEFAULT_FEE_PERCENT`); TASK-1 for the fake
 - size: fits a 100k-token context (few files, one behaviour)

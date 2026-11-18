@@ -3,7 +3,7 @@
 - id: TASK-18
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-4 (`finalPrice`); TASK-1 (test runner)
