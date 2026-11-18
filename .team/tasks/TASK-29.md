@@ -3,7 +3,7 @@
 - id: TASK-29
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-28 (`BillRow`, `emptyRow`), TASK-26 (limits)
@@ -65,7 +65,12 @@ In `test/client/bill-storage.spec.ts` (fake storage and fake timers; no browser)
 - `saveDraft` sanitizes rows with a local random-id fallback, since it takes no `makeId`.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+- Full suite run: 32 files, 201 tests green. Only the 2 listed files are new.
+- Key `hd_bill_v1`; every storage access is inside try/catch (load, save, clear, and the quiet remove); `null` storage accepted.
+- Restore never trusts shape: object/version/savedAt/rows checked, then `sanitizeRows` checks each field (types, integer ranges, nights clamp, price 0..MAX_PRICE, priceEdited rule, id length and duplicates, 30-row cap, unknown fields dropped). Note and text cuts use code points (`Array.from`). `saveDraft` also sanitizes before writing.
+- Debounce restarts the timer; flush only runs when pending; cancel drops it. No network API in the module (source scan test).
+- Tests cover AC1 to AC9. Minor, not blocking: the 500 cap test uses ASCII only, so the code-point behaviour is not asserted; `savedAt` is only type-checked, not validated as a date.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

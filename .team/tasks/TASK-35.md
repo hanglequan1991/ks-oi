@@ -3,7 +3,7 @@
 - id: TASK-35
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-28 (state), TASK-31 (format), TASK-26 (limits), TASK-33 (class contract in `public/bill.css`; read it, do not edit it)

@@ -3,7 +3,8 @@
 - id: TASK-37
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-9 (`Layout`), TASK-8 (`Disclaimer`, `FeeNote`), TASK-27 (`bill` dictionary), TASK-7 (`t`, `format`), TASK-5 (`SiteSettings` type), TASK-33 (class contract), TASK-6 (JSX), TASK-26 (limits from `src/domain/money.ts`, AC9)
 - size: fits a 100k-token context (one component and its test)

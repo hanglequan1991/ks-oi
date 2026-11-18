@@ -3,7 +3,7 @@
 - id: TASK-27
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-7 (creates `vi.ts`, `en.ts`, `t.ts` and the key-parity test). Shared files: this is the only STORY-11 task that edits `vi.ts` and `en.ts`; do not run in parallel with any other task that edits them.

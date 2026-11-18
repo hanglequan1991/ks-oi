@@ -3,7 +3,8 @@
 - id: TASK-32
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-28 (`RoomOption` type), TASK-6 (test glob). Contract with the server: TASK-23 (`GET /api/hotels/:slug`) and TASK-24 (`GET /api/suggest`); this task is tested with a fake `fetch`, no server.
 - size: fits a 100k-token context (one file, injected fetch and timers)

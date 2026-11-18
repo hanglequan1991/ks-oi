@@ -3,7 +3,7 @@
 - id: TASK-22
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-2 (schema), TASK-16 (sample data), TASK-17 (`foldText`, `likePrefixPattern`), TASK-1 (fake D1)
@@ -16,7 +16,7 @@ AC11, AC12 and AC13. Both files take `D1Database` as a parameter, import only `s
 ```ts
 export async function listCitiesWithPublishedHotels(db: D1Database): Promise<{ slug: string; name_vi: string; name_en: string | null }[]>;
 ```
-Only cities that have at least one `published` hotel (`EXISTS`), ordered by `name_vi`, then `slug`.
+Only cities that have at least one `published` hotel (`EXISTS`), ordered by `foldText(name_vi)`, then `name_vi`, then `slug`, sorted in JS (SQLite code-point order would put `Hà Nội` before `Đà Nẵng`; AC11 needs `da-nang` first). Updated by lead after review.
 
 `sheet-rag/src/db/suggest.ts`:
 ```ts
@@ -53,7 +53,11 @@ In `test/db/cities.spec.ts` and `test/db/suggest.spec.ts`, fake D1 + `applyMigra
 - Full suite: 192 tests pass. `test/client/bill-storage.spec.ts` fails to load (`src/client/bill/storage` missing). Not from this task.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+- Full suite run: 32 files, 201 tests green. Only the 4 listed files are new.
+- JS sort deviation accepted: `ORDER BY name_vi` cannot meet AC11 (Đ sorts after H by code point). The sort is deterministic (folded, then raw, then slug; no locale). Task text updated to say so. Note for later: it is fine for the small city list; do not copy the pattern to large result sets.
+- suggest: only `foldText` output is bound, via `likePrefixPattern` with `ESCAPE '\'`; `status = 'published'` filter; prefix match; limit floored and clamped 1..10, NaN gives 8; ordered by `name_search, slug`. Empty-folding text returns `[]` without a query, consistent with the TASK-20 rule and TC-35 step 3.
+- Tests cover AC1 to AC4 (including limit 0, 99, NaN, and no data change after the injection string).
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
