@@ -3,7 +3,7 @@
 - id: TASK-31
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 0
 - depends on: TASK-26 (`parseVnd`, `formatVnd`, `parseNights`, `MAX_PRICE_DIGITS`), TASK-6 (test glob)
@@ -55,3 +55,5 @@ In `test/client/bill-format.spec.ts`.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
+
+Q (technical, to lead): AC2 is internally inconsistent. The rule is "the number of digits left of the caret stays the same". Raw `1.3750` with caret 5 has 4 digits left of the caret (1, 3, 7, 5). In `13.750` the position right after the 4th digit (`5`) is 5, not 6. Position 6 is the end of the text, which is after the 5th digit (`0`). Which is correct: caret 5 (follow the digit rule) or caret 6 (as written in AC2)? I will not guess. The test `caret stays after the same digit` depends on the answer.

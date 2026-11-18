@@ -46,7 +46,7 @@ In `test/fixtures/apiSample.spec.ts` (must be inside the unit test globs from TA
 
 ## Files this task may touch
 - `sheet-rag/test/fixtures/apiSample.ts` (new)
-- `sheet-rag/test/fixtures/apiSample.spec.ts` (new)
+- `sheet-rag/test/db/apiSample.spec.ts` (new; moved from `test/fixtures/apiSample.spec.ts` because the unit config does not collect `test/fixtures`; approved by lead)
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
@@ -57,7 +57,15 @@ In `test/fixtures/apiSample.spec.ts` (must be inside the unit test globs from TA
 - Results: apiSample spec 5/5 pass; full unit suite 17 files, 93 tests pass.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` gave 93 tests passing in 17 files. The one failing suite is `test/client/bill-css.spec.ts`, which is another dev's work (missing `public/bill.css`) and is out of scope. The 5 apiSample tests pass.
+- AC-F1: the spec asserts exact rows for hotels (id and status), cities, rooms, rules (raw_text with newline and spaces, synced_at), facilities, catalog and images. It also checks the h1 fields and the 5 default settings. Data matches the task text.
+- AC-F2: `seedManyPublished(db, 60)` is tested. The once-per-fresh-database comment is present in the file header and on both functions.
+- AC-F3: the price list holds all 4 base prices in plain and comma form. The test derives the prices from the database, so it is not circular.
+- AC-F4: the fixture uses only the fake D1, and the test runs with the token removed.
+- Spec location: acceptable. The task text (Unit tests section) explicitly allows `test/db/apiSample.spec.ts` when the unit glob does not cover `test/fixtures/**`. Dev notes state this, and the unit config does not collect `test/fixtures`. The "Files this task may touch" list names the `test/fixtures/` path only, so I amend it here to `sheet-rag/test/db/apiSample.spec.ts`. No other file is touched. Scope is unchanged.
+- The fixture has no `src/` dependency.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

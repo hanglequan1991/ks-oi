@@ -1,0 +1,313 @@
+/* Billing page styles. Loaded after /app.css. No @import, no external URLs,
+   no inline styles: every visual state is a class or an attribute selector. */
+
+/* ---------- Screen (desktop first) ---------- */
+
+.bill-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.bill-noscript {
+  margin: 16px 0;
+  padding: 12px;
+}
+
+.bill-grid {
+  display: block;
+}
+
+.bill-head,
+.bill-row {
+  display: grid;
+  grid-template-columns: 56px 2fr 2fr 110px 170px 170px 52px;
+  gap: 12px;
+  align-items: center;
+}
+
+.bill-head {
+  font-weight: 600;
+  border-bottom: 1px solid #ccc;
+  padding: 8px 0;
+}
+
+.bill-item {
+  border-bottom: 1px solid #eee;
+  padding: 8px 0;
+}
+
+.bill-note {
+  display: grid;
+  grid-template-columns: 56px 2fr 2fr 110px 170px 170px 52px;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+
+.bill-note.is-empty {
+  padding: 0;
+}
+
+.note-label {
+  grid-column: 1;
+}
+
+.note-field {
+  grid-column: 2 / 7;
+}
+
+.cell-label {
+  display: none;
+}
+
+.c-index,
+.c-night,
+.c-price,
+.c-total {
+  text-align: right;
+}
+
+.c-remove {
+  text-align: center;
+}
+
+.combo {
+  position: relative;
+  display: block;
+}
+
+.combo-list {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #999;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.combo-option {
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.combo-option[aria-selected="true"] {
+  background: #dbeafe;
+  font-weight: 600;
+}
+
+.badge-edited {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  font-size: 12px;
+  border-radius: 4px;
+  background: #fef3c7;
+}
+
+.btn {
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background: #f5f5f5;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+}
+
+.btn-danger {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
+.btn-reset {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.bill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.bill-status {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.bill-summary {
+  margin: 16px 0;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.bill-notes {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #444;
+}
+
+.bill-print-head {
+  display: none;
+}
+
+.no-print {
+  /* hidden in print only, see @media print */
+}
+
+.print-only {
+  display: none;
+  white-space: pre-wrap;
+}
+
+/* ---------- Mobile cards ---------- */
+
+@media (max-width: 720px) {
+  .bill-head {
+    display: none;
+  }
+
+  .bill-item {
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+
+  .bill-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .bill-row .c-index {
+    grid-column: 1;
+    text-align: left;
+  }
+
+  .bill-row .c-remove {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .bill-row .c-hotel,
+  .bill-row .c-room,
+  .bill-row .c-total {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+
+  .bill-row .c-night {
+    grid-column: 1;
+    text-align: left;
+  }
+
+  .bill-row .c-price {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .cell-label {
+    display: block;
+    font-size: 12px;
+    color: #555;
+  }
+
+  .bill-note {
+    grid-template-columns: 1fr;
+  }
+
+  .note-label,
+  .note-field {
+    grid-column: 1;
+  }
+
+  input,
+  textarea,
+  .btn,
+  .btn-reset,
+  .c-remove button {
+    min-height: 44px;
+  }
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  header,
+  footer,
+  .no-print,
+  input,
+  textarea,
+  .combo-list,
+  .btn,
+  .btn-reset,
+  .badge-edited,
+  .c-remove,
+  .bill-status {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .bill-print-head {
+    display: block;
+  }
+
+  /* Keep the desktop table layout in print, even on a narrow window. */
+  .bill-head,
+  .bill-row,
+  .bill-note {
+    display: grid;
+    grid-template-columns: 56px 2fr 2fr 110px 170px 170px 52px;
+    gap: 12px;
+  }
+
+  .bill-row .c-index,
+  .bill-row .c-hotel,
+  .bill-row .c-room,
+  .bill-row .c-night,
+  .bill-row .c-price,
+  .bill-row .c-total {
+    grid-column: auto;
+  }
+
+  .note-label {
+    grid-column: 1;
+  }
+
+  .note-field {
+    grid-column: 2 / 7;
+  }
+
+  .bill-item {
+    border: 0;
+    padding: 0;
+    margin-bottom: 0;
+    break-inside: avoid;
+  }
+
+  .bill-note.is-empty {
+    display: none;
+  }
+}
