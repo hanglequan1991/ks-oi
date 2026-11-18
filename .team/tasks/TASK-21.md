@@ -48,6 +48,10 @@ In `test/db/hotelDetail.spec.ts`, fake D1 + `applyMigrations` + `seedApiSample`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Implemented `src/db/hotelDetail.ts`: hotel lookup first (published only), then one `db.batch` for rooms, rules, facilities, images. All slug and id values are bound.
+- Tests: `test/db/hotelDetail.spec.ts`, 6 tests, all pass.
+- AC5 vs seed: the AC says `dong-do-hotel` returns empty facilities, but `seedApiSample` gives it `pool` and `elevator`. The implementation returns facilities as stored, and the test asserts those two codes. Lead should confirm which is intended.
+- Full suite: one failure in `test/db/cities.spec.ts` (another task's file), not touched here.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
