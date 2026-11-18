@@ -5,7 +5,7 @@
 - type: frontend        <!-- frontend | backend -->
 - status: todo
 - rework count: 0
-- depends on: TASK-28, TASK-29, TASK-30, TASK-31, TASK-32, TASK-35 (all client modules), TASK-34 (bundle must build)
+- depends on: TASK-28, TASK-29, TASK-30, TASK-31, TASK-32, TASK-35 (all client modules), TASK-34 (bundle must build), TASK-26 (limits from `src/domain/money.ts`)
 - size: fits a 100k-token context (a small pure parser, a wiring file of about 200 lines, one guard test)
 
 ## Why

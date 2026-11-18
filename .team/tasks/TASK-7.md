@@ -49,6 +49,11 @@ The disclaimer text is NOT a dictionary key: it comes from the `settings` table 
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: both spec files failed on missing modules before the source was written.
+- Green: 7/7 new tests pass. `tsc --noEmit` shows no errors in `src/web/i18n`.
+- `common.siteName` is set to "Sheet RAG" (the package name). No site name was given in the task, so the owner should confirm it.
+- `common.switchToVi` is the same Vietnamese label in both dictionaries, since a language switcher shows it on both versions.
+- `t.ts` imports `en.ts` at runtime and `en.ts` imports the `Dict` type from `t.ts`. This is a type-only cycle and is safe.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

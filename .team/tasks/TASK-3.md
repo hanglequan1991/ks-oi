@@ -41,6 +41,10 @@ All in `test/migrations/0002_seed_settings.spec.ts`. Write the expected disclaim
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: test failed first with ENOENT on migrations/0002_seed_settings.sql.
+- Green: 0002_seed_settings.sql uses INSERT OR IGNORE with the 5 keys. Disclaimer texts copied from implementation-plan.html lines 338-339 (no HTML entities present).
+- `test/migrations/0002_seed_settings.spec.ts`: 5/5 pass.
+- Full suite: 44 tests pass. `test/web/i18n/t.spec.ts` fails to load; not in this task's files, not investigated.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

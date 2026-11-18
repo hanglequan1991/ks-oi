@@ -5,7 +5,7 @@
 - type: frontend        <!-- frontend | backend -->
 - status: todo
 - rework count: 0
-- depends on: TASK-9 (`Layout`), TASK-8 (`Disclaimer`, `FeeNote`), TASK-27 (`bill` dictionary), TASK-7 (`t`, `format`), TASK-5 (`SiteSettings` type), TASK-33 (class contract), TASK-6 (JSX)
+- depends on: TASK-9 (`Layout`), TASK-8 (`Disclaimer`, `FeeNote`), TASK-27 (`bill` dictionary), TASK-7 (`t`, `format`), TASK-5 (`SiteSettings` type), TASK-33 (class contract), TASK-6 (JSX), TASK-26 (limits from `src/domain/money.ts`, AC9)
 - size: fits a 100k-token context (one component and its test)
 
 ## Why

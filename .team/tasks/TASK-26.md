@@ -47,6 +47,10 @@ In `test/domain/money.spec.ts`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Added `src/domain/money.ts` (all required exports, no imports) and `test/domain/money.spec.ts` (6 tests, all green).
+- `lineTotal` and `grandTotal` also treat NaN price as 0 and truncate fractional prices (whole-number arithmetic).
+- `formatVnd` truncates fractional input before grouping.
+- Full suite: `test/web/i18n/t.spec.ts` (suite import failure) and one test in `test/migrations/0002_seed_settings.spec.ts` fail; both are outside this task's files.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
