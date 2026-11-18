@@ -34,6 +34,8 @@
 
 ## QA notes
 <!-- Written by qa. If the schema has no explicit check that room belongs to the same hotel, note it here as an observation (not required by the story). -->
+- Automated in `sheet-rag/e2e/TC-6.e2e.ts`; passes on chromium (node-only, fake D1).
+- Observation: `booking_rules` has FKs to `hotels(id)` and `rooms(id)` but no check that the room belongs to the same hotel as the rule. In `migrations/0001_init.sql` a rule with `hotel_id` = hotel A and `room_id` = a room of hotel B is accepted. Not tested (not required by the story). The test does not cover this case.
 
 ## Review
 <!-- Written by qalead. -->

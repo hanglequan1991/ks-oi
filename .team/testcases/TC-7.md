@@ -32,6 +32,9 @@
 
 ## QA notes
 <!-- Written by qa. -->
+- Automation test: `sheet-rag/e2e/TC-7.e2e.ts` (Node-only, fake D1, chromium project only).
+- Covers all six steps. Invalid prices (1250000.5, 'abc', -1000) are checked on insert, 999.9 on update; row counts and `typeof(base_price)` are asserted.
+- Run: `npx playwright test -c playwright.node.config.ts e2e/TC-7.e2e.ts --trace off --project=chromium` -> 1 passed.
 
 ## Review
 <!-- Written by qalead. -->
