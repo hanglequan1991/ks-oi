@@ -60,7 +60,9 @@ In `test/client/bill-api.spec.ts` (fake `fetch` returning `Response` objects; fa
 - Timers in tests are manual fakes passed through the `timers` dependency, not vitest fake timers.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+**Verdict: approve** (lead, 2026-11-18). Full unit run: 36 files, 234 tests, all pass. Only the two listed files are involved; imports are only the `RoomOption` type from `./state`.
+
+Checked against the ACs: every request is `GET` with init keys exactly `method`, `signal`, `credentials: 'omit'`, no body or headers; URLs carry only the trimmed text (cut to 60, URI-encoded) or the encoded slug plus `limit` and `lang`; the source scan test finds no POST, sendBeacon or localStorage. Prices read only `price.amount` (finite integer >= 0, else null), extra fields such as `base_price` are not copied, malformed entries and envelopes are handled. `loadRooms` caches the promise per slug and evicts a failed load (identity check avoids evicting a newer entry). The suggester debounces with an injected timer, aborts the previous controller, drops results of superseded or aborted requests (sequence id plus `signal.aborted`), and does not call `onError` for AbortError. `cancel()` also invalidates in-flight results. All 7 ACs map to a named test.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

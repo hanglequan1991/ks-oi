@@ -66,7 +66,18 @@ All in `test/web/app.spec.tsx`, using `app.request` and fake `getSettings` (no D
 - Full unit run: 233 of 234 pass. The one failure is `test/web/pages/bill-page.spec.tsx` (TASK-37, another dev), not my files.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+**Verdict: approve** (lead, 2026-11-18). Full unit run: 36 files, 234 tests, all pass. Only the two listed files are in scope; src/index.ts untouched.
+
+Checked:
+1. Composition order is correct: securityHeaders, noindex, language and lazy settings, then per-group guards (rate limit before inputLimit), then `mount`, then notFound/onError. Because the security middleware wraps everything, 404, 429, 400 and the onError 500 all keep the headers (tests cover 404, 429 and 500).
+2. Limits match the decision log (20/20/120/60 per minute, caps 200 and 1000). `bodyFields` is passed on `/search`, `/chat` and `/api/suggest`; the POST `message` over 1000 chars is refused and a body of exactly 1000 is accepted.
+3. `WebDeps`, `WebEnv`, `createApp`, `getSiteSettings`, `RATE_LIMITS` are exported as TASK-23/24 need. `getSettings` is lazy and memoized per request; a sync or async throw becomes a 500.
+4. Design note judged sound: one `use` per path, `/api/hotels/*` registered once so it does not double count, WeakMap-keyed loader. Language is path-derived, so `mount` must register each page at both `/x` and `/en/x` (`bothLangs` pattern). Not a defect here.
+
+Non-blocking notes (no rework needed):
+- The tests do not prove the AC10 `/api/suggest` counter is separate by exhausting it (120); they only show suggest still answers 200 while search and data are exhausted. Acceptable, the group wiring is visible in the code.
+- The "rate limit refusal never invokes the handler" part of AC13 is not asserted (the `hits` array is not checked after the 429s). The guard order in the code guarantees it. TASK-23/24 mounters should keep this in mind.
+- Guards are registered for `/search` and `/chat` only (not `/en/search`, `/en/chat`). That is what the task specified; if the existing search or chat routes are ever also served under `/en`, the guards must be added there.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

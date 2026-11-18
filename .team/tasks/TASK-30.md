@@ -62,7 +62,13 @@ In `test/client/bill-combobox.spec.ts`.
 - Full suite: 208 tests pass. Two files fail on missing modules from other tasks: `test/client/bill-api.spec.ts` and `test/web/pages/bill-page.spec.tsx`.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+**Verdict: approve** (lead, 2026-11-18). Full unit run: 36 files, 234 tests, all pass. Only the two listed files exist for this task; the module imports only `src/domain/fold.ts`.
+
+Checked: all 7 ACs have a named test that matches the spec (filter order and prefix first, accent and case, multi-token, count 0, keyboard with wrap, input then enter keeps free text, special characters). No regex is built from user text.
+
+Decision on the dev's choice (a query that folds to nothing, such as `(` or `[*+?(`, returns the plain list): acceptable for a client-side dropdown. The server rule (nothing matches) protects the database and ranking; here the list is only a convenience, so showing the normal first 50 options for a symbols-only query is harmless and less jarring than an empty list. It does not select anything.
+
+Free text is preserved (AC13/AC15): `input` opens with `active` -1; `enter` picks only when open and `active` is in range, otherwise `pick` is null and `preventDefault` is false, so the typed text stays. With `count` 0 no key can pick and `comboAria` reports `aria-expanded` false with an empty `aria-activedescendant`, so a free-text Room row shows no list. Other dev choices (`limit` also applied to non-empty queries, blur keeps `active`) are fine.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

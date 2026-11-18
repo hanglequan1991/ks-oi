@@ -3,7 +3,7 @@
 - id: TASK-37
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-9 (`Layout`), TASK-8 (`Disclaimer`, `FeeNote`), TASK-27 (`bill` dictionary), TASK-7 (`t`, `format`), TASK-5 (`SiteSettings` type), TASK-33 (class contract), TASK-6 (JSX), TASK-26 (limits from `src/domain/money.ts`, AC9)
@@ -51,7 +51,8 @@ In `test/web/pages/bill-page.spec.tsx` (render through `renderPage` with `new Ho
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
 - `src/web/pages/Bill.tsx` and `test/web/pages/bill-page.spec.tsx` written. 8 of 9 unit tests pass.
-- The open test is `no phone, zalo, admin or self links`. `Layout` always renders a language toggle `<a href="/bill" ...>` on the English page (and `href="/en/bill"` on the Vietnamese page). AC4 forbids `href="/bill"` and `href="/en/bill"`, so the test fails on the Layout toggle, not on Bill.tsx.
+- Resolved per lead's answer: AC4 test renamed `no phone, zalo or admin links; bill URL only via layout language toggle and canonical/hreflang`. It runs for vi and en; the blanket list is now tel:/zalo/Zalo/phone//admin only; exactly one bill `<a>` (identified by Layout's `data-lang` marker) must point to the twin page; no bill `<a>` inside `<main>`; href|src bill URLs limited to the absolute canonical/hreflang URLs, `/bill.css`, `/bill.js` and the toggle target. Bill.tsx and Layout unchanged.
+- Full run: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` gives 36 files, 234 tests, all passed (includes bill-page.spec.tsx 9/9).
 - Test for `defer`: Hono renders `defer=""`, so the assertion accepts both forms.
 - The `no form` test uses `(?<![\w-])action=` so that `data-action` buttons (required by the spec) are not counted.
 - The `config json` test injects the fake label by mutating the shared `en.bill.noteLabel` object and restores it in `afterEach`.
