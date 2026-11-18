@@ -36,7 +36,7 @@ Decisions: .team/decision.md (2026-11-18, rows on fee, disclaimer, settings seed
 10. AC10: Given the application code, when it asks for the settings, then it receives the fee percentage, fee-note flag and disclaimer texts, and a test with a local database proves this without Cloudflare credentials.
 
 ## Linked files
-- Tasks: TASK-
+- Tasks: TASK-1 (test tooling, fake D1), TASK-2 (schema migration), TASK-3 (settings seed migration), TASK-4 (domain pricing), TASK-5 (db settings access)
 - Test cases: TC-
 
 ## Questions
