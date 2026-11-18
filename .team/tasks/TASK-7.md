@@ -3,7 +3,7 @@
 - id: TASK-7
 - story: [STORY-16](../stories/STORY-16.md)
 - type: backend        <!-- frontend | backend -->
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-6 (test globs and `hono` not needed here, but the `test/web` glob is)
@@ -56,7 +56,10 @@ The disclaimer text is NOT a dictionary key: it comes from the `settings` table 
 - `t.ts` imports `en.ts` at runtime and `en.ts` imports the `Dict` type from `t.ts`. This is a type-only cycle and is safe.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+- AC1 to AC6 are covered by the 7 named tests, and all pass. `en: Dict` gives the compile-time key check.
+- Exports and path helpers match the spec. Only the five listed files are in scope.
+- Note for the owner: `common.siteName` = "Sheet RAG" is a placeholder to confirm (not a blocker).
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

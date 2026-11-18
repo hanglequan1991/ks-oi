@@ -53,7 +53,9 @@ In `test/domain/money.spec.ts`.
 - Full suite: `test/web/i18n/t.spec.ts` (suite import failure) and one test in `test/migrations/0002_seed_settings.spec.ts` fail; both are outside this task's files.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+- AC1 to AC5 are covered by the 6 named tests, and all pass. The max-total safe-integer check is asserted.
+- `money.ts` has no imports and the exports match the spec. Only the two listed files are in scope.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

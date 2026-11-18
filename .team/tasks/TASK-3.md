@@ -3,7 +3,7 @@
 - id: TASK-3
 - story: [STORY-13](../stories/STORY-13.md)
 - type: backend        <!-- frontend | backend -->
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-2 (needs the `settings` table; tests apply 0001 then 0002)
@@ -47,7 +47,10 @@ All in `test/migrations/0002_seed_settings.spec.ts`. Write the expected disclaim
 - Full suite: 44 tests pass. `test/web/i18n/t.spec.ts` fails to load; not in this task's files, not investigated.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+- All 4 ACs are covered by the 5 named tests. 5/5 pass (full suite 49/49 at review time).
+- Disclaimer texts in the SQL and in the spec literals match implementation-plan.html lines 338-339 character for character.
+- Uses `INSERT OR IGNORE`, 5 keys, no phone or Zalo keys. Only the two listed files are in scope.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
