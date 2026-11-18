@@ -30,7 +30,7 @@ Behaviour:
 2. AC4: the rule `raw_text` equals the seeded text byte for byte (newline, leading and trailing spaces, diacritics) and each rule keeps its `synced_at`.
 3. AC6 / AC8: `Deluxe` has `base_price` 1250000 and `Standard` has `null` (not 0).
 4. AC5: `mong-review` (review), `mong-hidden` (hidden) and an unknown slug (`khong-co`) each return `null`.
-5. AC4: a published hotel with no rooms, images or rules (`dong-do-hotel`) returns empty arrays (not null) for those and its facilities.
+5. AC4: a published hotel with no rooms, images or rules (`dong-do-hotel`) returns empty arrays (not null) for rooms, images and rules; its facilities are returned as stored (`elevator`, `pool`, ordered by code, per the TASK-16 seed). The empty-facilities case is not covered by the seed (every seeded published hotel has facilities).
 6. AC13 (safe input): a slug such as `x' OR '1'='1` returns `null` and does not throw.
 
 ## Unit tests to write
@@ -54,7 +54,16 @@ In `test/db/hotelDetail.spec.ts`, fake D1 + `applyMigrations` + `seedApiSample`.
 - Full suite: one failure in `test/db/cities.spec.ts` (another task's file), not touched here.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Spec conflict resolved: the seed is right (TASK-16 says `dong-do-hotel` has pool and elevator; STORY-15 AC4/AC5 and TC-28/TC-29 make no empty-facilities claim for it, TC-28 only expects `rooms: []` and `images: []`). The AC5 wording in this task was wrong and has been corrected. No code, seed or TC change needed.
+- Tests: all 6 cover AC1 to AC6; full suite ran 32 files, 201 tests, all pass.
+- Parameter binding: slug and hotel id are always bound with `?`; SQL strings are constants. Hostile slug test passes.
+- Published only: `h.status = 'published'` in the hotel query; null returned before any further query.
+- Shape: columns match `HotelRow`, `RoomRow`, `RuleRow`, `FacilityRow`, `ImageRow` in `src/domain/hotelView.ts` exactly. Ordering as specified; one batch, no per-room queries.
+- Base price: only `rooms.base_price` is selected, as `hotelView` expects (serializer converts it); the hotel query does not select any price.
+- Only the two listed files are new/changed by this task.
+- Non-blocking: AC5 test's `Array.isArray` assertion is redundant but harmless.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

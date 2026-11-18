@@ -5,7 +5,7 @@
 // Imports only ./state and src/domain/money.ts.
 
 import { MAX_NOTE, MAX_PRICE, MAX_ROWS, MIN_NIGHTS, MAX_NIGHTS } from "../../domain/money";
-import { emptyRow, type BillRow } from "./state";
+import type { BillRow } from "./state";
 
 export const DRAFT_KEY = "hd_bill_v1";
 
@@ -212,5 +212,3 @@ export function createSaver(
 		},
 	};
 }
-
-export { emptyRow };

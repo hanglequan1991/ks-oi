@@ -46,6 +46,11 @@ In `test/db/cities.spec.ts` and `test/db/suggest.spec.ts`, fake D1 + `applyMigra
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Files: `src/db/cities.ts`, `src/db/suggest.ts`, `test/db/cities.spec.ts`, `test/db/suggest.spec.ts` (all new). Tests: 4 new, all passing.
+- Deviation (cities order): the task says `ORDER BY name_vi`, but SQLite compares by code point, so `Hà Nội` (H) sorts before `Đà Nẵng` (Đ). AC11 requires `da-nang` first. `cities.ts` therefore sorts in JS by `foldText(name_vi)`, then `name_vi`, then `slug`. The SQL has no ORDER BY. Lead to confirm.
+- Empty-folding text (AC4, TC-35 step 3): suggest returns `[]` with no query when `foldText` gives "". This matches the TASK-20 rule (a non-blank q that folds to nothing matches nothing) and TC-35 expects empty items.
+- Limit: `Math.floor`, clamped to 1..10; non-finite (NaN) becomes 8. Matches TASK-20's clamp style.
+- Full suite: 192 tests pass. `test/client/bill-storage.spec.ts` fails to load (`src/client/bill/storage` missing). Not from this task.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

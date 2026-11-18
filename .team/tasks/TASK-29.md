@@ -60,6 +60,9 @@ In `test/client/bill-storage.spec.ts` (fake storage and fake timers; no browser)
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Implemented `storage.ts` and `test/client/bill-storage.spec.ts` (9 tests, all ACs covered). Full suite: 32 files, 201 tests pass.
+- Text limits (hotel/room 200, slug 100, id 64) are local constants; note and row limits come from `domain/money.ts`.
+- `saveDraft` sanitizes rows with a local random-id fallback, since it takes no `makeId`.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
