@@ -100,6 +100,7 @@ pre code{background:none;padding:0}
 <tr><td>Booking rules</td><td>From the Excel sheets only, at hotel level and at room level. Shown verbatim with the sync date. The crawler never reads or writes them.</td></tr>
 <tr><td>Prices, descriptions, photos</td><td>From the Excel sheets only.</td></tr>
 <tr><td>Admin area</td><td>Hidden <code>/admin</code>, sign-in by username and password, single admin role. The first admin (<code>admin</code>) is created by a one-time script with a generated password shown once. The interface is in Vietnamese and English. No two-factor sign-in and no Cloudflare Access. Admins can edit the fee, contact details and the disclaimer text; every change is audited and kept in a history. A lockout after repeated failed logins sends an alert (webhook first, email optional). The owner runs the first-admin script on their own machine with a Cloudflare login.</td></tr>
+<tr><td>Billing page</td><td>Public <code>/bill</code> and <code>/en/bill</code>, not linked, <code>noindex</code>. Grid of hotel, room, nights, price and total with a note per row; default price is the final price including the service fee and can be overwritten; the draft is kept in the browser; output is the screen total and browser print / save as PDF.</td></tr>
 </tbody></table></div>
 </section>
 
@@ -253,6 +254,26 @@ CREATE TABLE field_sources (hotel_id TEXT, entity TEXT, field TEXT, source TEXT,
 </details>
 
 <details class="phase">
+<summary><span class="n">Phase 4b</span> Billing page (<code>/bill</code>) <span class="meta">Size M · needs Phases 3 and 4</span></summary>
+<div class="body">
+<p>A public page where a visitor builds a bill across several hotels and rooms. The approved mockup is boards 4 to 6 of the design canvas (desktop, mobile, print).</p>
+<ul>
+<li><strong>Access:</strong> public at <code>/bill</code> and <code>/en/bill</code>; not linked anywhere on the site, not in <code>sitemap.xml</code> or <code>robots.txt</code>; <code>noindex</code>.</li>
+<li><strong>Grid:</strong> columns <code>#</code>, Hotel, Room, Night, Pricing, Total. Under each row a Note box (up to 500 characters). The note label is just "NOTE" ("GHI CHÚ"), without a row number, in the index column; the note box lines up with the grid (left edge with Hotel, right edge with Total).</li>
+<li><strong>Hotel and Room:</strong> autocomplete dropdowns (type to search, accents optional). Room options come from the selected hotel. Both can also be typed as free text.</li>
+<li><strong>Night:</strong> whole number 1 to 365. <strong>Pricing:</strong> VND with thousand separators, default is the room's <em>final price including the service fee</em>, editable, with an "edited" marker and a reset action. <strong>Total:</strong> Night x Pricing, plus a grand total.</li>
+<li>Rows can be added (up to 30), removed (at least one stays) and cleared. Changing the hotel clears the room.</li>
+<li><strong>Draft:</strong> kept in the visitor's browser (<code>localStorage</code>, key <code>hd_bill_v1</code>) with a Clear button. Nothing is stored on the server, and notes never leave the browser.</li>
+<li><strong>Print / Save PDF:</strong> browser print with a dedicated print layout (no controls, notes shown, grand total, fee note, disclaimer, contact phone). No server-side PDF.</li>
+<li><strong>Disclaimer and fee note</strong> appear under the grid and on the printed bill; the contact phone comes from the admin configuration.</li>
+<li><strong>Language:</strong> follows the site language (Vietnamese default). Mobile: each row becomes a stacked card.</li>
+<li><strong>API:</strong> reuses <code>/api/hotels/:slug</code> (rooms and final prices) and <code>/api/config</code>; adds <code>GET /api/suggest</code> for the hotel dropdown. Details are in section 18 of the technical design.</li>
+</ul>
+<p><strong>Done when:</strong> a visitor can add two rows, pick a hotel and room from the dropdowns, see the default final price, overwrite it, see line and grand totals update, reload and find the draft restored, clear it, and print a clean bill with the disclaimer. The base price is never present in any response to the browser.</p>
+</div>
+</details>
+
+<details class="phase">
 <summary><span class="n">Phase 5</span> Mytour crawl with Browser Run <span class="meta">Size L · only if Phase 0 approves</span></summary>
 <div class="body">
 <ul>
@@ -339,6 +360,7 @@ final = round(base * (1 + fee / 100) / 1000) * 1000      // nearest 1,000 VND
 <tr><td>6 Admin</td><td>STORY-7, STORY-8, STORY-9</td><td>Reuse; add review queue</td></tr>
 <tr><td>5 Mytour</td><td>none</td><td>New story: crawl, match, review (blocked until Phase 0 go)</td></tr>
 <tr><td>4 Languages and disclaimer</td><td>none</td><td>New story</td></tr>
+<tr><td>4b Billing page</td><td>none</td><td>New story: STORY-11, public billing page</td></tr>
 </tbody></table></div>
 <p>Dispatch needs <code>.team/config.md</code> filled first. Suggested values: unit tests <code>npm test -- --run</code> in <code>sheet-rag/</code>, build <code>npx wrangler deploy --dry-run</code>, e2e Playwright (to be added). The unit test setup currently needs <code>CLOUDFLARE_API_TOKEN</code> because the AI and Vectorize bindings run remotely, so tests should mock those bindings.</p>
 </section>
@@ -384,6 +406,7 @@ final = round(base * (1 + fee / 100) / 1000) * 1000      // nearest 1,000 VND
 <li>Hotels' consent, only if photos or descriptions are ever crawled from hotel sites (for now they come from the sheets).</li>
 <li>The final list of structured booking-rule fields, and who confirms them.</li>
 <li>Sample sheet rows showing how room-level booking rules and prices are laid out, to design the room-type mapping.</li>
+<li>Billing page: whether the printed bill needs a bill number or a customer name field (not in the spec), and whether mobile and print should also drop the row number from the note label.</li>
 </ol>
 <p style="color:var(--muted);font-size:14px">Prepared from the discussion and the approved mockup. Nothing in this plan has been implemented or deployed.</p>
 </section>
