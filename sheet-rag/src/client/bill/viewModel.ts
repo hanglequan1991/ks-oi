@@ -51,7 +51,7 @@ export interface BillView {
 	addHint: string;
 }
 
-function rowView(row: BillRow, index: number, count: number, labels: Labels, lang: Lang): RowView {
+function rowView(row: BillRow, index: number, canRemove: boolean, labels: Labels, lang: Lang): RowView {
 	const n = { n: index };
 	const edited = row.priceEdited && row.defaultPrice !== null;
 	return {
@@ -67,7 +67,7 @@ function rowView(row: BillRow, index: number, count: number, labels: Labels, lan
 		showReset: edited,
 		noteText: row.note,
 		noteEmpty: row.note === "",
-		canRemove: canRemoveRow({ rows: Array.from({ length: count }), open: null } as unknown as BillState),
+		canRemove,
 		hotelAria: fillTemplate(labels.hotelAria ?? "", n),
 		roomAria: fillTemplate(labels.roomAria ?? "", n),
 		nightAria: fillTemplate(labels.nightAria ?? "", n),
@@ -79,8 +79,8 @@ function rowView(row: BillRow, index: number, count: number, labels: Labels, lan
 }
 
 export function buildView(state: BillState, labels: Labels, lang: Lang): BillView {
-	const count = state.rows.length;
-	const rows = state.rows.map((row, i) => rowView(row, i + 1, count, labels, lang));
+	const removable = canRemoveRow(state);
+	const rows = state.rows.map((row, i) => rowView(row, i + 1, removable, labels, lang));
 	const atLimit = !canAddRow(state);
 	return {
 		rows,
