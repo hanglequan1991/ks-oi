@@ -40,7 +40,7 @@ Decisions: .team/decision.md (2026-11-18, rows on service fee, final price and V
 14. AC14: Given the public settings endpoint, when it is requested, then it returns the disclaimer text in Vietnamese and English, the fee-note flag and the fee percentage, and no phone number or Zalo link in Version 1.
 
 ## Linked files
-- Tasks: TASK-
+- Tasks: [TASK-16](../tasks/TASK-16.md) (sample data fixture), [TASK-17](../tasks/TASK-17.md) (accent folding, LIKE patterns; AC2/12/13), [TASK-18](../tasks/TASK-18.md) (serializers, final price, no base price; AC4/6/7/8/10/11), [TASK-19](../tasks/TASK-19.md) (parameter validation; AC3/12/13), [TASK-20](../tasks/TASK-20.md) (hotel list query; AC1/2), [TASK-21](../tasks/TASK-21.md) (hotel detail query; AC4/5), [TASK-22](../tasks/TASK-22.md) (cities and suggest queries; AC11/12/13), [TASK-23](../tasks/TASK-23.md) (hotel routes; AC1-10), [TASK-24](../tasks/TASK-24.md) (cities, suggest, config routes; AC11-14), [TASK-25](../tasks/TASK-25.md) (mount function and end-to-end sweep; AC7/9)
 - Test cases: TC-
 
 ## Questions
