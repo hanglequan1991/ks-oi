@@ -44,6 +44,10 @@ All in `test/web/pages/components.spec.tsx`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Added the three components and `test/web/pages/components.spec.tsx` (7 tests, all green). Full unit suite: 20 files, 118 tests passed.
+- Whitespace-only disclaimer text counts as empty (trimmed check).
+- `PriceBlock` accepts the optional `edited` prop per the signature but does not use it yet.
+- Price format: `Intl.NumberFormat` (vi-VN / en-US, no fraction digits), then a space and `price.currencyUnit`.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

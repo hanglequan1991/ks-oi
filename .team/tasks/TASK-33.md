@@ -49,7 +49,15 @@ In `test/client/bill-css.spec.ts` (reads `public/bill.css` as text; normalises w
 <!-- Written by dev: anything the reviewer should know. -->
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag: 19 files, 111 tests pass, including all 6 tests in `test/client/bill-css.spec.ts` (one per AC1-6, parsing the CSS blocks, not trivial string checks).
+- Class contract: every listed class appears; `[aria-selected="true"]` rule present.
+- Desktop: template `56px 2fr 2fr 110px 170px 170px 52px` on `.bill-head`, `.bill-row`, `.bill-note`; `.note-label` col 1, `.note-field` `2 / 7`, so the note box spans Hotel..Total.
+- Mobile (max-width 720px): head hidden, card border/padding, 2-col grid (index + remove, hotel/room/total full width, night + price side by side), `.cell-label` shown, note one column, `min-height: 44px` on input, textarea, .btn, .btn-reset, `.c-remove button`.
+- Print (last in file): `@page` A4 14mm, hide list with `!important`, `.print-only` block, print head block, `.bill-item` break-inside avoid, empty notes hidden, desktop template restored for head, row and note, with `.note-field` `2 / 7`.
+- No `@import`, no external `url(`, no `expression(`. Only the two allowed files changed.
+- Non-blocking nits (no rework): dev left no Dev notes; on a narrow print window the mobile `text-align: left` on `.c-index`/`.c-night`/`.c-price`/`.c-total` is not reset in the print block, so numbers may be left-aligned there (cosmetic).
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
