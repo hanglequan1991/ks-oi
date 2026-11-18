@@ -47,7 +47,11 @@ All in `test/domain/pricing.spec.ts`.
 - Status left as `in-progress` for pm to set `review`.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: full suite 31/31 pass (the smoke-test failure mentioned in dev notes was fixed by TASK-6 and no longer occurs).
+- Coverage: the 6 listed tests cover AC-P1 to AC-P5 (rounding cases 1,357,000 and 1,359,000, clamp both ends, trim, bad input with non-empty warning, bool variants with both fallbacks).
+- Code: `src/domain/pricing.ts` matches the spec, no imports, no logging. Only the two listed files changed.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

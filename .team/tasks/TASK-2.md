@@ -52,7 +52,12 @@ All in `test/migrations/0001_init.spec.ts`, using `createFakeD1()` and `applyMig
 - Red confirmed (missing SQL file), then green: 10/10 in `0001_init.spec.ts`; full unit suite 31/31.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` gives 6 files, 31/31 pass.
+- Coverage: all 10 listed tests exist and map to AC1, AC2, AC6, AC7, AC8, AC9. Assertions are meaningful (verbatim raw_text with spaces/newline/diacritics, rejected inserts leave counts at 0, cascade checks include the untouched h2 rows, cities and facility_catalog).
+- Code: `migrations/0001_init.sql` has the 9 tables, IF NOT EXISTS everywhere, no seed, no hotels_fts, base_price CHECK as specified. Test reads only 0001, so no dependence on 0002.
+- Scope: only the two listed files changed.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

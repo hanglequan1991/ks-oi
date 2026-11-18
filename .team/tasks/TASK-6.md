@@ -48,7 +48,11 @@ Supports every STORY-16 AC (all later tasks need it).
 - Full suite note: `npm test -- --run` now also collects `test/migrations/0001_init.spec.ts`, which fails with ENOENT on `sheet-rag/migrations/0001_init.sql`. That file does not exist yet and `test/migrations/` is untracked work from another task. This is not caused by this task, but the full suite is red until that migration file lands.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: full suite 31/31 pass; smoke spec has the 3 listed tests (AC-S1); AC-S2 passes (fakes specs run in the full suite); `npx tsc --noEmit` shows only the 2 pre-existing `src/index.ts` errors (AC-S3). The earlier red full suite is gone now that `0001_init.sql` exists.
+- Files: `vitest.unit.config.mts` and `tsconfig.json` are both in the task's file list. `package.json` change is only the `hono` dependency; `package-lock.json` also drops some `libc` metadata lines (npm version churn, harmless). `src/index.ts`, `vitest.config.mts`, `test/index.spec.ts` untouched.
+- `oxc` deviation: accepted. Vitest 5 / vite 8 uses oxc for transforms, so the `esbuild` block is ignored (the run prints "Both esbuild and oxc options were set ... esbuild options will be ignored") and without `oxc.jsx` JSX falls back to `react/jsx-dev-runtime`, which broke the smoke test. The `oxc` block is the effective setting and is within the file list. Optional later cleanup: remove the dead `esbuild` block to silence the warning; not required now.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

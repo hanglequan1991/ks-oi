@@ -47,7 +47,11 @@ In `test/domain/fold.spec.ts`.
 - Full unit run: 18 tests pass; `test/web/smoke.spec.tsx` fails on `Cannot find package 'react/jsx-dev-runtime'`. It is not part of TASK-17 and was not touched.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: full suite 31/31 pass.
+- Coverage: the 4 listed tests cover AC1 to AC4 (accents, đ, spacing, syntax characters, emoji and control characters, token cap 6 and custom max, empty input, escaping of %, _ and backslash, unescaped-percent check).
+- Code: `src/domain/fold.ts` matches the spec, no imports. Only the two listed files changed.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
