@@ -3,7 +3,7 @@
 - id: TASK-36
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-28, TASK-29, TASK-30, TASK-31, TASK-32, TASK-35 (all client modules), TASK-34 (bundle must build), TASK-26 (limits from `src/domain/money.ts`)

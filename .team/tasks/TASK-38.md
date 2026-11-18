@@ -3,7 +3,8 @@
 - id: TASK-38
 - story: [STORY-11](../stories/STORY-11.md)
 - type: backend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-37 (`BillPage`), TASK-14 (`createApp`, `WebEnv`, `mount` hook; the route is registered by the `mount` callback, `src/web/app.ts` is not edited), TASK-9 (`renderPage`), TASK-5 (`getSettings`)
 - size: fits a 100k-token context (one route file and its test)
