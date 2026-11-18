@@ -1,10 +1,13 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import type { FakeD1 } from "./d1";
 
-/** Default folder of D1 migrations: `sheet-rag/migrations/`. */
-const DEFAULT_MIGRATIONS_DIR = fileURLToPath(new URL("../../migrations", import.meta.url));
+/**
+ * Default folder of D1 migrations: `sheet-rag/migrations/`.
+ * Uses the working directory (`sheet-rag/`) so the file also loads under Playwright's CJS loader,
+ * where ESM-only module metadata is not available. Both vitest and Playwright run from `sheet-rag/`.
+ */
+const DEFAULT_MIGRATIONS_DIR = join(process.cwd(), "migrations");
 
 /**
  * Returns the full paths of every `*.sql` file in `dir`, sorted by file name.

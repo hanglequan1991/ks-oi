@@ -9,6 +9,7 @@
     "test": "vitest --config vitest.unit.config.mts",
     "cf-typegen": "wrangler types",
     "e2e": "playwright test",
+    "e2e:node": "playwright test -c playwright.node.config.ts",
     "build:client": "node scripts/build-client.mjs",
     "predeploy": "npm run build:client",
     "predev": "npm run build:client"

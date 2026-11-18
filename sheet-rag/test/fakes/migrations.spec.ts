@@ -52,6 +52,15 @@ describe("applyMigrations", () => {
 		expect(tables?.n).toBe(0);
 	});
 
+	it("applyMigrations without dir uses the repo migrations folder", async () => {
+		const db = createFakeD1();
+		await applyMigrations(db);
+		const names = await db
+			.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'settings'")
+			.first<{ name: string }>();
+		expect(names?.name).toBe("settings");
+	});
+
 	it("runs without CLOUDFLARE_API_TOKEN", async () => {
 		const saved = process.env.CLOUDFLARE_API_TOKEN;
 		delete process.env.CLOUDFLARE_API_TOKEN;

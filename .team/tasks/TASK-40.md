@@ -45,6 +45,9 @@ Shared files: `package.json` (do not run in parallel with any other task touchin
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: 4 new tests failed as expected (node config missing, script missing, import.meta present, --list failed). Green after the change.
+- Full vitest: 43 files, 290 tests passed. `npx playwright test -c playwright.node.config.ts --list` exits 0 and lists TC-1 (chromium and mobile).
+- Comment in migrations.ts avoids the literal text `import.meta` (the no-import.meta test reads the file text).
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework
