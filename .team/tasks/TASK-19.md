@@ -56,6 +56,10 @@ In `test/web/api/params.spec.ts` (no Hono, no database).
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: test file failed (modules missing). Green: 11 tests pass with `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/web/api/params.spec.ts`. The 7 listed tests are all present; 4 extra tests cover defaults, blank q and parseLang.
+- Decisions taken where the task was silent: an empty value (`city=`, `stars=`, `page=`, `lang=`, `limit=`) is treated as absent; `stars` and `facility` lists are deduplicated (stars keep first-seen order); `page` upper bound 10000 as stated; the list `q` error uses `invalid_param`; suggest `q` is returned trimmed.
+- `types.ts` imports `SiteSettings` as a type only from `src/db/settings.ts` (exists). `D1Database` is the global workers type.
+- No `package.json` or lock file changes.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

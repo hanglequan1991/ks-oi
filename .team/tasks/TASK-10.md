@@ -44,6 +44,9 @@ All in `test/client/lang.spec.ts`, running `public/lang.js` through `node:vm` wi
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Added `sheet-rag/public/lang.js` (IIFE, redirect on load, click listener on document) and `sheet-rag/test/client/lang.spec.ts` (8 tests, all pass with `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/client/lang.spec.ts`).
+- Fake `window` in the spec carries `localStorage` and `location` as well as the top-level sandbox globals, matching the script's use of `window.*`.
+- Full suite: 137 passed, 1 failed in `test/client/playwright-config.spec.ts` (another task's file, not touched here).
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

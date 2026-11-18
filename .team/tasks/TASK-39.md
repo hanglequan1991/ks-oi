@@ -40,6 +40,10 @@ In `test/client/playwright-config.spec.ts` (imports the config; no browser).
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Installed `@playwright/test` ^1.65.1 with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` (no browser download). package.json gained only the devDependency line and the `e2e` script; lockfile gained the @playwright/test and playwright entries only.
+- Mobile project uses `devices["Pixel 7"]` (viewport 412x839 in this version); the test compares against the device object, not a hardcoded size.
+- Chromium project uses `devices["Desktop Chrome"]`.
+- Full unit suite: 24 files, 149 tests passing; vitest unit config untouched.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

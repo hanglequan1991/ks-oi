@@ -8,12 +8,14 @@
     "start": "wrangler dev",
     "test": "vitest --config vitest.unit.config.mts",
     "cf-typegen": "wrangler types",
+    "e2e": "playwright test",
     "build:client": "node scripts/build-client.mjs",
     "predeploy": "npm run build:client",
     "predev": "npm run build:client"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.3",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^26.6.6",
     "esbuild": "^0.28.2",
     "typescript": "^5.5.2",
