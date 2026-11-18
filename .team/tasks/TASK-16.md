@@ -3,7 +3,7 @@
 - id: TASK-16
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-2 (schema), TASK-3 (seeded settings), TASK-1 (fake D1)

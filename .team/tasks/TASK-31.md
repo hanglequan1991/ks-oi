@@ -3,7 +3,7 @@
 - id: TASK-31
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: blocked: question
+- status: in-progress
 - assignee: dev
 - rework count: 0
 - depends on: TASK-26 (`parseVnd`, `formatVnd`, `parseNights`, `MAX_PRICE_DIGITS`), TASK-6 (test glob)
@@ -28,7 +28,7 @@ export function nightsText(raw: string): { text: string; value: number | null };
 
 ## Acceptance criteria
 1. AC20: typing `1375000` gives text `1.375.000` (vi) and `1,375,000` (en); typing `12a3` gives `123`; an 11-digit paste gives a value capped to 1,000,000,000 and the text `1.000.000.000`.
-2. AC20 (caret): with raw `1.3750` and caret 5 (after the 4th digit) the new caret is after the same 4th digit in `13.750` (position 6); deleting everything gives text `''`, value null, caret 0.
+2. AC20 (caret): with raw `1.3750` and caret 5 (after the 4th digit) the new caret is after the same 4th digit in `13.750`, i.e. position 5 (`13.75|0`); with caret 6 (after the 5th digit, end of `1.3750`) the new caret is 6 (end of `13.750`); deleting everything gives text `''`, value null, caret 0.
 3. AC18: `totalLabel(null,'vi')` is `—`; `totalLabel(0,'vi')` is `0`; `totalLabel(2750000,'en')` is `2,750,000`.
 4. AC19: `nightsText('abc')` gives text `''` and value null; only ASCII digits count, leading zeros are removed (`'0012'` gives `12`), at most 3 digits are read (`'1234'` gives `123`), the value stays inside 1..365 (`'999'` gives value 365 and text `365`); empty input gives text `''` and null (the wiring restores 1 on blur).
 5. AC36: `dateLabel(new Date(2026, 10, 18), 'vi')` is `18/11/2026`; `'en'` gives `2026-11-18`.
@@ -37,7 +37,7 @@ export function nightsText(raw: string): { text: string; value: number | null };
 ## Unit tests to write
 In `test/client/bill-format.spec.ts`.
 - [ ] `price input shows separators for each language and caps length`: covers AC1
-- [ ] `caret stays after the same digit`: covers AC2
+- [ ] `caret stays after the same digit`: covers AC2 (raw `1.3750`: caret 5 -> 5, caret 6 -> 6; clearing -> caret 0)
 - [ ] `total label shows a dash only when there is no price`: covers AC3
 - [ ] `nights text keeps up to 3 digits within 1 to 365`: covers AC4
 - [ ] `date label per language`: covers AC5
@@ -57,3 +57,5 @@ In `test/client/bill-format.spec.ts`.
 <!-- Q: ...   A: ... (answer goes right under the question) -->
 
 Q (technical, to lead): AC2 is internally inconsistent. The rule is "the number of digits left of the caret stays the same". Raw `1.3750` with caret 5 has 4 digits left of the caret (1, 3, 7, 5). In `13.750` the position right after the 4th digit (`5`) is 5, not 6. Position 6 is the end of the text, which is after the 5th digit (`0`). Which is correct: caret 5 (follow the digit rule) or caret 6 (as written in AC2)? I will not guess. The test `caret stays after the same digit` depends on the answer.
+
+A: The rule is correct; the example was wrong. Raw `1.3750` has 4 digits left of caret 5, and in `13.750` the position after the 4th digit (`5`) is 5. Caret 6 would be after the 5th digit. AC2 and the test description are now fixed: caret 5 -> 5, caret 6 -> 6 (end), clearing -> text '', null, caret 0. No change to scope or file list.

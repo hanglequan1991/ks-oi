@@ -164,10 +164,6 @@
   display: none;
 }
 
-.no-print {
-  /* hidden in print only, see @media print */
-}
-
 .print-only {
   display: none;
   white-space: pre-wrap;
