@@ -32,6 +32,9 @@
 
 ## QA notes
 <!-- Written by qa. -->
+- Automated in `sheet-rag/e2e/TC-8.e2e.ts` (Node-only, fake D1 with migrations, foreign keys on). One test covers steps 1-6 and all expected results.
+- Run: `npx playwright test -c playwright.node.config.ts e2e/TC-8.e2e.ts --trace off --project=chromium` (inside `sheet-rag/`): 1 passed.
+- Relies on the `ON DELETE CASCADE` foreign keys in `migrations/0001_init.sql` for hotel and room deletes. No product bugs found.
 
 ## Review
 <!-- Written by qalead. -->

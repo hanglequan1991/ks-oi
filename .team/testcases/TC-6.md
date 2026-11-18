@@ -38,7 +38,13 @@
 - Observation: `booking_rules` has FKs to `hotels(id)` and `rooms(id)` but no check that the room belongs to the same hotel as the rule. In `migrations/0001_init.sql` a rule with `hotel_id` = hotel A and `room_id` = a room of hotel B is accepted. Not tested (not required by the story). The test does not cover this case.
 
 ## Review
-<!-- Written by qalead. -->
+Verdict: approve
+
+- Re-ran `npx playwright test -c playwright.node.config.ts e2e/TC-6.e2e.ts --trace off --project=chromium`: 1 passed.
+- Follows steps 1-7 in order. Asserts room_id NULL vs room id, raw_text equal to the inserted string (also byte-equal via Buffer), synced_at kept for both rules, and constraint errors for steps 4-7 with row count unchanged (2).
+- No sleeps, only touches its own test file, uses its own fake D1.
+- Minor, not blocking: step 6 binds "99999" as a string since room_id is TEXT; acceptable.
+- Observation (report only): the missing check that a rule's room belongs to the same hotel is a real, low-to-medium gap. It lets a rule carry hotel A with a room of hotel B, so a rule could show up on the wrong hotel page or be answered for the wrong hotel in RAG. Not required by AC7, and the sync code is the only writer, so it is worth one small follow-up task for lead: add a composite FK (rooms UNIQUE (id, hotel_id) and booking_rules FOREIGN KEY (room_id, hotel_id)) or a trigger, plus a TC for it.
 
 ## Questions
 <!-- Q: ...   A: ... -->

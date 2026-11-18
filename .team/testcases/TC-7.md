@@ -37,7 +37,11 @@
 - Run: `npx playwright test -c playwright.node.config.ts e2e/TC-7.e2e.ts --trace off --project=chromium` -> 1 passed.
 
 ## Review
-<!-- Written by qalead. -->
+Verdict: approve
+
+- Re-ran `npx playwright test -c playwright.node.config.ts e2e/TC-7.e2e.ts --trace off --project=chromium`: 1 passed.
+- Follows steps 1-6. Valid 1250000, 0, omitted and explicit NULL are accepted (count 4). 1250000.5, 'abc' and -1000 are rejected with a constraint error and no row added. Update to 999.9 is rejected, and the final read shows exactly [1250000, 0, null, null] with `typeof(base_price)` asserted as integer or null.
+- No sleeps, only touches its own test file.
 
 ## Questions
 <!-- Q: ...   A: ... -->
