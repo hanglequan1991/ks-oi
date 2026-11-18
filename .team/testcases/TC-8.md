@@ -3,7 +3,7 @@
 - id: TC-8
 - story: [STORY-13](../stories/STORY-13.md)
 - verifies: AC9
-- status: todo
+- status: review
 - rework count: 0
 - automation test file: `sheet-rag/e2e/TC-8.e2e.ts`
 - runs without Cloudflare credentials: yes (local fake D1, foreign keys on)
@@ -38,6 +38,12 @@
 
 ## Review
 <!-- Written by qalead. -->
+Verdict: approve
+
+- Ran `npx playwright test -c playwright.node.config.ts e2e/TC-8.e2e.ts --trace off --project=chromium` in `sheet-rag/`: 1 passed.
+- Steps 1-6 are followed in order, and every expected result is asserted: hotel A has 0 rooms, links, images and rules; hotel B keeps 1 room, 1 link, 1 image and 1 rule; `cities` has 1 row and `facility_catalog` has 2; the room-level rule is gone after the room delete while hotel B's hotel-level rule remains.
+- Foreign keys are really enabled: `test/fakes/d1.ts` runs `PRAGMA foreign_keys = ON`, and `0001_init.sql` has `ON DELETE CASCADE` on all child tables. The pre-delete sanity counts show the rows existed, so the zero counts are meaningful.
+- No sleeps, no browser selectors, and the test touches only its own file.
 
 ## Questions
 <!-- Q: ...   A: ... -->
