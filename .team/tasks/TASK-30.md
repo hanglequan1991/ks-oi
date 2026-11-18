@@ -57,6 +57,9 @@ In `test/client/bill-combobox.spec.ts`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Implemented `src/client/bill/combobox.ts` and `test/client/bill-combobox.spec.ts` (7 tests, all green).
+- Choices not fixed by the spec: non-empty queries also respect `limit`; a query that folds to empty (e.g. `(`) returns the plain list; `blur` keeps `active`; `enter` pick sets `active` to -1; `hover` sets `active` when in range; `aria-activedescendant` is '' when the list is closed.
+- Full suite: 208 tests pass. Two files fail on missing modules from other tasks: `test/client/bill-api.spec.ts` and `test/web/pages/bill-page.spec.tsx`.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
