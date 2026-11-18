@@ -3,7 +3,7 @@
 - id: TASK-7
 - story: [STORY-16](../stories/STORY-16.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-6 (test globs and `hono` not needed here, but the `test/web` glob is)

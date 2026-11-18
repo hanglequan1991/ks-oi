@@ -3,7 +3,8 @@
 - id: TASK-18
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-4 (`finalPrice`); TASK-1 (test runner)
 - size: fits a 100k-token context (few files, one behaviour)

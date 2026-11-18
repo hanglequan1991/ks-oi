@@ -41,7 +41,7 @@ Decisions: .team/decision.md (2026-11-18, rows on service fee, final price and V
 
 ## Linked files
 - Tasks: [TASK-16](../tasks/TASK-16.md) (sample data fixture), [TASK-17](../tasks/TASK-17.md) (accent folding, LIKE patterns; AC2/12/13), [TASK-18](../tasks/TASK-18.md) (serializers, final price, no base price; AC4/6/7/8/10/11), [TASK-19](../tasks/TASK-19.md) (parameter validation; AC3/12/13), [TASK-20](../tasks/TASK-20.md) (hotel list query; AC1/2), [TASK-21](../tasks/TASK-21.md) (hotel detail query; AC4/5), [TASK-22](../tasks/TASK-22.md) (cities and suggest queries; AC11/12/13), [TASK-23](../tasks/TASK-23.md) (hotel routes; AC1-10), [TASK-24](../tasks/TASK-24.md) (cities, suggest, config routes; AC11-14), [TASK-25](../tasks/TASK-25.md) (mount function and end-to-end sweep; AC7/9)
-- Test cases: TC-
+- Test cases: [TC-25](../testcases/TC-25.md) (list, published only, paging; AC1), [TC-26](../testcases/TC-26.md) (filters, accents; AC2), [TC-27](../testcases/TC-27.md) (invalid params, cap 50; AC3), [TC-28](../testcases/TC-28.md) (detail; AC4), [TC-29](../testcases/TC-29.md) (not found; AC5), [TC-30](../testcases/TC-30.md) (final price, null price; AC6/8), [TC-31](../testcases/TC-31.md) (fee setting, clamp, fallback; AC9), [TC-32](../testcases/TC-32.md) (fee note; AC10), [TC-33](../testcases/TC-33.md) (cities; AC11), [TC-34](../testcases/TC-34.md) (suggest; AC12), [TC-35](../testcases/TC-35.md) (suggest bad input; AC13), [TC-36](../testcases/TC-36.md) (config; AC14), [TC-37](../testcases/TC-37.md) (no base price anywhere; AC7), [TC-38](../testcases/TC-38.md) (read-only, no leaks, guards; AC1/5/9), [TC-39](../testcases/TC-39.md) (LIVE deployment; needs Cloudflare)
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
