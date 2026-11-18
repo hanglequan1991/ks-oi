@@ -54,6 +54,10 @@ In `test/client/bill-api.spec.ts` (fake `fetch` returning `Response` objects; fa
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- 7/7 tests in test/client/bill-api.spec.ts pass; full unit suite: 8 failures in test/web/app.spec.tsx and test/web/pages/bill-page.spec.tsx (other tasks, no import of client/bill/api).
+- Fetch is called through a local reference (not as a method of the injected object) and the init is a non-literal object, because the Workers RequestInit type has no `credentials` field.
+- Malformed envelope (non-OK, or no `items`/`rooms` array) rejects; malformed entries are dropped.
+- Timers in tests are manual fakes passed through the `timers` dependency, not vitest fake timers.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

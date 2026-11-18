@@ -146,7 +146,7 @@ describe("bill api", () => {
 		for (const c of f.calls) {
 			expect(c.init.method).toBe("GET");
 			expect(c.init.body).toBeUndefined();
-			expect(c.init.credentials).toBe("omit");
+			expect((c.init as { credentials?: unknown }).credentials).toBe("omit");
 			expect(Object.keys(c.init).sort()).toEqual(["credentials", "method", "signal"]);
 			expect(c.url).not.toContain(note);
 			expect(c.url).not.toContain("SECRET");

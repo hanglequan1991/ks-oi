@@ -3,7 +3,7 @@
 - id: TASK-37
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 0
 - depends on: TASK-9 (`Layout`), TASK-8 (`Disclaimer`, `FeeNote`), TASK-27 (`bill` dictionary), TASK-7 (`t`, `format`), TASK-5 (`SiteSettings` type), TASK-33 (class contract), TASK-6 (JSX), TASK-26 (limits from `src/domain/money.ts`, AC9)
@@ -50,6 +50,15 @@ In `test/web/pages/bill-page.spec.tsx` (render through `renderPage` with `new Ho
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- `src/web/pages/Bill.tsx` and `test/web/pages/bill-page.spec.tsx` written. 8 of 9 unit tests pass.
+- The open test is `no phone, zalo, admin or self links`. `Layout` always renders a language toggle `<a href="/bill" ...>` on the English page (and `href="/en/bill"` on the Vietnamese page). AC4 forbids `href="/bill"` and `href="/en/bill"`, so the test fails on the Layout toggle, not on Bill.tsx.
+- Test for `defer`: Hono renders `defer=""`, so the assertion accepts both forms.
+- The `no form` test uses `(?<![\w-])action=` so that `data-action` buttons (required by the spec) are not counted.
+- The `config json` test injects the fake label by mutating the shared `en.bill.noteLabel` object and restores it in `afterEach`.
+
+## Questions
+Q: AC4 / unit test "no phone, zalo, admin or self links" forbids `href="/bill"` and `href="/en/bill"`, but `Layout` always emits a language toggle link to the other language's version of the same page (`href="/bill"` on `en`, `href="/en/bill"` on `vi`). Bill.tsx cannot remove it without changing Layout (not in this task's file list). Should the check exclude the Layout-emitted toggle link (the spec's "beyond what Layout adds" wording suggests yes), or should Layout be changed to skip the toggle on this page (needs a file added to TASK-37 or a new task)?
+A:
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

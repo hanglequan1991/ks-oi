@@ -136,7 +136,7 @@ describe("BillPage (TASK-37)", () => {
 		const scripts = [...html.matchAll(/<script\b([^>]*)>/g)].map((m) => m[1]);
 		expect(scripts).toHaveLength(3);
 		expect(html).toContain(`<script src="/lang.js"></script>`);
-		expect(html).toContain(`<script src="/bill.js" defer></script>`);
+		expect(html).toMatch(/<script src="\/bill\.js" defer(=""|)><\/script>/);
 		expect(scripts.some((a) => a.includes(`type="application/json"`) && a.includes(`id="bill-config"`))).toBe(true);
 		expect(html).not.toMatch(/\sstyle=/);
 	});

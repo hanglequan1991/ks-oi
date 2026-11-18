@@ -58,7 +58,9 @@ export function createBillApi(o: {
 	const roomCache = new Map<string, Promise<RoomOption[]>>();
 
 	async function getJson(url: string, signal?: AbortSignal): Promise<unknown> {
-		const res = await doFetch(url, { method: "GET", signal, credentials: "omit" });
+		// Not an inline literal: the Workers RequestInit type has no `credentials` field.
+		const init = { method: "GET", signal, credentials: "omit" as const };
+		const res = await doFetch(url, init);
 		if (!res.ok) throw new Error(`request failed with status ${res.status}`);
 		return res.json();
 	}
