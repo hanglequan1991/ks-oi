@@ -55,6 +55,13 @@ In `test/client/bill-config.spec.ts` and `test/client/bill-guard.spec.ts`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Tests: `bill-config.spec.ts` 6 tests, `bill-guard.spec.ts` 7 tests, all green. Full unit suite 40 files, 269 tests, green.
+- Guard scope: comments are stripped before the code checks (`code()`), so header prose such as "no fetch" does not count. The phone and zalo checks run on raw text, comments included.
+- `tel:` check uses `\btel:` (word boundary). Without it, `render.ts` (`hotel: "c-hotel"`) gave a false positive. This is a judgement call in the guard test only; `render.ts` was not touched.
+- For lead: `main.ts` appends its own `div.bill-rows` inside `#bill-app`, because `renderRows` calls `replaceChildren()` and that would delete the server-rendered `.bill-head`. Check that the TASK-33 CSS handles this extra wrapper.
+- Clear draft (`data-action="clear-draft"`) has no confirm. The spec does not ask for one.
+- Manual browser steps: none. No browser was available, so the wiring is untested until qa's Playwright TCs run.
+- Not verified: a standalone `tsc --noEmit` (not part of the allowed test command). The bundle test (`buildClient` on `main.ts`) passes, so the bundle builds.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
