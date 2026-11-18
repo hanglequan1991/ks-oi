@@ -7,7 +7,10 @@
     "dev": "wrangler dev",
     "start": "wrangler dev",
     "test": "vitest --config vitest.unit.config.mts",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "build:client": "node scripts/build-client.mjs",
+    "predeploy": "npm run build:client",
+    "predev": "npm run build:client"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.3",

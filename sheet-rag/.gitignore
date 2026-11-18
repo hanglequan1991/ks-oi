@@ -165,3 +165,10 @@ dist
 .env*
 !.env.example
 .wrangler/
+
+# Client bundle build output (npm run build:client)
+public/bill.js
+
+# Test and automation output
+test-results/
+playwright-report/
