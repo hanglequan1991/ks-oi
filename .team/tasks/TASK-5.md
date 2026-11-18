@@ -47,7 +47,11 @@ All in `test/db/settings.spec.ts`, using `createFakeD1()` and `applyMigrations()
 <!-- Written by dev: anything the reviewer should know. -->
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+
+- Tests cover every AC (AC10/3/4 seeded values with literals matching implementation-plan section 5; AC5 re-applied migrations; AC10 robustness invalid fee and empty table; no-token run).
+- Full suite: 17 files, 93 tests pass (`env -u CLOUDFLARE_API_TOKEN npm test -- --run`).
+- Code matches the task: one SELECT, uses TASK-4 parsers, warn callback defaults to console.warn, read-only, imports only `src/domain/`. Only the two listed files.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

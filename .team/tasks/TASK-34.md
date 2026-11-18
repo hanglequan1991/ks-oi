@@ -50,7 +50,13 @@ In `test/client/build.spec.ts` (outputs go to a temp folder, never into `public/
 - Commit `8b925dd` (someone else's "Approve TASK-11..." commit) already contains my in-progress files; dev did not commit.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+
+- Tests cover AC-B1 to AC-B5 (iife/no import/require, minify:false keeps parseVnd, broken entry rejects with no output, no CLOUDFLARE_* and no fetch/network imports, package.json and .gitignore checked).
+- Full suite: 17 files, 93 tests pass.
+- Script matches the spec. package.json additions are limited to esbuild `^0.28.2` and the three scripts (the `test` line and `hono` dependency changes come from other tasks, not this dev). `.gitignore` adds the three entries. Lockfile change is not attributable to this task alone (shared with TASK-6/others); acceptable.
+- `node scripts/build-client.mjs` failing for missing `src/client/bill/main.ts` is expected until TASK-36.
+- Commit 8b925dd sweeping the dev's files is not a dev fault.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

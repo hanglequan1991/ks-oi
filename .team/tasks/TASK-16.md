@@ -50,6 +50,11 @@ In `test/fixtures/apiSample.spec.ts` (must be inside the unit test globs from TA
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Spec placed at `sheet-rag/test/db/apiSample.spec.ts`, not `test/fixtures/apiSample.spec.ts`: `vitest.unit.config.mts` includes `test/db/**`, `test/domain/**`, `test/migrations/**`, `test/fakes/**`, `test/web/**`, `test/client/**` only, so `test/fixtures/**` is not collected. Fallback named in the task. The fixture itself is `test/fixtures/apiSample.ts`.
+- `seedApiSample` and `seedManyPublished` insert in one `db.batch` (transactional). Both are documented as once-per-fresh-database.
+- `SAMPLE_BASE_PRICE_STRINGS` has plain and comma forms for all four prices (1250000, 980000, 555000, 444000). The spec asserts every seeded price is in the list.
+- Spec reads `CLOUDFLARE_API_TOKEN` via `globalThis` because `test/tsconfig.json` has no Node types.
+- Results: apiSample spec 5/5 pass; full unit suite 17 files, 93 tests pass.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

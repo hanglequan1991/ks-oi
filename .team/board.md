@@ -12,7 +12,7 @@ Table format (copy for each story; test cases go in the same table with Type `qa
 | [TASK-2](tasks/TASK-2.md) | backend | migrations/0001_init.sql, test/migrations/0001_init.spec.ts | dev | done | 0 | deps: TASK-1 |
 | [TASK-3](tasks/TASK-3.md) | backend | migrations/0002_seed_settings.sql, test/migrations/0002_seed_settings.spec.ts | dev | done | 0 | deps: TASK-2; coordinator verified full suite 49 tests pass |
 | [TASK-4](tasks/TASK-4.md) | backend | src/domain/pricing.ts, test/domain/pricing.spec.ts | dev | done | 0 | deps: TASK-1 |
-| [TASK-5](tasks/TASK-5.md) | backend | src/db/settings.ts, test/db/settings.spec.ts | dev | in-progress | 0 | deps: TASK-3, TASK-4, TASK-1 |
+| [TASK-5](tasks/TASK-5.md) | backend | src/db/settings.ts, test/db/settings.spec.ts | dev | review | 0 | deps: TASK-3, TASK-4, TASK-1 |
 
 QA test cases for STORY-13 (TC-10 needs a live Cloudflare D1 deployment and cannot run locally).
 
@@ -106,15 +106,43 @@ Sequencing note: package.json and package-lock.json are edited by TASK-1, TASK-6
 |---|---|---|---|---|---|---|
 | [TASK-26](tasks/TASK-26.md) | backend | src/domain/money.ts, test/domain/money.spec.ts | dev | done | 0 | deps: TASK-1 (test runner only) |
 | [TASK-27](tasks/TASK-27.md) | frontend | src/web/i18n/vi.ts, src/web/i18n/en.ts, test/web/i18n/bill-keys.spec.ts | - | todo | 0 | deps: TASK-7; sole STORY-11 editor of vi.ts/en.ts |
-| [TASK-28](tasks/TASK-28.md) | frontend | src/client/bill/state.ts, test/client/bill-state.spec.ts | - | todo | 0 | deps: TASK-26, TASK-6 |
+| [TASK-28](tasks/TASK-28.md) | frontend | src/client/bill/state.ts, test/client/bill-state.spec.ts | dev | in-progress | 0 | deps: TASK-26, TASK-6 |
 | [TASK-29](tasks/TASK-29.md) | frontend | src/client/bill/storage.ts, test/client/bill-storage.spec.ts | - | todo | 0 | deps: TASK-28, TASK-26 |
 | [TASK-30](tasks/TASK-30.md) | frontend | src/client/bill/combobox.ts, test/client/bill-combobox.spec.ts | - | todo | 0 | deps: TASK-17, TASK-6 |
-| [TASK-31](tasks/TASK-31.md) | frontend | src/client/bill/format.ts, test/client/bill-format.spec.ts | - | todo | 0 | deps: TASK-26, TASK-6 |
+| [TASK-31](tasks/TASK-31.md) | frontend | src/client/bill/format.ts, test/client/bill-format.spec.ts | dev | in-progress | 0 | deps: TASK-26, TASK-6 |
 | [TASK-32](tasks/TASK-32.md) | frontend | src/client/bill/api.ts, test/client/bill-api.spec.ts | - | todo | 0 | deps: TASK-28, TASK-6; server contract TASK-23/TASK-24 (tested with fake fetch) |
 | [TASK-33](tasks/TASK-33.md) | frontend | public/bill.css, test/client/bill-css.spec.ts | dev | in-progress | 0 | deps: TASK-6; does not touch public/app.css (TASK-9) |
-| [TASK-34](tasks/TASK-34.md) | backend | scripts/build-client.mjs, package.json (three scripts + esbuild devDependency), package-lock.json, .gitignore, test/client/build.spec.ts | dev | in-progress | 0 | deps: TASK-6, TASK-1, TASK-26 (money.ts parseVnd; lead answer); must wait until TASK-26 is done; package.json/package-lock.json sequence: TASK-1, 6, 34, 39 (sequential) |
+| [TASK-34](tasks/TASK-34.md) | backend | scripts/build-client.mjs, package.json (three scripts + esbuild devDependency), package-lock.json, .gitignore, test/client/build.spec.ts | dev | review | 0 | deps: TASK-6, TASK-1, TASK-26 (money.ts parseVnd; lead answer); must wait until TASK-26 is done; package.json/package-lock.json sequence: TASK-1, 6, 34, 39 (sequential) |
 | [TASK-35](tasks/TASK-35.md) | frontend | src/client/bill/viewModel.ts, src/client/bill/render.ts, test/client/bill-viewmodel.spec.ts | - | todo | 0 | deps: TASK-28, TASK-31, TASK-26, TASK-33 (read-only class contract) |
 | [TASK-36](tasks/TASK-36.md) | frontend | src/client/bill/config.ts, src/client/bill/main.ts, test/client/bill-config.spec.ts, test/client/bill-guard.spec.ts | - | todo | 0 | deps: TASK-28, TASK-29, TASK-30, TASK-31, TASK-32, TASK-35, TASK-34, TASK-26 |
 | [TASK-37](tasks/TASK-37.md) | frontend | src/web/pages/Bill.tsx, test/web/pages/bill-page.spec.tsx | - | todo | 0 | deps: TASK-9, TASK-8, TASK-27, TASK-7, TASK-5, TASK-33, TASK-6, TASK-26 |
 | [TASK-38](tasks/TASK-38.md) | backend | src/web/routes/bill.ts, test/web/routes/bill.spec.tsx | - | todo | 0 | deps: TASK-37, TASK-14, TASK-9, TASK-5 (registered via mount hook; app.ts not edited) |
 | [TASK-39](tasks/TASK-39.md) | backend | package.json (@playwright/test devDependency + e2e script), package-lock.json, playwright.config.ts, test/client/playwright-config.spec.ts | - | todo | 0 | deps: TASK-34, TASK-6; last in package.json sequence (TASK-1, 6, 34, 39); real e2e runs also need TASK-15 (blocked on owner) |
+
+QA test cases for STORY-11 (TC-40 owns the shared harness e2e/support/billServer.ts and must be done first; TC-62 needs a live deployment).
+
+| Task | Type | Files | Assignee | Status | Rework count | Notes |
+|---|---|---|---|---|---|---|
+| [TC-40](testcases/TC-40.md) | qa | e2e/TC-40.e2e.ts, e2e/support/billServer.ts | - | todo | 0 | owns shared harness e2e/support/billServer.ts; must be done first |
+| [TC-41](testcases/TC-41.md) | qa | e2e/TC-41.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-42](testcases/TC-42.md) | qa | e2e/TC-42.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-43](testcases/TC-43.md) | qa | e2e/TC-43.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-44](testcases/TC-44.md) | qa | e2e/TC-44.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-45](testcases/TC-45.md) | qa | e2e/TC-45.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-46](testcases/TC-46.md) | qa | e2e/TC-46.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-47](testcases/TC-47.md) | qa | e2e/TC-47.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-48](testcases/TC-48.md) | qa | e2e/TC-48.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-49](testcases/TC-49.md) | qa | e2e/TC-49.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-50](testcases/TC-50.md) | qa | e2e/TC-50.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-51](testcases/TC-51.md) | qa | e2e/TC-51.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-52](testcases/TC-52.md) | qa | e2e/TC-52.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-53](testcases/TC-53.md) | qa | e2e/TC-53.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-54](testcases/TC-54.md) | qa | e2e/TC-54.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-55](testcases/TC-55.md) | qa | e2e/TC-55.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-56](testcases/TC-56.md) | qa | e2e/TC-56.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-57](testcases/TC-57.md) | qa | e2e/TC-57.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-58](testcases/TC-58.md) | qa | e2e/TC-58.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-59](testcases/TC-59.md) | qa | e2e/TC-59.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-60](testcases/TC-60.md) | qa | e2e/TC-60.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-61](testcases/TC-61.md) | qa | e2e/TC-61.e2e.ts | - | todo | 0 | after TC-40 |
+| [TC-62](testcases/TC-62.md) | qa | e2e/TC-62.e2e.ts | - | todo | 0 | needs a live deployment |

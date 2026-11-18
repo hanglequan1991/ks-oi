@@ -1,4 +1,3 @@
-import process from "node:process";
 import { describe, expect, it } from "vitest";
 import { createFakeD1, type FakeD1 } from "../fakes/d1";
 import { applyMigrations } from "../fakes/migrations";
@@ -175,13 +174,16 @@ describe("apiSample fixture", () => {
 	});
 
 	it("runs with no CLOUDFLARE_API_TOKEN", async () => {
-		const saved = process.env.CLOUDFLARE_API_TOKEN;
-		delete process.env.CLOUDFLARE_API_TOKEN;
+		// Node's process is not typed in this tsconfig, so read the env through globalThis.
+		const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process
+			?.env;
+		const saved = env?.CLOUDFLARE_API_TOKEN;
+		if (env) delete env.CLOUDFLARE_API_TOKEN;
 		try {
 			const db = await sampleDb();
 			expect(await count(db, "SELECT COUNT(*) AS n FROM hotels")).toBe(5);
 		} finally {
-			if (saved !== undefined) process.env.CLOUDFLARE_API_TOKEN = saved;
+			if (env && saved !== undefined) env.CLOUDFLARE_API_TOKEN = saved;
 		}
 	});
 });
