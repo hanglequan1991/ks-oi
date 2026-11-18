@@ -3,7 +3,7 @@
 - id: TC-1
 - story: [STORY-13](../stories/STORY-13.md)
 - verifies: AC1
-- status: in-progress
+- status: blocked
 - assignee: qa
 - rework count: 0
 - automation test file: `sheet-rag/e2e/TC-1.e2e.ts`
@@ -35,6 +35,10 @@
 
 ## QA notes
 <!-- Written by qa: anything the reviewer should know, product bugs found. -->
+- Test written at `sheet-rag/e2e/TC-1.e2e.ts` (steps 1-6, all expected results asserted). It cannot run yet, for two environment reasons below.
+- Blocker 1 (config): `playwright.config.ts` webServer runs `npm run build:client && npx wrangler dev --local --port 8787` before any test. In this sandbox workerd fails to start (`No such module "cloudflare-internal:ai-api"`), so `npx playwright test e2e/TC-1.e2e.ts --trace off` exits with `Process from config.webServer was not able to start. Exit code: 1`. A Node-only test cannot run until the webServer is skipped for it (config change, not made by qa).
+- Blocker 2 (import): `test/fakes/migrations.ts` uses `import.meta.url`. Playwright loads the spec as CJS (no `"type": "module"` in `sheet-rag/package.json`), so the import fails with `SyntaxError: Cannot use 'import.meta' outside a module`. Fix options for lead/owner: add `"type": "module"` to package.json or Playwright ESM support, or make `migrations.ts` avoid `import.meta` (e.g. `__dirname`-free path default via a parameter).
+- Diagnostic run with `E2E_BASE_URL` set (skips the webServer) still fails on blocker 2, so the assertions were not exercised.
 
 ## Review
 <!-- Written by qalead. Verdict: approve | rework
@@ -42,3 +46,4 @@
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
+- Q (lead, technical): The Playwright webServer in `sheet-rag/playwright.config.ts` blocks Node-only tests here (wrangler dev cannot start in this sandbox), and `test/fakes/migrations.ts` uses `import.meta.url`, which the CJS Playwright loader rejects. Should the config skip the webServer for Node-only specs, and should the fakes be made loadable from Playwright (e.g. set `"type": "module"`)? qa did not edit config or product code.

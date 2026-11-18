@@ -10,7 +10,7 @@
 - size: fits a 100k-token context (small file, one integration test file)
 
 ## Why
-Gives the Worker entry one function to call, and proves the whole story end to end with the real migrations, seeded settings and sample data. It does not edit `src/index.ts`; wiring `mountApi` into the real Worker entry is part of TASK-15 (blocked until the owner commits the real source), which should call `createApp({ getSettings: () => getSettings(env.DB), mount: mountApi(env.DB, getSettingsFn) })`.
+Gives the Worker entry one function to call, and proves the whole story end to end with the real migrations, seeded settings and sample data. It does not edit `src/index.ts`; wiring `mountApi` into the real Worker entry is part of TASK-15 (blocked until the owner commits the real source), which should call `createApp({ getSettings: () => getSettings(env.DB), mount: mountApi({ db: env.DB, getSettings }) })` (signature is `mountApi(deps: ApiDeps)`, as in the AC section).
 
 `sheet-rag/src/web/api/index.ts`:
 ```ts
@@ -49,7 +49,15 @@ In `test/web/api/api.integration.spec.ts` (real `createApp` + `mountApi` + fake 
 - Rate limit test: 60 GETs then the 61st from one `CF-Connecting-IP` gets 429 with no extra settings read.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: **approve**
+
+- Full run `env -u CLOUDFLARE_API_TOKEN npm test -- --run`: 42 files, 284 tests passed.
+- AC1/AC2: sweep covers list variants, 3 published details x 2 languages, 2 unpublished details (404), cities, suggest, config; checks every `SAMPLE_BASE_PRICE_STRINGS` entry, the three base-price words and the four hidden names.
+- AC3: POST/PUT/PATCH/DELETE on all five endpoints return 404/405; config has no phone/Zalo.
+- AC4: uses real `getSettings`, `applyMigrations` (real 0001 and 0002 from `sheet-rag/migrations`) and `seedApiSample`; 10 -> 20 (1,500,000) -> 'abc' (10) -> '150' (100) -> `show_fee_note='false'` drops `includesFeePercent`.
+- AC5: noindex and security headers, 61st request 429 with no settings read. AC6: token unset in test.
+- Only `src/web/api/index.ts` and the integration spec belong to this task; no other source file changed (`e2e/` is qa's, ignored).
+- Signature: `mountApi(deps: ApiDeps)` is correct; fixed the "Why" text here and added the `mountApi({ db: env.DB, getSettings })` call to TASK-15. Scope and file list unchanged.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
