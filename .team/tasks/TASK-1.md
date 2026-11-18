@@ -37,6 +37,12 @@ Supports STORY-13 AC1, AC2, AC5, AC9 and AC10 (they all need a local database th
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- 7 unit tests in `test/fakes/d1.spec.ts` (4 listed, plus `batch applies all statements when none fail`) and `test/fakes/migrations.spec.ts` (3 listed). 8 tests in total, all passing with `CLOUDFLARE_API_TOKEN` unset.
+- Red first: the run failed with "Cannot find module './d1'" before the fakes existed.
+- `node:sqlite` prints an ExperimentalWarning, as expected.
+- `exec()` reports `count` by splitting on `;`. This is approximate when a semicolon appears inside a string literal.
+- `meta.changes` / `last_row_id` come from `changes()` / `last_insert_rowid()` on the connection, so for SELECT they show the last write, not 0 (D1 reports 0). Not covered by the tests.
+- `package.json`: only the `test` script changed. `migrations/` does not exist yet, so the default dir is a no-op.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
