@@ -3,7 +3,7 @@
 - id: TASK-6
 - story: [STORY-16](../stories/STORY-16.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-1 (edits the `vitest.unit.config.mts` that TASK-1 creates)
