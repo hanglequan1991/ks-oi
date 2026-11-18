@@ -32,6 +32,10 @@
 
 ## QA notes
 <!-- Written by qa. -->
+- Automated in `sheet-rag/e2e/TC-5.e2e.ts` (Node-only, local fake D1, chromium project only).
+- Run: `npx playwright test -c playwright.node.config.ts e2e/TC-5.e2e.ts --trace off --project=chromium` (in `sheet-rag/`): 1 passed.
+- Invalid inserts are checked with `/constraint failed/i` (CHECK or NOT NULL). Row count stays at 4 after the rejected inserts.
+- No product bugs found.
 
 ## Review
 <!-- Written by qalead. -->
