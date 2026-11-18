@@ -85,6 +85,8 @@ In `test/client/bill-state.spec.ts`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: spec failed with module not found. Green: 12/12 in test/client/bill-state.spec.ts. Full suite: 19 files, 111 tests passed.
+- Limits and money helpers imported from src/domain/money.ts only. setPrice caps value at MAX_PRICE before comparing with the default.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
