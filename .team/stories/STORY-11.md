@@ -19,7 +19,7 @@ Decisions: .team/decision.md (2026-11-18, billing page rows). Full specification
   - Add row (maximum 30), remove row (at least one stays), clear all with confirmation.
   - The draft is remembered in the visitor's browser with a Clear button; nothing is stored on the server.
   - Print / Save as PDF through the browser with a dedicated print layout.
-  - The call-to-confirm disclaimer (Vietnamese and English) and the fee note under the grid and on the printed bill.
+  - The call-to-confirm disclaimer (Vietnamese and English) and the fee note under the grid and on the printed bill. The fee percentage, fee note and disclaimer come from the default settings seeded in the database (no editing tool in Version 1).
   - A mobile layout where each row appears as a card.
 - Out:
   - Server-side storage, saved bills or sharing links.
@@ -29,6 +29,7 @@ Decisions: .team/decision.md (2026-11-18, billing page rows). Full specification
   - A bill number or customer name field (open question below).
   - Booking rules (hotel or room level) on the page.
   - Currencies other than VND.
+  - Contact phone number, call button and Zalo link: not shown on the page or the printed bill in Version 1 (decision 2026-11-18).
 
 ## Acceptance criteria
 1. AC1: Given a visitor opens /bill, when the page loads, then it is shown in Vietnamese without any sign-in.
@@ -65,14 +66,15 @@ Decisions: .team/decision.md (2026-11-18, billing page rows). Full specification
 32. AC32: Given a restored draft whose default prices have changed since it was saved, when the page restores it, then default prices of rows not edited are refreshed to the current final prices, and edited prices are kept.
 33. AC33: Given a saved draft, when the visitor uses the Clear button for the draft, then the stored draft is removed and the grid is reset.
 34. AC34: Given the visitor uses the page, when any data is entered, then nothing about the bill (including notes) is stored on or sent to the server.
-35. AC35: Given the page content, when it is shown on desktop or mobile, then the disclaimer (calling to confirm prices and availability), the fee note and the contact phone with a call button appear under the grid, in the language of the page.
-36. AC36: Given the visitor chooses Print / Save PDF, when the browser print view opens, then it shows a print layout with title, date, every row with its note under it, the grand total, the fee note, the disclaimer and the contact phone, and no buttons, input controls, or add or remove actions.
+35. AC35: Given the page content, when it is shown on desktop or mobile, then the disclaimer (calling to confirm prices and availability) and the fee note appear under the grid, in the language of the page, using the fee percentage, fee note flag and disclaimer text from the seeded default settings; no contact phone, call button or Zalo link is shown.
+36. AC36: Given the visitor chooses Print / Save PDF, when the browser print view opens, then it shows a print layout with title, date, every row with its note under it, the grand total, the fee note and the disclaimer (no contact phone or Zalo link), and no buttons, input controls, or add or remove actions.
 37. AC37: Given a note left empty, when the bill is printed, then no empty note box is shown for that row.
 38. AC38: Given a screen narrower than about 720 px, when the page is shown, then each row appears as a card with its number and remove action, Hotel, Room, Night and Pricing, Total and Note, and all touch targets are at least 44 px high.
 39. AC39: Given a visitor using only the keyboard, when they use the Hotel or Room dropdowns, then they can move through options, pick one and close the list without a mouse.
 40. AC40: Given a browser with JavaScript disabled, when the page loads, then a message states that JavaScript is required.
 
 ## Linked files
+- Depends on: STORY-13 (database and seeded settings), STORY-15 (hotel data API, suggestions, public settings) and STORY-16 (shared layout, language handling, disclaimer and fee note components, noindex, rate limiting).
 - Tasks: TASK-
 - Test cases: TC-
 

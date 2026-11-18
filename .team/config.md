@@ -1,25 +1,32 @@
 # Team config
 
-Detection result: the repository was empty when the team was set up (no manifests, no source), so **nothing could be detected**. Replace every `TODO` below. Agents must stop and ask if they hit a `TODO`.
+Filled on 2026-11-18 with the values approved by the user (they match section 3.3 of `technical-design.html`). The application lives in `sheet-rag/`; all commands below run inside that folder.
 
 ## Commands
 
 | Purpose | Command |
 |---|---|
-| Build | `TODO: e.g. dotnet build / npm run build` |
-| Unit tests (all) | `TODO: e.g. dotnet test / npm test` |
-| Unit tests (single file or filter) | `TODO: e.g. dotnet test --filter "FullyQualifiedName~X" / npm test -- <file>` |
-| E2E / automation tests (all) | `TODO: e.g. npx playwright test` |
-| E2E / automation tests (single file) | `TODO: e.g. npx playwright test tests/e2e/<file>` |
+| Build | `npx wrangler deploy --dry-run` |
+| Unit tests (all) | `npm test -- --run` |
+| Unit tests (single file or filter) | `npm test -- --run <file>` |
+| E2E / automation tests (all) | `npx playwright test` |
+| E2E / automation tests (single file) | `npx playwright test e2e/<file>` |
 
 ## Where tests live
 
-- Unit tests: `TODO: e.g. next to the code, or tests/unit/, or <Project>.Tests/`
-- Automation (e2e) tests: `TODO: e.g. tests/e2e/`
-- Naming convention for automation tests: `TODO: e.g. TC-<n>.spec.ts`
+- Unit and integration tests: `sheet-rag/test/`, mirroring `sheet-rag/src/` (`*.spec.ts`). Fixtures in `sheet-rag/test/fixtures/`, fakes in `sheet-rag/test/fakes/`.
+- Automation (e2e) tests: `sheet-rag/e2e/`
+- Naming convention for automation tests: `TC-<n>.e2e.ts`
 
-## Stack notes (optional)
+## Stack notes
 
-- Frontend: `TODO`
-- Backend: `TODO`
-- Database: `TODO`
+- Frontend: server-rendered Hono JSX plus small vanilla TypeScript bundles (`sheet-rag/src/client/`).
+- Backend: Cloudflare Worker in TypeScript (Hono for routes, plus `scheduled` and `queue` handlers).
+- Database: Cloudflare D1 (SQLite) for website data; Vectorize for the existing chat and semantic search.
+
+## Constraints for agents
+
+- Playwright is not installed yet; adding it is part of the first tasks.
+- The AI and Vectorize bindings run against real Cloudflare and need credentials, so unit and integration tests must use fakes passed in through a small dependencies interface.
+- The sandbox cannot reach Cloudflare or Google Sheets. Deploying, creating the real D1 database and running remote database commands are done by the owner on their own machine.
+- Folder import rules are in `technical-design.html` section 3.4.

@@ -177,7 +177,7 @@ CREATE TABLE field_sources (hotel_id TEXT, entity TEXT, field TEXT, source TEXT,
 <h2>4. Phases</h2>
 <p>Size: <span class="tag s">S</span> small, <span class="tag">M</span> medium, <span class="tag">L</span> large. Phases 1 to 4 are independent of Mytour.</p>
 <div class="card">
-<p><strong>Version 1:</strong> Phases 0, 1, 2, 3 and 4b. The data foundation (database, sheet sync, API) and the public billing page.</p>
+<p><strong>Version 1:</strong> Phases 0, 1, 2, 3 and 4b. The data foundation (database, sheet sync, API) and the public billing page. Pulled forward from Version 2 phases: the shared page layout, Vietnamese and English handling, the disclaimer and fee note (Phase 4), and rate limiting and <code>noindex</code> headers on public endpoints (Phase 7). Settings (fee, phone, Zalo, disclaimer) are seeded with defaults and have no editing tool until Version 2, and the billing page shows no phone or Zalo link in Version 1. Phase 2 runs last, after the real sheet samples arrive.</p>
 <p><strong>Version 2:</strong> Phases 4, 5, 6 and 7. The website pages (directory and hotel detail), the Mytour crawl, the admin and review tools, and hardening.</p>
 <p style="margin-bottom:0">Phase 4b is listed before Phase 4 on purpose. The phase numbers are unchanged so that existing references stay valid.</p>
 </div>
@@ -255,8 +255,8 @@ CREATE TABLE field_sources (hotel_id TEXT, entity TEXT, field TEXT, source TEXT,
 <li><strong>Night:</strong> whole number 1 to 365. <strong>Pricing:</strong> VND with thousand separators, default is the room's <em>final price including the service fee</em>, editable, with an "edited" marker and a reset action. <strong>Total:</strong> Night x Pricing, plus a grand total.</li>
 <li>Rows can be added (up to 30), removed (at least one stays) and cleared. Changing the hotel clears the room.</li>
 <li><strong>Draft:</strong> kept in the visitor's browser (<code>localStorage</code>, key <code>hd_bill_v1</code>) with a Clear button. Nothing is stored on the server, and notes never leave the browser.</li>
-<li><strong>Print / Save PDF:</strong> browser print with a dedicated print layout (no controls, notes shown, grand total, fee note, disclaimer, contact phone). No server-side PDF.</li>
-<li><strong>Disclaimer and fee note</strong> appear under the grid and on the printed bill; the contact phone comes from the admin configuration.</li>
+<li><strong>Print / Save PDF:</strong> browser print with a dedicated print layout (no controls, notes shown, grand total, fee note, disclaimer). No server-side PDF.</li>
+<li><strong>Disclaimer and fee note</strong> appear under the grid and on the printed bill, from seeded default settings. The contact phone and Zalo link are not shown in Version 1.</li>
 <li><strong>Language:</strong> follows the site language (Vietnamese default). Mobile: each row becomes a stacked card.</li>
 <li><strong>API:</strong> reuses <code>/api/hotels/:slug</code> (rooms and final prices) and <code>/api/config</code>; adds <code>GET /api/suggest</code> for the hotel dropdown. Details are in section 18 of the technical design.</li>
 </ul>
@@ -415,7 +415,7 @@ final = round(base * (1 + fee / 100) / 1000) * 1000      // nearest 1,000 VND
 <li>The final list of structured booking-rule fields, and who confirms them.</li>
 <li>Sample sheet rows showing how room-level booking rules and prices are laid out, to design the room-type mapping.</li>
 <li>Billing page: whether the printed bill needs a bill number or a customer name field (not in the spec), and whether mobile and print should also drop the row number from the note label.</li>
-<li>Version 1 needs a few pieces that sit in Version 2 phases: the shared page layout, language handling and disclaimer (Phase 4), changing the fee, phone numbers and disclaimer without an admin page (Phase 6), and rate limiting on the public endpoints (Phase 7). Decision pending.</li>
+<li>Before Version 1 development can start: the real deployed <code>sheet-rag</code> source committed to the repo (Phase 0), and about 20 redacted sample rows from two tabs in different cities, with an example of room-level booking rules and prices (before Phase 2).</li>
 </ol>
 <p style="color:var(--muted);font-size:14px">Prepared from the discussion and the approved mockup. Nothing in this plan has been implemented or deployed.</p>
 </section>

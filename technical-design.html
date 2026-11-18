@@ -980,6 +980,7 @@ CREATE TABLE settings_history (            -- every saved value, so we can show 
 <li>Routes <code>GET /bill</code> and <code>GET /en/bill</code>, rendered by Hono JSX like the other pages.</li>
 <li>Public but not linked: no link in the header or footer, not in <code>sitemap.xml</code> or <code>robots.txt</code>; <code>X-Robots-Tag: noindex</code>.</li>
 <li>The page shell has no personal data and can be cached at the edge. The suggestion endpoint is cached briefly.</li>
+<li><strong>Version 1 scope:</strong> the page shows no phone number or Zalo link. The fee percentage, fee-note flag and disclaimer texts come from the <code>settings</code> table, seeded with defaults by a migration (fee 10%); there is no editing tool until the admin page in Version 2. The shared layout, Vietnamese/English handling, disclaimer and fee note, rate limiting and <code>noindex</code> headers are built in Version 1 because this page needs them.</li>
 </ul>
 
 <h3>18.2 Layout (approved mockup)</h3>
@@ -988,9 +989,9 @@ CREATE TABLE settings_history (            -- every saved value, so we can show 
 <tbody>
 <tr><td>Grid columns (desktop)</td><td><code>56px | 2fr | 2fr | 110px | 170px | 170px | 52px</code> = <code>#</code>, Hotel, Room, Night, Pricing, Total, remove button; 12 px gap. The header row and every data row use the same template.</td></tr>
 <tr><td>Note row</td><td>Under each data row, using the same column template. The label ("NOTE", Vietnamese "GHI CHÚ", with no row number) sits in the first column; the textarea spans columns 2 to 6, so its left edge lines up with the Hotel input and its right edge with the Total column.</td></tr>
-<tr><td>Below the grid</td><td>Add row, Clear all, draft-saved text, Grand total, fee note, disclaimer, Print / Save PDF, call button with the contact phone</td></tr>
+<tr><td>Below the grid</td><td>Add row, Clear all, draft-saved text, Grand total, fee note, disclaimer, Print / Save PDF. The call button and contact phone are not shown in Version 1.</td></tr>
 <tr><td>Mobile (under about 720 px)</td><td>Each row becomes a card: header with number and remove button, Hotel, Room, Night and Pricing side by side, Total, then the note. Touch targets at least 44 px.</td></tr>
-<tr><td>Print</td><td>A4 layout: title, date, table rows with the note shown under each row, grand total, fee note, disclaimer, contact phone, footer</td></tr>
+<tr><td>Print</td><td>A4 layout: title, date, table rows with the note shown under each row, grand total, fee note, disclaimer, footer</td></tr>
 </tbody></table></div>
 
 <h3>18.3 Behaviour rules</h3>
@@ -1010,7 +1011,7 @@ CREATE TABLE settings_history (            -- every saved value, so we can show 
 <h3>18.4 Data and API</h3>
 <ul>
 <li><strong>Room names and default prices:</strong> reuse <code>GET /api/hotels/:slug</code>, which already returns rooms with the final price computed by <code>finalPrice</code> (section 9). If that payload turns out to be heavy for a dropdown, add a lean <code>GET /api/hotels/:slug/rooms</code> returning only id, name and final price.</li>
-<li><strong>Contact and text:</strong> <code>GET /api/config</code> gives the disclaimer (both languages), the fee-note flag and percentage, and the contact phone.</li>
+<li><strong>Contact and text:</strong> <code>GET /api/config</code> gives the disclaimer (both languages), and the fee-note flag and percentage (the contact phone is added when it is needed, in Version 2).</li>
 <li><strong>New: <code>GET /api/suggest?q=&amp;limit=8</code></strong></li>
 </ul>
 <pre><code>// request validation (Zod): q 1..60 characters, limit 1..10 (default 8)
@@ -1073,7 +1074,7 @@ export const grandTotal = (rows: { nights: number; price: number }[]) =&gt; rows
   .print-only { display: block; white-space: pre-wrap; }
   @page { size: A4; margin: 14mm; }
 }</code></pre>
-<p>Each input and textarea has a text mirror that is hidden on screen and shown in print, so long notes are printed in full. The print layout adds the date, the contact phone, the fee note and the disclaimer. The PDF is produced by the browser's own "save as PDF"; there is no server-side PDF.</p>
+<p>Each input and textarea has a text mirror that is hidden on screen and shown in print, so long notes are printed in full. The print layout adds the date, the fee note and the disclaimer. The PDF is produced by the browser's own "save as PDF"; there is no server-side PDF.</p>
 
 <h3>18.9 Languages</h3>
 <p>The page follows the site language (Vietnamese at <code>/bill</code>, English at <code>/en/bill</code>) and the saved <code>hd_lang</code> choice from section 12. Labels live in the shared dictionaries under a <code>bill</code> group (column titles, placeholders, "edited", "use default price", add and clear buttons, note label, empty-list messages), and the key-parity test covers them. Hotel and room names typed or picked earlier are not translated.</p>
