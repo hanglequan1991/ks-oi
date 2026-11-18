@@ -43,6 +43,11 @@ All in `test/web/middleware/inputLimit.spec.ts`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- 7/7 tests in `test/web/middleware/inputLimit.spec.ts` pass (red first: module missing).
+- Length = `[...value].length` (code points). Test documents precomposed vs decomposed Vietnamese and emoji.
+- Body is read through `c.req.raw.clone().json()`; invalid JSON calls `next()`; non-object bodies and non-string fields are ignored.
+- `messages?` is accepted in the options type but unused (response shape is fixed by the task). Flag if it should drive wording.
+- Full suite: 69 tests pass; `test/domain/hotelView.spec.ts` fails to import `src/domain/hotelView` (another task's area, not touched).
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

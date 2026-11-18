@@ -10,7 +10,7 @@ Table format (copy for each story; test cases go in the same table with Type `qa
 |---|---|---|---|---|---|---|
 | [TASK-1](tasks/TASK-1.md) | backend | vitest.unit.config.mts, package.json (test script only), test/fakes/d1.ts, test/fakes/migrations.ts, test/fakes/d1.spec.ts, test/fakes/migrations.spec.ts | dev | done | 0 | deps: none; lead approved |
 | [TASK-2](tasks/TASK-2.md) | backend | migrations/0001_init.sql, test/migrations/0001_init.spec.ts | dev | done | 0 | deps: TASK-1 |
-| [TASK-3](tasks/TASK-3.md) | backend | migrations/0002_seed_settings.sql, test/migrations/0002_seed_settings.spec.ts | dev | review | 0 | deps: TASK-2; coordinator verified full suite 49 tests pass |
+| [TASK-3](tasks/TASK-3.md) | backend | migrations/0002_seed_settings.sql, test/migrations/0002_seed_settings.spec.ts | dev | done | 0 | deps: TASK-2; coordinator verified full suite 49 tests pass |
 | [TASK-4](tasks/TASK-4.md) | backend | src/domain/pricing.ts, test/domain/pricing.spec.ts | dev | done | 0 | deps: TASK-1 |
 | [TASK-5](tasks/TASK-5.md) | backend | src/db/settings.ts, test/db/settings.spec.ts | - | todo | 0 | deps: TASK-3, TASK-4, TASK-1 |
 
@@ -34,7 +34,7 @@ QA test cases for STORY-13 (TC-10 needs a live Cloudflare D1 deployment and cann
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
 | [TASK-6](tasks/TASK-6.md) | backend | package.json (add hono only), package-lock.json, vitest.unit.config.mts, tsconfig.json, test/web/smoke.spec.tsx | dev | done | 0 | deps: TASK-1 |
-| [TASK-7](tasks/TASK-7.md) | backend | src/web/i18n/vi.ts, src/web/i18n/en.ts, src/web/i18n/t.ts, test/web/i18n-keys.spec.ts, test/web/i18n/t.spec.ts | dev | review | 0 | deps: TASK-6; common.siteName = "Sheet RAG" provisional (owner to confirm) |
+| [TASK-7](tasks/TASK-7.md) | backend | src/web/i18n/vi.ts, src/web/i18n/en.ts, src/web/i18n/t.ts, test/web/i18n-keys.spec.ts, test/web/i18n/t.spec.ts | dev | done | 0 | deps: TASK-6; common.siteName = "Sheet RAG" provisional (owner to confirm) |
 | [TASK-8](tasks/TASK-8.md) | frontend | src/web/pages/components/Disclaimer.tsx, FeeNote.tsx, PriceBlock.tsx, test/web/pages/components.spec.tsx | - | todo | 0 | deps: TASK-7, TASK-5, TASK-6 |
 | [TASK-9](tasks/TASK-9.md) | frontend | src/web/pages/Layout.tsx, src/web/render.ts, public/app.css, test/web/pages/layout.spec.tsx | - | todo | 0 | deps: TASK-8, TASK-7, TASK-6 |
 | [TASK-10](tasks/TASK-10.md) | frontend | public/lang.js, test/client/lang.spec.ts | - | todo | 0 | deps: TASK-6 |
@@ -78,13 +78,33 @@ QA test cases for STORY-16 (TC-11 to TC-22 need Playwright from TASK-39 and, for
 | [TASK-24](tasks/TASK-24.md) | backend | src/web/api/meta.ts, test/web/api/meta.spec.ts | - | todo | 0 | deps: TASK-14, TASK-5, TASK-16, TASK-18, TASK-19, TASK-22 |
 | [TASK-25](tasks/TASK-25.md) | backend | src/web/api/index.ts, test/web/api/api.integration.spec.ts | - | todo | 0 | deps: TASK-23, TASK-24, TASK-3, TASK-14 |
 
+QA test cases for STORY-15 (TC-39 needs a live deployment).
+
+| Task | Type | Files | Assignee | Status | Rework count | Notes |
+|---|---|---|---|---|---|---|
+| [TC-25](testcases/TC-25.md) | qa | e2e/TC-25.e2e.ts | - | todo | 0 | |
+| [TC-26](testcases/TC-26.md) | qa | e2e/TC-26.e2e.ts | - | todo | 0 | |
+| [TC-27](testcases/TC-27.md) | qa | e2e/TC-27.e2e.ts | - | todo | 0 | |
+| [TC-28](testcases/TC-28.md) | qa | e2e/TC-28.e2e.ts | - | todo | 0 | |
+| [TC-29](testcases/TC-29.md) | qa | e2e/TC-29.e2e.ts | - | todo | 0 | |
+| [TC-30](testcases/TC-30.md) | qa | e2e/TC-30.e2e.ts | - | todo | 0 | |
+| [TC-31](testcases/TC-31.md) | qa | e2e/TC-31.e2e.ts | - | todo | 0 | |
+| [TC-32](testcases/TC-32.md) | qa | e2e/TC-32.e2e.ts | - | todo | 0 | |
+| [TC-33](testcases/TC-33.md) | qa | e2e/TC-33.e2e.ts | - | todo | 0 | |
+| [TC-34](testcases/TC-34.md) | qa | e2e/TC-34.e2e.ts | - | todo | 0 | |
+| [TC-35](testcases/TC-35.md) | qa | e2e/TC-35.e2e.ts | - | todo | 0 | |
+| [TC-36](testcases/TC-36.md) | qa | e2e/TC-36.e2e.ts | - | todo | 0 | |
+| [TC-37](testcases/TC-37.md) | qa | e2e/TC-37.e2e.ts | - | todo | 0 | |
+| [TC-38](testcases/TC-38.md) | qa | e2e/TC-38.e2e.ts | - | todo | 0 | |
+| [TC-39](testcases/TC-39.md) | qa | e2e/TC-39.e2e.ts | - | todo | 0 | needs a live deployment |
+
 ## STORY-11: Billing page (/bill, /en/bill)
 
 Sequencing note: package.json and package-lock.json are edited by TASK-1, TASK-6, TASK-34 and TASK-39, so these four must run sequentially in that order, never in parallel. TASK-27 is the only STORY-11 task editing vi.ts/en.ts (do not run in parallel with other tasks that edit them).
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TASK-26](tasks/TASK-26.md) | backend | src/domain/money.ts, test/domain/money.spec.ts | dev | review | 0 | deps: TASK-1 (test runner only) |
+| [TASK-26](tasks/TASK-26.md) | backend | src/domain/money.ts, test/domain/money.spec.ts | dev | done | 0 | deps: TASK-1 (test runner only) |
 | [TASK-27](tasks/TASK-27.md) | frontend | src/web/i18n/vi.ts, src/web/i18n/en.ts, test/web/i18n/bill-keys.spec.ts | - | todo | 0 | deps: TASK-7; sole STORY-11 editor of vi.ts/en.ts |
 | [TASK-28](tasks/TASK-28.md) | frontend | src/client/bill/state.ts, test/client/bill-state.spec.ts | - | todo | 0 | deps: TASK-26, TASK-6 |
 | [TASK-29](tasks/TASK-29.md) | frontend | src/client/bill/storage.ts, test/client/bill-storage.spec.ts | - | todo | 0 | deps: TASK-28, TASK-26 |
