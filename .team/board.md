@@ -18,7 +18,7 @@ QA test cases for STORY-13 (TC-10 needs a live Cloudflare D1 deployment and cann
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TC-1](testcases/TC-1.md) | qa | e2e/TC-1.e2e.ts | - | todo | 0 | |
+| [TC-1](testcases/TC-1.md) | qa | e2e/TC-1.e2e.ts | qa | in-progress | 0 | |
 | [TC-2](testcases/TC-2.md) | qa | e2e/TC-2.e2e.ts | - | todo | 0 | |
 | [TC-3](testcases/TC-3.md) | qa | e2e/TC-3.e2e.ts | - | todo | 0 | |
 | [TC-4](testcases/TC-4.md) | qa | e2e/TC-4.e2e.ts | - | todo | 0 | |
@@ -116,7 +116,7 @@ Sequencing note: package.json and package-lock.json are edited by TASK-1, TASK-6
 | [TASK-35](tasks/TASK-35.md) | frontend | src/client/bill/viewModel.ts, src/client/bill/render.ts, test/client/bill-viewmodel.spec.ts | dev | done | 0 | deps: TASK-28, TASK-31, TASK-26, TASK-33 (read-only class contract); lead approved |
 | [TASK-36](tasks/TASK-36.md) | frontend | src/client/bill/config.ts, src/client/bill/main.ts, test/client/bill-config.spec.ts, test/client/bill-guard.spec.ts | dev | done | 0 | lead approved; deps: TASK-28, TASK-29, TASK-30, TASK-31, TASK-32, TASK-35, TASK-34, TASK-26 |
 | [TASK-37](tasks/TASK-37.md) | frontend | src/web/pages/Bill.tsx, test/web/pages/bill-page.spec.tsx | dev | done | 0 | lead approved; deps: TASK-9, TASK-8, TASK-27, TASK-7, TASK-5, TASK-33, TASK-6, TASK-26 |
-| [TASK-38](tasks/TASK-38.md) | backend | src/web/routes/bill.ts, test/web/routes/bill.spec.tsx | dev | in-progress | 0 | deps: TASK-37, TASK-14, TASK-9, TASK-5 (registered via mount hook; app.ts not edited) |
+| [TASK-38](tasks/TASK-38.md) | backend | src/web/routes/bill.ts, test/web/routes/bill.spec.tsx | dev | done | 0 | lead approved; deps: TASK-37, TASK-14, TASK-9, TASK-5 (registered via mount hook; app.ts not edited) |
 | [TASK-39](tasks/TASK-39.md) | backend | package.json (@playwright/test devDependency + e2e script), package-lock.json, playwright.config.ts, test/client/playwright-config.spec.ts | dev | done | 0 | lead approved; deps: TASK-34, TASK-6; last in package.json sequence (TASK-1, 6, 34, 39); real e2e runs also need TASK-15 (blocked on owner) |
 
 QA test cases for STORY-11 (TC-40 owns the shared harness e2e/support/billServer.ts and must be done first; TC-62 needs a live deployment).

@@ -3,7 +3,7 @@
 - id: TASK-38
 - story: [STORY-11](../stories/STORY-11.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-37 (`BillPage`), TASK-14 (`createApp`, `WebEnv`, `mount` hook; the route is registered by the `mount` callback, `src/web/app.ts` is not edited), TASK-9 (`renderPage`), TASK-5 (`getSettings`)
@@ -58,7 +58,12 @@ In `test/web/routes/bill.spec.tsx` (uses `createApp({ getSettings, mount })`, fa
 - Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/web/routes/bill.spec.tsx`: 9 passed. Full unit run: 41 files, 278 tests, all passed.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` gives 41 files, 278 tests, all passed (9 in `bill.spec.tsx`).
+- Coverage: AC1 to AC9 each have a named test as listed in the task (both `/bill` and `/en/bill` for noindex header and meta, cookie, admin, POST; sitemap and robots 404 plus source scan; routes listed through the `mount` hook are only `GET /bill` and `GET /en/bill`; settings change between requests and call counter; rejecting `getSettings` gives 500 with the five security headers and noindex).
+- Code: `bill.ts` registers through the `mount` callback with its own `getSettings` dep, reads settings once per request, sets only `Cache-Control`, no cookie, no storage, no sitemap or robots code. `app.ts` and `index.ts` are untouched. Only the two listed files were added.
+- Non-blocking notes (no rework needed): (1) the disclaimer/fee note appears-once check is not asserted by a test (it is not in the ACs; `Bill.tsx` prints it and `Layout` does not for a no-price page, so it is once by design); (2) rate limiting is only applied by `createApp` to search and chat, so `/bill` is not limited and the task does not require it.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
