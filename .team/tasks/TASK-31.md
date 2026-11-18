@@ -55,7 +55,17 @@ In `test/client/bill-format.spec.ts`.
 - Caret: digits left of the caret are counted in raw, then mapped to the position after the same digit count in the new text (AC2 as corrected: caret 5 -> 5, caret 6 -> 6).
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests run: 21 files, 125 tests pass (includes the 7 in bill-format.spec.ts).
+- AC1: the separator test covers vi and en, `12a3` and the 11-digit paste (capped to 1.000.000.000).
+- AC2: the caret test covers 5 -> 5, 6 -> 6 and clearing -> text '', null, caret 0.
+- AC3: the total label test covers null, 0 and 2750000 in en.
+- AC4: `abc`, empty, `0012` -> 12, `1234` -> 123 and `999` -> 365 are all tested.
+- AC5: dateLabel is tested for vi and en, plus a zero-padding case.
+- AC6: fillTemplate is tested with `<b>`, `$&`, `$1`, no recursion and a missing variable.
+- No files outside the task's list were changed (the git status changes are only .team files from other work). The code matches the spec and imports only domain/money, not i18n.
+- Extra priceLabel test is fine.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
