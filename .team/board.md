@@ -2,11 +2,44 @@
 
 Owned by `pm`. One table per story. Statuses: todo, in-progress, review, rework, done, blocked.
 
-Table format (copy for each story; test cases go in the same table with Type `qa`):
+Table format (copy for each story; test cases go in the same table with Type `qa`). All paths are under `sheet-rag/`. Dependencies are copied from the task files.
 
-## STORY-<n>: <title>
+## STORY-13: Database foundation (schema, settings, pricing, test tooling)
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
+| [TASK-1](tasks/TASK-1.md) | backend | vitest.unit.config.mts, package.json (test script only), test/fakes/d1.ts, test/fakes/migrations.ts, test/fakes/d1.spec.ts, test/fakes/migrations.spec.ts | - | todo | 0 | deps: none |
+| [TASK-2](tasks/TASK-2.md) | backend | migrations/0001_init.sql, test/migrations/0001_init.spec.ts | - | todo | 0 | deps: TASK-1 |
+| [TASK-3](tasks/TASK-3.md) | backend | migrations/0002_seed_settings.sql, test/migrations/0002_seed_settings.spec.ts | - | todo | 0 | deps: TASK-2 |
+| [TASK-4](tasks/TASK-4.md) | backend | src/domain/pricing.ts, test/domain/pricing.spec.ts | - | todo | 0 | deps: TASK-1 |
+| [TASK-5](tasks/TASK-5.md) | backend | src/db/settings.ts, test/db/settings.spec.ts | - | todo | 0 | deps: TASK-3, TASK-4, TASK-1 |
 
-<!-- No stories yet. -->
+## STORY-16: Web shell (app, layout, i18n, middleware)
+
+| Task | Type | Files | Assignee | Status | Rework count | Notes |
+|---|---|---|---|---|---|---|
+| [TASK-6](tasks/TASK-6.md) | backend | package.json (add hono only), package-lock.json, vitest.unit.config.mts, tsconfig.json, test/web/smoke.spec.tsx | - | todo | 0 | deps: TASK-1 |
+| [TASK-7](tasks/TASK-7.md) | backend | src/web/i18n/vi.ts, src/web/i18n/en.ts, src/web/i18n/t.ts, test/web/i18n-keys.spec.ts, test/web/i18n/t.spec.ts | - | todo | 0 | deps: TASK-6 |
+| [TASK-8](tasks/TASK-8.md) | frontend | src/web/pages/components/Disclaimer.tsx, FeeNote.tsx, PriceBlock.tsx, test/web/pages/components.spec.tsx | - | todo | 0 | deps: TASK-7, TASK-5, TASK-6 |
+| [TASK-9](tasks/TASK-9.md) | frontend | src/web/pages/Layout.tsx, src/web/render.ts, public/app.css, test/web/pages/layout.spec.tsx | - | todo | 0 | deps: TASK-8, TASK-7, TASK-6 |
+| [TASK-10](tasks/TASK-10.md) | frontend | public/lang.js, test/client/lang.spec.ts | - | todo | 0 | deps: TASK-6 |
+| [TASK-11](tasks/TASK-11.md) | backend | src/web/middleware/security.ts, test/web/middleware/security.spec.ts | - | todo | 0 | deps: TASK-6 |
+| [TASK-12](tasks/TASK-12.md) | backend | src/web/middleware/rateLimit.ts, test/web/middleware/rateLimit.spec.ts | - | todo | 0 | deps: TASK-6 |
+| [TASK-13](tasks/TASK-13.md) | backend | src/web/middleware/inputLimit.ts, test/web/middleware/inputLimit.spec.ts | - | todo | 0 | deps: TASK-6 |
+| [TASK-14](tasks/TASK-14.md) | backend | src/web/app.ts, test/web/app.spec.tsx | - | todo | 0 | deps: TASK-5, TASK-7, TASK-9, TASK-11, TASK-12, TASK-13 |
+| [TASK-15](tasks/TASK-15.md) | backend | src/index.ts, src/env.ts (new if needed), wrangler.jsonc, test/index.web.spec.ts (provisional list) | - | blocked | 0 | waiting for the owner's real sheet-rag source (src/index.ts, src/rag/); deps: TASK-14, TASK-10, TASK-9 |
+
+## STORY-15: Hotel public API
+
+| Task | Type | Files | Assignee | Status | Rework count | Notes |
+|---|---|---|---|---|---|---|
+| [TASK-16](tasks/TASK-16.md) | backend | test/fixtures/apiSample.ts, test/fixtures/apiSample.spec.ts | - | todo | 0 | deps: TASK-2, TASK-3, TASK-1 |
+| [TASK-17](tasks/TASK-17.md) | backend | src/domain/fold.ts, test/domain/fold.spec.ts | - | todo | 0 | deps: TASK-1 |
+| [TASK-18](tasks/TASK-18.md) | backend | src/domain/hotelView.ts, test/domain/hotelView.spec.ts | - | todo | 0 | deps: TASK-4, TASK-1 |
+| [TASK-19](tasks/TASK-19.md) | backend | src/web/api/params.ts, src/web/api/types.ts, test/web/api/params.spec.ts | - | todo | 0 | deps: TASK-5, TASK-1 |
+| [TASK-20](tasks/TASK-20.md) | backend | src/db/hotelList.ts, test/db/hotelList.spec.ts | - | todo | 0 | deps: TASK-2, TASK-16, TASK-17, TASK-18, TASK-1 |
+| [TASK-21](tasks/TASK-21.md) | backend | src/db/hotelDetail.ts, test/db/hotelDetail.spec.ts | - | todo | 0 | deps: TASK-2, TASK-16, TASK-18, TASK-1 |
+| [TASK-22](tasks/TASK-22.md) | backend | src/db/cities.ts, src/db/suggest.ts, test/db/cities.spec.ts, test/db/suggest.spec.ts | - | todo | 0 | deps: TASK-2, TASK-16, TASK-17, TASK-1 |
+| [TASK-23](tasks/TASK-23.md) | backend | src/web/api/hotels.ts, test/web/api/hotels.spec.ts | - | todo | 0 | deps: TASK-14, TASK-5, TASK-16, TASK-18, TASK-19, TASK-20, TASK-21 |
+| [TASK-24](tasks/TASK-24.md) | backend | src/web/api/meta.ts, test/web/api/meta.spec.ts | - | todo | 0 | deps: TASK-14, TASK-5, TASK-16, TASK-18, TASK-19, TASK-22 |
+| [TASK-25](tasks/TASK-25.md) | backend | src/web/api/index.ts, test/web/api/api.integration.spec.ts | - | todo | 0 | deps: TASK-23, TASK-24, TASK-3, TASK-14 |
