@@ -46,6 +46,14 @@ Supports STORY-13 AC1, AC2, AC5, AC9 and AC10 (they all need a local database th
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- AC-T1: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` gives 2 files, 8 tests, all passing. The config uses plain `vitest/config` with the four include globs, so `test/index.spec.ts` is not collected. Covered by `runs without CLOUDFLARE_API_TOKEN`.
+- AC-T2: covered by the 3 listed d1 tests. The fake enforces foreign keys, rejects on SQL errors and returns the specified result shapes.
+- AC-T3: covered by the 2 migrations tests. The default dir, sorting, `.sql` filter and no-op on a missing or empty dir all work.
+- AC-T4: covered by `batch rolls back when one statement fails`, which asserts that the count is 0 afterwards. The extra success-path test is fine.
+- Files: dev changes in `6a51dcc` are limited to the listed files. `package.json` changed only in the `test` script. The old config, `src/index.ts` and `test/index.spec.ts` are untouched. (`.team/tasks/TASK-26.md` in the same commit is lead work, not dev.)
+- Dev's known limits (approximate `exec` count, `meta` for SELECT) are acceptable and out of scope.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

@@ -75,9 +75,11 @@ Decisions: .team/decision.md (2026-11-18, billing page rows). Full specification
 
 ## Linked files
 - Depends on: STORY-13 (database and seeded settings), STORY-15 (hotel data API, suggestions, public settings) and STORY-16 (shared layout, language handling, disclaimer and fee note components, noindex, rate limiting).
-- Tasks: TASK-
+- Tasks: [TASK-26](../tasks/TASK-26.md) (money and limits; AC9, 19, 20, 24, 25), [TASK-27](../tasks/TASK-27.md) (`bill` dictionary; AC1, 2, 8, 40), [TASK-28](../tasks/TASK-28.md) (state reducer; AC7, 9, 13, 15-19, 21-30, 32), [TASK-29](../tasks/TASK-29.md) (draft storage; AC31-34), [TASK-30](../tasks/TASK-30.md) (combobox logic; AC11-15, 39), [TASK-31](../tasks/TASK-31.md) (display helpers; AC18-20, 36), [TASK-32](../tasks/TASK-32.md) (suggest and rooms client; AC11, 14, 17, 32, 34), [TASK-33](../tasks/TASK-33.md) (`public/bill.css`, mobile and print; AC8, 36-38), [TASK-34](../tasks/TASK-34.md) (esbuild bundle to `public/bill.js`), [TASK-35](../tasks/TASK-35.md) (view model and DOM builder; AC7, 8, 10, 15, 21, 25-29, 37), [TASK-36](../tasks/TASK-36.md) (config, entry wiring, client safety guard; AC10, 34), [TASK-37](../tasks/TASK-37.md) (`Bill.tsx` page shell; AC1, 2, 35, 40), [TASK-38](../tasks/TASK-38.md) (routes `/bill` and `/en/bill`, hidden-page checks; AC1-6, 34), [TASK-39](../tasks/TASK-39.md) (Playwright tooling for the e2e test cases)
+- Reused (not redone): TASK-1..TASK-25 (test tooling and fake D1, schema, seeded settings, pricing, settings access, Hono setup, i18n, shared components, Layout and `renderPage`, `lang.js`, middleware, `src/web/app.ts`, hotel API including `/api/hotels/:slug`, `/api/suggest`, `/api/config`).
+- Browser behaviour of the grid (AC11-AC33 in the page, AC36-AC39 layout and print) is verified by Playwright test cases written later by qa as `e2e/TC-<n>.e2e.ts` (not dev unit tasks).
 - Test cases: TC-
 
 ## Questions
-Q1: Should the printed bill carry a bill number and/or a customer name field? Currently out of scope. A: (open)
-Q2: On mobile cards and in the printed bill, should the note label also drop the row number (as on the approved desktop layout), or may it show it? A: (open)
+Q1: Should the printed bill carry a bill number and/or a customer name field? Currently out of scope. A: No. Neither a bill number nor a customer name field is added in Version 1 (answered by the lead on behalf of the task owner with the agreed default, 2026-11-18; keeps the page free of personal data).
+Q2: On mobile cards and in the printed bill, should the note label also drop the row number (as on the approved desktop layout), or may it show it? A: It drops the row number everywhere. The label is only "NOTE" ("GHI CHÚ") on desktop, mobile cards and print, consistent with the approved desktop layout. Screen readers still get the row number through the aria-label ("Note, row 2"). Updates the mobile and print boards of the mockup.
