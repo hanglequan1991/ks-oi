@@ -54,6 +54,10 @@ In `test/web/api/hotels.spec.ts`: build `createApp({ getSettings: stub, mount: (
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Files: `sheet-rag/src/web/api/hotels.ts` (new), `sheet-rag/test/web/api/hotels.spec.ts` (new). `src/index.ts` and `src/web/app.ts` not touched.
+- Tests: 14 in hotels.spec.ts (the 11 listed plus Cache-Control checks and a 404-slug settings check). `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/web/api/hotels.spec.ts`: 14 passed. Full unit run: 38 files, 256 passed.
+- Language: the coordinator note says language comes from the URL path, but AC4 needs `?lang=en` on `/api/hotels/:slug`. `/api/*` cannot take a `/en` prefix without leaving the `/api/hotels/*` rate limit, so both routes use the `lang` query parameter (`parseLang` / `parseListParams`, default vi). Lead to confirm this reading.
+- Settings are read once per request (`deps.getSettings()`), only after validation passes and, for detail, only when the hotel is found.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

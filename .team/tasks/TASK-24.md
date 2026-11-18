@@ -46,6 +46,11 @@ In `test/web/api/meta.spec.ts`, using `createApp` with `mount` + fake D1 + `seed
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Files: `sheet-rag/src/web/api/meta.ts` (new), `sheet-rag/test/web/api/meta.spec.ts` (new). src/index.ts and src/web/app.ts not touched.
+- Tests: 8 in meta.spec.ts (the 7 listed plus 1 extra: invalid lang on /api/cities gives 400). `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/web/api/meta.spec.ts`: 8 passed.
+- `/api/config` calls `deps.getSettings()` once and returns only the five fields; `/api/suggest` never reads settings.
+- Language on the JSON routes comes from the `lang` query parameter (parseLang / parseSuggestParams), not the path, so no `/en` variants are needed for these routes.
+- Full unit run: 255 of 256 pass. The one failure is `test/web/api/hotels.spec.ts` (oversized limit test, another dev's file), not my files.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
