@@ -64,7 +64,7 @@ pre code{background:none;padding:0}
 
 <header class="top">
   <h1>Hotel Dictionary: Implementation Plan</h1>
-  <p>A bilingual (Vietnamese default, English) website that lists hotels, locations, images, facilities, furniture, building details and rooms. Data comes from the Google Sheets already indexed by <code>sheet-rag</code>, optionally enriched with facts from mytour.vn through a Cloudflare Browser Run job. Prices shown to guests are the sheet base price plus a configurable service fee.</p>
+  <p>A bilingual (Vietnamese default, English) website that lists hotels, locations, images, facilities, furniture, building details and rooms. Data comes from the Google Sheets already indexed by <code>sheet-rag</code>, optionally refreshed with room details and hotel utilities from mytour.vn through a Cloudflare Browser Run job. Prices shown to guests are the sheet base price plus a configurable service fee.</p>
 </header>
 
 <div class="wrap">
@@ -96,7 +96,9 @@ pre code{background:none;padding:0}
 <tr><td>Fee note</td><td>The page may show "Includes 10% service fee". This overrides the earlier default of showing the final price only; it can be switched off in config.</td></tr>
 <tr><td>Disclaimer</td><td>One sentence, in both languages, shown on every hotel and every room (see section 5).</td></tr>
 <tr><td>Booking</td><td>Out of scope. Guests call to confirm and book.</td></tr>
-<tr><td>Mytour</td><td>Optional secondary source for plain facts only (name, address, stars, facilities). No photos, descriptions, prices or reviews until the hotel consents. Gated by the checks in Phase 0.</td></tr>
+<tr><td>Mytour</td><td>Optional source for <strong>room details</strong> (type, bed, size, max guests, view, in-room amenities) and <strong>hotel utilities</strong>, because the sheets may be out of date. Never prices, booking rules, descriptions, photos or reviews. Gated by the checks in Phase 0.</td></tr>
+<tr><td>Booking rules</td><td>From the Excel sheets only, at hotel level and at room level. Shown verbatim with the sync date. The crawler never reads or writes them.</td></tr>
+<tr><td>Prices, descriptions, photos</td><td>From the Excel sheets only.</td></tr>
 </tbody></table></div>
 </section>
 
@@ -114,7 +116,7 @@ pre code{background:none;padding:0}
   <span class="box">mytour.vn</span><span class="arrow">→</span>
   <span class="box">Browser Run <code>/crawl</code> job</span><span class="arrow">→</span>
   <span class="box">Match &amp; review queue</span><span class="arrow">→</span>
-  <span class="box">fills empty fields in D1</span>
+  <span class="box">updates room details and utilities in D1</span>
 </div>
 <div class="flow">
   <span class="box">Same sync worker</span><span class="arrow">→</span>
@@ -143,13 +145,28 @@ pre code{background:none;padding:0}
 CREATE TABLE hotel_facilities (hotel_id TEXT, category TEXT, label TEXT);  -- facility | furniture | building
 CREATE TABLE hotel_images (hotel_id TEXT, url TEXT, position INTEGER);
 CREATE TABLE rooms (id TEXT PRIMARY KEY, hotel_id TEXT, type TEXT, furniture TEXT,
+                    description TEXT, bed_type TEXT, size_m2 REAL, view TEXT,
+                    source TEXT,            -- sheet | mytour
+                    sheet_room_id TEXT,     -- the sheet room that owns price and booking rules
                     max_guests INTEGER, base_price INTEGER);
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);   -- service_fee_percent, show_fee_note
 CREATE TABLE overrides (hotel_id TEXT, field TEXT, value TEXT);
 CREATE TABLE mytour_staging (url TEXT PRIMARY KEY, city TEXT, name TEXT, address TEXT,
                              stars INTEGER, facilities TEXT, fetched_at TEXT);
 CREATE TABLE hotel_source_map (hotel_id TEXT, source TEXT, source_id TEXT, score REAL,
-                               status TEXT, matched_at TEXT);   -- auto | confirmed | rejected</code></pre>
+                               status TEXT, matched_at TEXT);   -- auto | confirmed | rejected
+CREATE TABLE booking_rules (id TEXT PRIMARY KEY, hotel_id TEXT NOT NULL,
+                            room_id TEXT,                  -- NULL = hotel-level rule
+                            raw_text TEXT NOT NULL,        -- verbatim from the sheet
+                            checkin_time TEXT, checkout_time TEXT, cancellation TEXT, deposit TEXT,
+                            children_policy TEXT, pets TEXT, smoking TEXT, id_required TEXT,
+                            payment_methods TEXT, min_stay TEXT, surcharges TEXT,
+                            status TEXT DEFAULT 'review',  -- review | confirmed
+                            synced_at TEXT);
+CREATE TABLE room_type_map (room_id TEXT, source TEXT, source_room_name TEXT,
+                            score REAL, status TEXT);      -- auto | confirmed | rejected
+CREATE TABLE field_sources (hotel_id TEXT, entity TEXT, field TEXT, source TEXT,
+                            source_url TEXT, fetched_at TEXT);</code></pre>
 <p>Add an FTS5 index on hotel name, address and city for dictionary-style search.</p>
 </section>
 
@@ -190,6 +207,8 @@ CREATE TABLE hotel_source_map (hotel_id TEXT, source TEXT, source_id TEXT, score
 <li><strong>Hybrid extraction:</strong> a parser for tabular parts (rooms, prices); an LLM with a fixed JSON schema for free text (description, facilities, furniture, building). Image URLs are taken by pattern, never by the model.</li>
 <li><strong>Validation:</strong> price numeric, stars 1 to 5, URLs start with <code>https</code>. Failures set <code>status = review</code> and stay off the public site.</li>
 <li>Apply <code>overrides</code> after every sync so manual corrections survive.</li>
+<li><strong>Booking rules (the most important data):</strong> store the sheet text verbatim at hotel level and at room level in <code>booking_rules</code>. Extract the structured fields (check-in and check-out times, cancellation, deposit, children and extra bed, pets, smoking, ID, payment, minimum stay, surcharges) only as a convenience, and keep them in <code>review</code> until a person confirms. Never rewrite or summarise the text.</li>
+<li>Prices, descriptions and image links come from the sheet, never from Mytour.</li>
 <li>Extend <code>dropTab</code> to hide or remove the hotel when its tab disappears.</li>
 <li>Replace child rows (facilities, images, rooms) in one batch per hotel, keyed by the stable hotel id.</li>
 </ul>
@@ -204,7 +223,7 @@ CREATE TABLE hotel_source_map (hotel_id TEXT, source TEXT, source_id TEXT, score
 <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
 <tbody>
 <tr><td><code>GET /api/hotels?city=&amp;q=&amp;stars=&amp;facility=&amp;sort=&amp;page=</code></td><td>Directory list with search and filters. Published hotels only.</td></tr>
-<tr><td><code>GET /api/hotels/:id</code></td><td>Hotel detail: facilities, furniture, building, images, rooms.</td></tr>
+<tr><td><code>GET /api/hotels/:id</code></td><td>Hotel detail: facilities, furniture, building, images, rooms, and booking rules (hotel level and per room).</td></tr>
 <tr><td><code>GET /api/cities</code></td><td>City tabs and A to Z index.</td></tr>
 <tr><td><code>GET /api/config</code></td><td>Public settings (fee note on/off, disclaimer text). Never the base price.</td></tr>
 </tbody></table></div>
@@ -224,6 +243,7 @@ CREATE TABLE hotel_source_map (hotel_id TEXT, source TEXT, source_id TEXT, score
 <li>Pages from the approved mockup: directory (home), hotel detail, mobile layout.</li>
 <li>Language: <code>vi</code> by default; the VI/EN toggle writes <code>hd_lang</code> to <code>localStorage</code> inside <code>try/catch</code>, and reads it on load.</li>
 <li>Disclaimer on every hotel card, every room row and the price panel, in the chosen language.</li>
+<li>Booking rules shown verbatim at hotel level and under each room, with the sheet sync date. If a rule is missing, show "Please call to confirm", never a default.</li>
 <li>Server-rendered or pre-rendered hotel pages with titles and descriptions for search engines.</li>
 <li>Accessibility basics: labels, focus order, 44 px touch targets, text contrast.</li>
 </ul>
@@ -238,11 +258,12 @@ CREATE TABLE hotel_source_map (hotel_id TEXT, source TEXT, source_id TEXT, score
 <li><strong>Job:</strong> a weekly cron calls the Browser Run <code>/crawl</code> endpoint for each city listing, with structured JSON output and an include pattern limited to hotel pages. Store the job id; a queue consumer fetches results into <code>mytour_staging</code>.</li>
 <li><strong>Behaviour to expect:</strong> the crawler honours <code>robots.txt</code> and <code>crawl-delay</code>, identifies itself as a bot, and does not bypass bot protection. Disallowed URLs return <code>robots_disallowed</code>; do not work around that.</li>
 <li><strong>Fallback:</strong> Puppeteer or Playwright through a Worker binding, with guardrails limiting the session to <code>mytour.vn</code>, run from a queue with reused sessions.</li>
-<li><strong>Keep only facts:</strong> name, address, stars, facilities list, source URL, fetch time.</li>
+<li><strong>Fields taken:</strong> room details per room (type, bed type, size in m², max guests, view, in-room amenities) and the hotel utilities list, grouped. Name, address, stars and coordinates are used for matching, and fill the sheet's empty fields only. Never prices, booking rules, descriptions, photos or reviews. Each value stores its source URL and fetch time.</li>
 <li><strong>Matching:</strong> compare each sheet hotel with Mytour hotels in the same city. Normalise names (no diacritics, drop "khách sạn" or "hotel"), score name, address, phone and coordinates, then auto-link above a high threshold, send the middle band to review, and ignore the rest. Store results in <code>hotel_source_map</code>; confirmed and rejected links are never re-decided.</li>
-<li><strong>Merge rule:</strong> Mytour fills empty fields only; the sheet value always wins. Unmatched Mytour hotels stay <code>review</code> and hidden.</li>
+<li><strong>Merge rule:</strong> for room details and utilities, Mytour wins once the hotel match is confirmed (or auto-linked above the threshold), and the old sheet value goes to the audit trail. A utility that only the sheet lists is kept as <code>unconfirmed</code>, not deleted. Booking rules, prices, descriptions and photos are never touched. Unmatched Mytour hotels stay <code>review</code> and hidden.</li>
+<li><strong>Room-type mapping:</strong> link each Mytour room to a sheet room in <code>room_type_map</code> by normalised name, bed type and guest count. A Mytour room without a link is shown with "Contact for price". A sheet room without a link stays listed with a review flag. Confirmed links are never re-decided.</li>
 </ul>
-<p><strong>Done when:</strong> a test crawl of one city fills staging, a labelled sample of about 50 hotels is matched correctly at the chosen thresholds, and nothing from Mytour overwrites a sheet value.</p>
+<p><strong>Done when:</strong> a test crawl of one city fills staging, a labelled sample of about 50 hotels is matched correctly at the chosen thresholds, nothing from Mytour changes booking rules, prices, descriptions or photos, and a Mytour room without a sheet link shows no price.</p>
 </div>
 </details>
 
@@ -284,8 +305,21 @@ final = round(base * (1 + fee / 100) / 1000) * 1000      // nearest 1,000 VND
 <p><strong>Vietnamese:</strong> Giá và tình trạng phòng thay đổi theo số phòng còn lại và báo cáo từ khách sạn, chúng tôi không cam kết, vui lòng gọi điện để xác nhận trước khi đặt phòng.</p>
 </div>
 <div class="note">A visible sentence reduces risk but does not guarantee legal protection. Have a lawyer review the wording and consider a short Terms page linked from the footer.</div>
+<h3>Field ownership</h3>
+<div class="scroll"><table>
+<thead><tr><th>Data</th><th>Source of truth</th><th>Rule</th></tr></thead>
+<tbody>
+<tr><td>Room details (type, bed, size, max guests, view, in-room amenities)</td><td>Mytour</td><td>Mytour wins on a confirmed match; the sheet fills gaps</td></tr>
+<tr><td>Hotel utilities</td><td>Mytour</td><td>Union of both lists; sheet-only items kept as unconfirmed</td></tr>
+<tr><td>Booking rules (hotel and room level)</td><td>Excel sheet only</td><td>Verbatim; never touched by the crawler</td></tr>
+<tr><td>Base price</td><td>Excel sheet only</td><td>Service fee added on the server</td></tr>
+<tr><td>Descriptions, photos, hotel name, city</td><td>Excel sheet only</td><td>Mytour is used for matching only</td></tr>
+<tr><td>Address, stars, coordinates</td><td>Excel sheet</td><td>Mytour fills empty values only; a conflict goes to review</td></tr>
+</tbody></table></div>
 <h3>Merge priority</h3>
-<ol><li>Manual overrides</li><li>Google Sheets</li><li>Mytour facts (empty fields only)</li></ol>
+<ol><li>Manual overrides</li><li>For room details and utilities: Mytour (confirmed match), then the sheet</li><li>For everything else: the Excel sheet, with Mytour filling empty address, stars and coordinates only</li></ol>
+<h3>Booking rules</h3>
+<p>Booking rules come only from the Excel sheet, at hotel level and at room level. They are shown verbatim with the date of the last sync. A missing rule shows "Please call to confirm". English text must be a reviewed translation, labelled as such; otherwise the Vietnamese original is shown. The admin page warns when a tab's rules have not changed for a configured number of days.</p>
 </section>
 
 <section id="stories">
@@ -311,6 +345,8 @@ final = round(base * (1 + fee / 100) / 1000) * 1000      // nearest 1,000 VND
 <li><strong>Integration:</strong> sync of a fixture sheet into a local D1; idempotent rerun; deleted tab; override survives resync.</li>
 <li><strong>E2E (Playwright):</strong> language default and persistence, disclaimer on every card and room, price equals base times 1.10 rounded, unpublished hotels never listed.</li>
 <li><strong>Matching quality:</strong> a labelled sample of about 50 hotels to choose thresholds, measured before enabling auto-link.</li>
+<li><strong>Booking rules:</strong> a crawl never changes <code>booking_rules</code>; a missing rule renders "Please call to confirm"; the text is shown character for character.</li>
+<li><strong>Room mapping:</strong> a Mytour room without a sheet link shows no price; a low-score link waits in review and does not go live.</li>
 </ul>
 </section>
 
@@ -326,6 +362,9 @@ final = round(base * (1 + fee / 100) / 1000) * 1000      // nearest 1,000 VND
 <tr><td>Public <code>/search</code> and <code>/chat</code> with no limits</td><td>Cost abuse</td><td>Rate limiting before launch</td></tr>
 <tr><td>Prices change after the page loads</td><td>Guest disputes</td><td>Disclaimer, call to confirm, legal review</td></tr>
 <tr><td>Long chunks vs embedding input size</td><td>Weaker chat matches</td><td>Check how bge-m3 truncates; shorten chunks if needed</td></tr>
+<tr><td>Mytour room names differ from sheet room names</td><td>Wrong or missing price per room</td><td><code>room_type_map</code> with review; unlinked rooms show "Contact for price"</td></tr>
+<tr><td>Booking rules extracted or translated wrongly</td><td>Guest disputes</td><td>Show the verbatim text; structured fields need human confirmation; reviewed translations only</td></tr>
+<tr><td>Stale booking rules in the sheet</td><td>Outdated terms shown</td><td>Show the sync date; staleness warning; "Please call" fallback</td></tr>
 </tbody></table></div>
 </section>
 
@@ -337,7 +376,9 @@ final = round(base * (1 + fee / 100) / 1000) * 1000      // nearest 1,000 VND
 <li>Whether to show the fee note to guests (currently yes, switchable).</li>
 <li>Whether the fee can ever differ per hotel (currently one global value).</li>
 <li>Browser Run pricing and D1 limits at your data size (not yet checked).</li>
-<li>Hotels' consent for photos and descriptions.</li>
+<li>Hotels' consent, only if photos or descriptions are ever crawled from hotel sites (for now they come from the sheets).</li>
+<li>The final list of structured booking-rule fields, and who confirms them.</li>
+<li>Sample sheet rows showing how room-level booking rules and prices are laid out, to design the room-type mapping.</li>
 </ol>
 <p style="color:var(--muted);font-size:14px">Prepared from the discussion and the approved mockup. Nothing in this plan has been implemented or deployed.</p>
 </section>

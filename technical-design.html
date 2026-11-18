@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hotel Dictionary: Technical Design</title>
+<style>
+:root{
+  --bg:#f6f1e8; --card:#ffffff; --ink:#1b2a2f; --muted:#4b5b5f; --line:#e3dacb;
+  --accent:#0f6b5c; --accent-ink:#ffffff; --warn:#8a5a00; --warn-bg:#fff4dc; --code-bg:#efe8da;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#14201f; --card:#1b2b2a; --ink:#eef2ee; --muted:#a9b9b6; --line:#2d4140;
+         --accent:#59c3ae; --accent-ink:#0b1f1b; --warn:#ffd27a; --warn-bg:#3a2e12; --code-bg:#10201f; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}
+header.top{padding:40px 24px 24px;max-width:1180px;margin:0 auto}
+header.top h1{margin:0 0 8px;font-size:34px;line-height:1.15;letter-spacing:-.02em}
+header.top p{margin:0;color:var(--muted);max-width:820px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px 64px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:40px}
+nav.toc{position:sticky;top:16px;align-self:start;font-size:14px;max-height:calc(100vh - 32px);overflow:auto}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+nav.toc a{text-decoration:none;color:var(--muted)}
+nav.toc a:hover{color:var(--accent)}
+section{margin:0 0 52px}
+h2{font-size:26px;margin:0 0 16px;letter-spacing:-.01em;scroll-margin-top:16px}
+h3{font-size:18px;margin:28px 0 10px}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 12px;padding-left:22px}
+li{margin:4px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px}
+table{width:100%;border-collapse:collapse;font-size:14.5px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{padding:10px 12px;text-align:left;vertical-align:top;border-top:1px solid var(--line)}
+thead th{border-top:0;color:var(--muted);font-size:13px}
+.scroll{overflow-x:auto;margin:0 0 16px}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+code{background:var(--code-bg);padding:1px 6px;border-radius:6px}
+pre{background:var(--code-bg);padding:14px 16px;border-radius:12px;overflow-x:auto;margin:0 0 16px;line-height:1.5}
+pre code{background:none;padding:0}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:12px 16px;margin:0 0 16px;font-size:14.5px}
+.tag{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px;margin-right:6px;border:1px solid var(--line);color:var(--muted)}
+.tag.ok{color:var(--accent);border-color:var(--accent)}
+.tag.un{color:var(--warn);border-color:var(--warn)}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr}
+  nav.toc{position:static;max-height:none}
+  nav.toc ol{flex-direction:row;flex-wrap:wrap;gap:6px 16px}
+  header.top h1{font-size:28px}
+}
+@media print{ nav.toc{display:none} .wrap{display:block} pre{white-space:pre-wrap} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>Hotel Dictionary: Technical Design</h1>
+  <p>How the website, database, sheet sync, Mytour crawl, pricing, booking rules and languages fit together. It builds on <code>implementation-plan.html</code>. Code shown is design-level TypeScript and SQL, not tested code. Items marked <span class="tag un">unverified</span> still need checking against real data or current docs.</p>
+</header>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+<ol>
+  <li><a href="#overview">1. Goals and constraints</a></li>
+  <li><a href="#context">2. System context</a></li>
+  <li><a href="#repo">3. Repository layout</a></li>
+  <li><a href="#bindings">4. Cloudflare resources</a></li>
+  <li><a href="#data">5. Database design</a></li>
+  <li><a href="#sync">6. Sheet sync pipeline</a></li>
+  <li><a href="#crawl">7. Mytour crawl pipeline</a></li>
+  <li><a href="#merge">8. Matching and merge</a></li>
+  <li><a href="#pricing">9. Pricing service</a></li>
+  <li><a href="#rules">10. Booking rules</a></li>
+  <li><a href="#web">11. Web layer</a></li>
+  <li><a href="#i18n">12. Languages</a></li>
+  <li><a href="#security">13. Security</a></li>
+  <li><a href="#ops">14. Operations</a></li>
+  <li><a href="#testing">15. Testing</a></li>
+  <li><a href="#decisions">16. Decisions and open items</a></li>
+</ol>
+</nav>
+
+<main>
+
+<section id="overview">
+<h2>1. Goals and constraints</h2>
+<h3>Goals</h3>
+<ul>
+<li>A bilingual (Vietnamese default, English) directory of hotels with location, images, utilities, rooms, prices and booking rules.</li>
+<li>The website reads only from D1. It never queries Vectorize or the LLM for directory pages.</li>
+<li>Prices shown are sheet base price plus a configurable service fee, calculated on the server.</li>
+<li>Booking rules are shown exactly as written in the Excel sheets.</li>
+<li>Room details and hotel utilities can be refreshed from mytour.vn, because the sheets may be out of date.</li>
+</ul>
+<h3>Non-goals</h3>
+<ul>
+<li>Online booking, availability checks and payments (booking is by phone).</li>
+<li>Copying Mytour prices, booking rules, descriptions, photos or reviews.</li>
+<li>Replacing the existing chat and RAG features. They stay as deployed.</li>
+</ul>
+<h3>Targets (proposed, to confirm)</h3>
+<div class="scroll"><table>
+<thead><tr><th>Area</th><th>Target</th></tr></thead>
+<tbody>
+<tr><td>Directory page time to first byte</td><td>Under 300 ms at the edge for cached pages, under 800 ms uncached</td></tr>
+<tr><td>Sheet change to site update</td><td>Within one sync cycle (cron interval, for example 1 hour)</td></tr>
+<tr><td>Data safety</td><td>A failed extraction or crawl never makes a hotel disappear or changes booking rules</td></tr>
+<tr><td>Availability</td><td>Pages keep serving the last good data if a sync or crawl fails</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="context">
+<h2>2. System context</h2>
+<pre><code>                         +---------------------+
+ Visitor (browser) -----&gt; |  Website Worker      |  Hono + hono/jsx, assets binding
+                         |  fetch()             |  reads D1 only
+                         +----------+----------+
+                                    |
+         +--------------------------+---------------------------+
+         |                          |                           |
+   +-----v-----+            +-------v-------+            +------v------+
+   |    D1     |            |  Vectorize    |            |  Workers AI |
+   | (website  |            | (chat/search, |            | (extraction,|
+   |  data)    |            |  existing)    |            |  chat)      |
+   +-----^-----+            +-------^-------+            +------^------+
+         |                          |                           |
+   +-----+--------------------------+---------------------------+-----+
+   |  Same Worker: scheduled() + queue()                              |
+   |   sheet sync  (Drive folder -&gt; tabs -&gt; extract -&gt; D1 + Vectorize) |
+   |   crawl       (Browser Run /crawl -&gt; staging -&gt; match -&gt; D1)      |
+   +-------+-----------------------------------------+----------------+
+           |                                         |
+   Google Drive / Sheets (public)           Cloudflare Browser Run API
+                                                     |
+                                                 mytour.vn</code></pre>
+<p>One Worker serves the website and runs the background jobs. This keeps one deployment, one set of bindings and shared code for normalisation and pricing. If the codebase grows, the sync and crawl handlers can be split into a second Worker without changing the data model.</p>
+</section>
+
+<section id="repo">
+<h2>3. Repository layout</h2>
+<h3>3.1 Whole repository</h3>
+<pre><code>ks-oi/
+  .claude/
+    agents/                     team agent prompts (product, lead, pm, qalead, dev, qa)
+    rules/team-coordinator.md   workflow rules
+  .team/
+    config.md                   build and test commands (the TODOs must be filled)
+    board.md  decision.md       board and decision log (owned by pm)
+    stories/  tasks/  testcases/
+  .github/
+    workflows/
+      ci.yml                    install, typecheck, lint, tests, wrangler deploy --dry-run
+      deploy.yml                staging on merge, production after manual approval
+  docs/                         (proposed: move the two HTML documents here)
+    implementation-plan.html
+    technical-design.html
+    decisions/                  optional short ADR notes
+  sheet-rag/                    the Cloudflare application (see 3.2)
+  CLAUDE-TEAM-README.md</code></pre>
+<p>Today the two HTML documents sit at the repository root. Moving them into <code>docs/</code> is a tidy-up for later and is not required.</p>
+
+<h3>3.2 Application folder</h3>
+<pre><code>sheet-rag/                      (or renamed to apps/hotel-dictionary)
+  wrangler.jsonc
+  migrations/                   D1 SQL files: 0001_init.sql, 0002_crawl.sql, ...
+  src/
+    index.ts                    export default { fetch, scheduled, queue }
+    env.ts                      Env type (bindings, secrets, vars)
+    web/
+      app.ts                    Hono app, middleware, routes
+      pages/                    Directory.tsx, Hotel.tsx, Layout.tsx, components/
+      api/                      hotels.ts, cities.ts, config.ts, admin.ts
+      i18n/                     vi.ts, en.ts, t.ts
+    domain/
+      pricing.ts                finalPrice(), fee settings
+      fold.ts                   diacritic folding, slugs
+      facilities.ts             canonical facility catalogue and mapping
+    db/                         queries.ts, upsert.ts, fts.ts
+    sync/                       planSync.ts, syncTab.ts, parse.ts, extract.ts, validate.ts
+    crawl/                      start.ts, finish.ts, ingest.ts
+    match/                      score.ts, rooms.ts
+    merge/                      apply.ts
+    rag/                        existing search/chat code (recovered from the deployed bundle)
+  public/                       app.css, lang.js, fonts/
+  test/                         unit, integration, fixtures/
+  e2e/                          Playwright tests</code></pre>
+<h3>3.3 Test and fixture folders</h3>
+<pre><code>sheet-rag/
+  test/                         mirrors src/ (unit and integration, *.spec.ts)
+    domain/   pricing.spec.ts  fold.spec.ts
+    sync/     parse.spec.ts  validate.spec.ts  syncTab.integration.spec.ts
+    crawl/    ingest.spec.ts  finish.spec.ts
+    match/    score.spec.ts  rooms.spec.ts
+    merge/    guard.spec.ts  apply.integration.spec.ts
+    web/      routes.spec.ts  i18n-keys.spec.ts  disclaimer.spec.ts
+    fixtures/
+      sheets/                   redacted CSV exports of real tabs (one file per layout)
+      crawl/                    recorded /crawl result JSON, including refusal cases
+      expected/                 golden JSON for each sheet fixture
+    fakes/                      fake AI, Vectorize and queue clients (Deps interface)
+  e2e/                          Playwright tests (*.e2e.ts) and playwright.config.ts
+  scripts/                      evaluate-matching.ts (precision/recall report), seed-dev.ts</code></pre>
+<p>Suggested values for <code>.team/config.md</code>: unit tests <code>npm test -- --run</code>, single file <code>npm test -- --run test/domain/pricing.spec.ts</code>, e2e <code>npx playwright test</code>, automation tests in <code>sheet-rag/e2e/</code> named <code>TC-&lt;n&gt;.e2e.ts</code>.</p>
+
+<h3>3.4 Dependency rules between folders</h3>
+<div class="scroll"><table>
+<thead><tr><th>Folder</th><th>May import</th><th>Must not import</th></tr></thead>
+<tbody>
+<tr><td><code>domain/</code></td><td>nothing outside itself (pure functions, no I/O)</td><td>everything else</td></tr>
+<tr><td><code>match/</code></td><td><code>domain/</code></td><td><code>db/</code>, <code>web/</code> (scoring stays pure and easy to test)</td></tr>
+<tr><td><code>db/</code></td><td><code>domain/</code></td><td><code>web/</code>, <code>sync/</code>, <code>crawl/</code></td></tr>
+<tr><td><code>merge/</code></td><td><code>domain/</code>, <code>db/</code> (through the write guard only)</td><td>direct writes to <code>booking_rules</code>, prices, descriptions or images</td></tr>
+<tr><td><code>sync/</code></td><td><code>domain/</code>, <code>db/</code>, <code>rag/</code> (embedding only)</td><td><code>crawl/</code>, <code>web/</code></td></tr>
+<tr><td><code>crawl/</code></td><td><code>domain/</code>, <code>db/</code>, <code>match/</code>, <code>merge/</code></td><td><code>sync/</code>, <code>web/</code>, <code>booking_rules</code> queries</td></tr>
+<tr><td><code>web/</code></td><td><code>domain/</code>, <code>db/</code> (read queries)</td><td><code>sync/</code>, <code>crawl/</code>, <code>merge/</code></td></tr>
+<tr><td><code>rag/</code></td><td><code>domain/</code></td><td><code>web/</code>, <code>db/</code></td></tr>
+</tbody></table></div>
+<p>These rules are enforced in CI with an ESLint <code>no-restricted-imports</code> configuration per folder, so a crawl change cannot accidentally reach booking rules.</p>
+
+<div class="note">The deployed Worker's source is not in the repo yet. Recovering it into <code>src/rag/</code>, <code>src/sync/</code> and <code>src/index.ts</code> is the first task. Deploying the current <code>src/index.ts</code> would overwrite production.</div>
+</section>
+
+<section id="bindings">
+<h2>4. Cloudflare resources</h2>
+<div class="scroll"><table>
+<thead><tr><th>Binding or setting</th><th>Type</th><th>Purpose</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td><code>DB</code></td><td>D1</td><td>Website database</td><td>new</td></tr>
+<tr><td><code>VECTORIZE</code></td><td>Vectorize (1024 dims, cosine)</td><td>Chat and semantic search</td><td>existing</td></tr>
+<tr><td><code>AI</code></td><td>Workers AI</td><td>Embeddings, chat, extraction</td><td>existing</td></tr>
+<tr><td><code>SYNC_STATE</code></td><td>KV</td><td>Per-file and per-tab sync state, content hashes</td><td>existing</td></tr>
+<tr><td><code>REINDEX_QUEUE</code></td><td>Queue</td><td>Sheet sync steps (file, tab, drop-tab)</td><td>existing</td></tr>
+<tr><td><code>CRAWL_QUEUE</code></td><td>Queue</td><td>Crawl steps (start, finish, batch, match)</td><td>new</td></tr>
+<tr><td><code>ASSETS</code></td><td>Static assets</td><td>CSS, small JS, fonts</td><td>new</td></tr>
+<tr><td><code>IMAGES</code></td><td>R2 (optional)</td><td>Copies of images with the hotel's consent</td><td>later</td></tr>
+<tr><td><code>ADMIN_TOKEN</code></td><td>Secret</td><td>Protects <code>/admin/*</code> until real sign-in exists</td><td>existing</td></tr>
+<tr><td><code>CF_ACCOUNT_ID</code>, <code>CF_API_TOKEN</code></td><td>Secrets</td><td>Browser Run REST API (token needs Browser Run Edit permission)</td><td>new</td></tr>
+<tr><td><code>DRIVE_FOLDER_ID</code>, <code>SKIP_TABS</code></td><td>Vars</td><td>Source folder and tabs to ignore</td><td>existing</td></tr>
+<tr><td>Cron triggers</td><td>Schedule</td><td>Hourly sheet plan; weekly crawl start</td><td>existing / new</td></tr>
+</tbody></table></div>
+<pre><code>// wrangler.jsonc (additions, sketch)
+{
+  "d1_databases": [{ "binding": "DB", "database_name": "hotel-dictionary", "database_id": "&lt;id&gt;" }],
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "queues": {
+    "producers": [{ "binding": "REINDEX_QUEUE", "queue": "reindex" }, { "binding": "CRAWL_QUEUE", "queue": "crawl" }],
+    "consumers": [{ "queue": "reindex", "max_batch_size": 5, "max_retries": 3, "dead_letter_queue": "reindex-dlq" },
+                  { "queue": "crawl",   "max_batch_size": 5, "max_retries": 3, "dead_letter_queue": "crawl-dlq" }]
+  },
+  "triggers": { "crons": ["0 * * * *", "0 20 * * 0"] }
+}</code></pre>
+<p>Run <code>wrangler types</code> after any binding change. The exact option names above should be checked against the current Wrangler schema before use.</p>
+</section>
+
+<section id="data">
+<h2>5. Database design</h2>
+<p>Text columns hold the Vietnamese original. A <code>*_search</code> column holds the folded form (lower case, no diacritics, <code>đ</code> as <code>d</code>) because SQLite's diacritic removal does not handle <code>đ</code>. All timestamps are ISO 8601 UTC text. Prices are integer VND.</p>
+<pre><code>-- migrations/0001_init.sql
+CREATE TABLE cities (
+  slug TEXT PRIMARY KEY,
+  name_vi TEXT NOT NULL, name_en TEXT
+);
+
+CREATE TABLE hotels (
+  id TEXT PRIMARY KEY,                     -- sha256(fileId + ':' + gid), first 16 hex
+  slug TEXT NOT NULL UNIQUE,
+  city_slug TEXT NOT NULL REFERENCES cities(slug),
+  name TEXT NOT NULL,
+  name_search TEXT NOT NULL,
+  stars INTEGER CHECK (stars BETWEEN 1 AND 5),
+  address TEXT, area TEXT, lat REAL, lng REAL,
+  description_vi TEXT, description_en TEXT,
+  status TEXT NOT NULL DEFAULT 'review' CHECK (status IN ('review','published','hidden')),
+  source_file_id TEXT NOT NULL, source_gid TEXT NOT NULL, source_hash TEXT NOT NULL,
+  synced_at TEXT NOT NULL,
+  rooms_synced_at TEXT, facilities_synced_at TEXT,
+  UNIQUE (source_file_id, source_gid)
+);
+CREATE INDEX idx_hotels_city_status ON hotels (city_slug, status);
+CREATE INDEX idx_hotels_status_name ON hotels (status, name_search);
+
+CREATE TABLE facility_catalog (            -- canonical vocabulary
+  code TEXT PRIMARY KEY,                   -- e.g. pool, parking, elevator
+  category TEXT NOT NULL CHECK (category IN ('facility','service','building','furniture')),
+  label_vi TEXT NOT NULL, label_en TEXT NOT NULL,
+  synonyms TEXT NOT NULL DEFAULT '[]'      -- JSON array of folded strings, used for mapping
+);
+
+CREATE TABLE hotel_facilities (
+  hotel_id TEXT NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  code TEXT NOT NULL REFERENCES facility_catalog(code),
+  source TEXT NOT NULL CHECK (source IN ('sheet','mytour','hotel_site','override')),
+  confirmed INTEGER NOT NULL DEFAULT 1,    -- 0 = only the sheet lists it, Mytour does not
+  PRIMARY KEY (hotel_id, code)
+);
+
+CREATE TABLE hotel_images (
+  hotel_id TEXT NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  url TEXT NOT NULL, position INTEGER NOT NULL DEFAULT 0, alt_vi TEXT,
+  PRIMARY KEY (hotel_id, url)
+);
+
+CREATE TABLE rooms (
+  id TEXT PRIMARY KEY,
+  hotel_id TEXT NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, name_search TEXT NOT NULL,
+  bed_type TEXT, size_m2 REAL, view TEXT, max_guests INTEGER,
+  description TEXT,                        -- from the sheet only
+  base_price INTEGER,                      -- VND per night, from the sheet only, NULL = unknown
+  source TEXT NOT NULL CHECK (source IN ('sheet','mytour')),
+  sheet_room_id TEXT,                      -- for a Mytour room: the sheet room it maps to
+  position INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_rooms_hotel ON rooms (hotel_id);
+
+CREATE TABLE booking_rules (
+  id TEXT PRIMARY KEY,
+  hotel_id TEXT NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  room_id TEXT REFERENCES rooms(id) ON DELETE CASCADE,   -- NULL = hotel-level rule
+  raw_text TEXT NOT NULL,                  -- verbatim from the sheet, never rewritten
+  checkin_time TEXT, checkout_time TEXT, cancellation TEXT, deposit TEXT,
+  children_policy TEXT, pets TEXT, smoking TEXT, id_required TEXT,
+  payment_methods TEXT, min_stay TEXT, surcharges TEXT,
+  status TEXT NOT NULL DEFAULT 'review' CHECK (status IN ('review','confirmed')),
+  synced_at TEXT NOT NULL
+);
+CREATE INDEX idx_rules_hotel ON booking_rules (hotel_id, room_id);
+
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+-- service_fee_percent = '10', show_fee_note = 'true', data_version = '1'
+
+CREATE TABLE overrides (
+  hotel_id TEXT NOT NULL, entity TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
+  field TEXT NOT NULL, value TEXT NOT NULL, set_by TEXT, set_at TEXT NOT NULL,
+  PRIMARY KEY (hotel_id, entity, entity_id, field)
+);
+
+CREATE VIRTUAL TABLE hotels_fts USING fts5(
+  hotel_id UNINDEXED, name_search, area_search, city_search, tokenize = 'unicode61'
+);
+
+-- migrations/0002_crawl.sql
+CREATE TABLE crawl_targets (
+  id TEXT PRIMARY KEY, source TEXT NOT NULL,           -- mytour | hotel_site
+  city_slug TEXT, start_url TEXT NOT NULL,
+  include_patterns TEXT NOT NULL DEFAULT '[]', exclude_patterns TEXT NOT NULL DEFAULT '[]',
+  page_limit INTEGER NOT NULL DEFAULT 100, depth INTEGER NOT NULL DEFAULT 2,
+  render INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 0,
+  blocked_reason TEXT, last_success_at TEXT
+);
+CREATE TABLE crawl_jobs (
+  id TEXT PRIMARY KEY,                                  -- Cloudflare job id
+  target_id TEXT NOT NULL REFERENCES crawl_targets(id),
+  status TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT,
+  pages_ok INTEGER DEFAULT 0, pages_failed INTEGER DEFAULT 0, error TEXT
+);
+CREATE TABLE crawl_staging (
+  source TEXT NOT NULL, source_url TEXT NOT NULL,
+  payload TEXT NOT NULL, payload_hash TEXT NOT NULL,   -- extracted JSON and its hash
+  outcome TEXT, fetched_at TEXT NOT NULL, job_id TEXT,
+  PRIMARY KEY (source, source_url)
+);
+CREATE TABLE hotel_match_keys (hotel_id TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL,
+                               PRIMARY KEY (hotel_id, kind, value));   -- phone digits etc., never shown
+CREATE TABLE hotel_source_map (
+  hotel_id TEXT NOT NULL, source TEXT NOT NULL, source_id TEXT NOT NULL, source_url TEXT NOT NULL,
+  score REAL NOT NULL, status TEXT NOT NULL CHECK (status IN ('auto','confirmed','rejected')),
+  matched_at TEXT NOT NULL, PRIMARY KEY (hotel_id, source, source_id)
+);
+CREATE TABLE room_type_map (
+  room_id TEXT NOT NULL, source TEXT NOT NULL, source_room_name TEXT NOT NULL,
+  score REAL NOT NULL, status TEXT NOT NULL CHECK (status IN ('auto','confirmed','rejected')),
+  PRIMARY KEY (room_id, source, source_room_name)
+);
+CREATE TABLE field_sources (
+  hotel_id TEXT NOT NULL, entity TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
+  field TEXT NOT NULL, source TEXT NOT NULL, source_url TEXT, fetched_at TEXT NOT NULL,
+  PRIMARY KEY (hotel_id, entity, entity_id, field)
+);
+CREATE TABLE sync_runs (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT,
+  created INTEGER DEFAULT 0, updated INTEGER DEFAULT 0, failed INTEGER DEFAULT 0, notes TEXT
+);</code></pre>
+<h3>Design notes</h3>
+<ul>
+<li><strong>Hotel id</strong> is derived from the Drive file and tab ids, so a rename of a tab does not create a duplicate. The slug is generated once and kept stable.</li>
+<li><strong>Facilities use a canonical catalogue.</strong> A label from the sheet or from Mytour is folded and matched against <code>facility_catalog.synonyms</code>. An unknown label goes to a review list and is not shown until mapped. This keeps both languages consistent and lets filters work.</li>
+<li><strong>Booking rules are separate</strong> so that no crawler code path joins to them.</li>
+<li><strong>The FTS table is written by the app</strong> in the same batch as the hotel row, which keeps it simple and avoids triggers. D1's FTS5 support and its limits should be verified <span class="tag un">unverified</span>.</li>
+<li><strong>Status gate:</strong> only <code>published</code> hotels are returned by any public query. New hotels start as <code>review</code>, or <code>published</code> automatically when validation passes and the setting <code>auto_publish</code> is on.</li>
+</ul>
+</section>
+
+<section id="sync">
+<h2>6. Sheet sync pipeline</h2>
+<h3>Sequence</h3>
+<pre><code>cron (hourly)
+  scheduled() -&gt; planSync()
+      list Drive folder, compare modified time with KV state
+      for each changed file: REINDEX_QUEUE &lt;- { type: 'file', fileId, name, ... }
+queue consumer
+  'file'      -&gt; list tabs, enqueue one 'tab' message per tab, enqueue 'drop-tab' for removed tabs
+  'tab'       -&gt; syncTab()
+  'drop-tab'  -&gt; hide hotel, delete vectors
+
+syncTab(msg)
+  1. fetch tab CSV                                   (existing)
+  2. hash = sha256(CHUNKER_VERSION + EXTRACTOR_VERSION + csv)
+     if hash == KV hash and not msg.force: stop      (existing pattern)
+  3. chunks -&gt; embeddings -&gt; Vectorize upsert         (existing, unchanged)
+  4. blocks = splitBlocks(csv)                       (deterministic)
+  5. record = parseTables(blocks)                    (rooms, prices, rules rows)
+  6. record = await extractFreeText(blocks)          (LLM, schema-checked)
+  7. result = validate(record)                       (Zod + business rules)
+  8. upsertHotel(result)                             (one D1 batch, step 6.3)
+  9. KV put hash and state</code></pre>
+<h3>6.1 What is parsed and what is extracted</h3>
+<div class="scroll"><table>
+<thead><tr><th>Data</th><th>Method</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Rooms and prices</td><td>Deterministic parser on table-like blocks</td><td>Prices must be exact</td></tr>
+<tr><td>Booking rules (hotel and room level)</td><td>Verbatim text capture of the rules blocks; LLM only fills the optional structured fields</td><td>Wording must never change</td></tr>
+<tr><td>Image URLs</td><td>Regular expression over all cells</td><td>Never trust a model with URLs</td></tr>
+<tr><td>Description, facilities, furniture, building</td><td>LLM with a fixed JSON schema</td><td>Free text</td></tr>
+<tr><td>City, hotel name</td><td>File name, tab name</td><td>Already known</td></tr>
+</tbody></table></div>
+<div class="note">The parser depends on how your sheets are laid out. This design assumes the sheets keep the layout described earlier (blank rows separate blocks, a lone one-cell block is a heading). Real sample rows are needed to finalise the rules <span class="tag un">unverified</span>.</div>
+<h3>6.2 Extraction contract</h3>
+<pre><code>// Zod schema, shared by the sync and the tests
+const ExtractedHotel = z.object({
+  stars: z.number().int().min(1).max(5).nullable(),
+  address: z.string().max(300).nullable(),
+  description_vi: z.string().max(4000).nullable(),
+  facilities: z.array(z.string().max(80)).max(80),     // raw labels, mapped to the catalogue later
+  furniture: z.array(z.string().max(80)).max(80),
+  building: z.object({
+    floors: z.number().int().nullable(),
+    rooms: z.number().int().nullable(),
+    year_built: z.number().int().min(1900).max(2100).nullable(),
+  }),
+});
+// rules: validate(record) rejects the hotel into 'review' when
+//  - a room price is present but not a positive integer
+//  - an image URL is not https
+//  - the same room name appears twice in one tab
+//  - description or facilities are missing entirely (warning, not an error)</code></pre>
+<p>The LLM call asks for JSON only, with <code>null</code> for anything not stated, and the result is parsed by Zod. A parse failure is retried once, then the hotel goes to <code>review</code> with the reason stored in <code>sync_runs.notes</code>. The model name and prompt version are constants, and <code>EXTRACTOR_VERSION</code> is bumped when they change so tabs are re-extracted.</p>
+<h3>6.3 Writing to D1</h3>
+<pre><code>// one batch per hotel: atomic, idempotent
+await env.DB.batch([
+  upsertHotelStmt,                    // INSERT ... ON CONFLICT(id) DO UPDATE
+  deleteChildren('hotel_facilities', id, { source: 'sheet' }),
+  ...facilityInserts,
+  deleteChildren('hotel_images', id),
+  ...imageInserts,
+  deleteSheetRooms(id),               // only rooms with source = 'sheet'
+  ...roomInserts,
+  deleteBookingRules(id),
+  ...bookingRuleInserts,
+  deleteFts(id), insertFts(id),
+  ...applyOverrides(id),
+]);
+await bumpDataVersion(env.DB);        // invalidates page cache</code></pre>
+<ul>
+<li>Children are replaced only for rows owned by the sheet. Rows from Mytour (<code>source = 'mytour'</code>) are untouched, so a sheet sync does not erase crawled data.</li>
+<li>Overrides are re-applied at the end of every sync.</li>
+<li>If D1 batch size or statement limits are reached for large hotels, split into two batches with the hotel row last. <span class="tag un">unverified</span></li>
+</ul>
+<h3>6.4 Failure handling</h3>
+<ul>
+<li>A failing tab is retried by the queue with a delay (as today), then lands in the dead-letter queue.</li>
+<li>The previous D1 data stays untouched until a new record passes validation.</li>
+<li>A tab that disappears hides the hotel (<code>status = 'hidden'</code>) and deletes its vectors. It is not deleted from D1, so it can be restored.</li>
+<li>If the Drive folder page returns nothing, the sync throws (existing behaviour) and nothing is removed.</li>
+</ul>
+</section>
+
+<section id="crawl">
+<h2>7. Mytour crawl pipeline</h2>
+<p>This pipeline runs only after the Phase 0 go decision on Mytour's terms and <code>robots.txt</code>. It is disabled by default (<code>crawl_targets.enabled = 0</code>).</p>
+<h3>7.1 Job lifecycle</h3>
+<pre><code>weekly cron -&gt; for each enabled target: CRAWL_QUEUE &lt;- { type: 'crawl-start', targetId }
+
+crawl-start    POST https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/browser-run/crawl
+               -&gt; store { id, targetId, status: 'running' } in crawl_jobs
+crawl.finished event (Queues event subscription, or a poll with ?limit=1 every few minutes)
+               -&gt; CRAWL_QUEUE &lt;- { type: 'crawl-finish', jobId }
+crawl-finish   GET .../crawl/{jobId}?status=completed&amp;limit=50&amp;cursor=...   (page until no cursor)
+               -&gt; for each record: ingest()
+               -&gt; GET ...?status=errored and ?outcome issues: log, disable target on robots/content-signal refusal
+               -&gt; mark job finished, target.last_success_at
+match-batch    -&gt; match, merge (section 8)</code></pre>
+<pre><code>// crawl-start request body (built from the target row)
+{
+  "url": target.start_url,
+  "limit": target.page_limit, "depth": target.depth, "source": "all",
+  "render": !!target.render,
+  "formats": ["json"],
+  "jsonOptions": {
+    "prompt": "Extract the hotel name, address, district, star rating, phone, coordinates, the hotel facilities list, and for each room type its name, bed type, size in square metres, maximum guests, view and in-room amenities. Do not extract prices, photos, descriptions, booking policies or reviews.",
+    "response_format": { "type": "json_schema", "json_schema": { "name": "hotel", "properties": { ... } } }
+  },
+  "options": { "includePatterns": [...], "excludePatterns": [...] },
+  "crawlPurposes": ["search"], "contentUse": "reference",
+  "modifiedSince": lastSuccessUnix, "maxAge": 604800
+}</code></pre>
+<ul>
+<li>The endpoint is asynchronous. A job can run up to 7 days, and Cloudflare keeps results for 14 days, so results are copied into <code>crawl_staging</code> as soon as the job finishes.</li>
+<li><code>crawlPurposes</code> and <code>contentUse</code> must be declared truthfully. If the site's Content Signals refuse them, the request is rejected and the target is disabled.</li>
+<li>Free-plan limits (5 jobs a day, 100 pages a job) make one city per job the maximum useful size. The Paid plan is expected for real use.</li>
+</ul>
+<h3>7.2 Handling record outcomes</h3>
+<div class="scroll"><table>
+<thead><tr><th>Result</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><code>outcome = success</code></td><td>Validate with Zod, write to <code>crawl_staging</code> (skip if the hash is unchanged)</td></tr>
+<tr><td><code>robots_disallowed</code>, <code>content_use_disallowed</code>, <code>crawl_purpose_disallowed</code></td><td>Set <code>blocked_reason</code>, disable the target, raise an admin alert, never retry automatically</td></tr>
+<tr><td><code>status = errored</code> (for example 403)</td><td>Count and log. A block is a stop signal, not something to bypass.</td></tr>
+<tr><td><code>timeout</code>, <code>connection_error</code>, <code>browser_unavailable</code></td><td>Retry on the next run</td></tr>
+<tr><td>Job <code>errored</code> or <code>cancelled_due_to_limits</code></td><td>Retry the next day, at most 3 times, then alert</td></tr>
+</tbody></table></div>
+<h3>7.3 What the crawl extracts</h3>
+<pre><code>const CrawledHotel = z.object({
+  name: z.string(), address: z.string().nullable(), district: z.string().nullable(),
+  stars: z.number().min(1).max(5).nullable(),
+  phone: z.string().nullable(), lat: z.number().nullable(), lng: z.number().nullable(),
+  facilities: z.array(z.string()).max(120),
+  rooms: z.array(z.object({
+    name: z.string(), bed_type: z.string().nullable(), size_m2: z.number().nullable(),
+    max_guests: z.number().int().nullable(), view: z.string().nullable(),
+    amenities: z.array(z.string()).max(60),
+  })).max(60),
+});
+// No price, description, image, policy or review field exists in the schema.</code></pre>
+<p>The JSON extraction runs on Workers AI and is billed there. Its accuracy on Vietnamese pages, and whether <code>render: false</code> is enough for Mytour, need testing on a few real pages first <span class="tag un">unverified</span>.</p>
+</section>
+
+<section id="merge">
+<h2>8. Matching and merge</h2>
+<h3>8.1 Normalisation</h3>
+<pre><code>export function fold(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '')   // strip combining marks
+          .replace(/đ/gi, 'd').toLowerCase()
+          .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+const GENERIC = new Set(['khach','san','hotel','resort','spa','and','the']);
+export const nameKey = (s: string) =&gt; fold(s).split(' ').filter(w =&gt; !GENERIC.has(w)).join(' ');</code></pre>
+<h3>8.2 Hotel match score</h3>
+<pre><code>candidates = staged Mytour hotels in the same city
+for each candidate c of sheet hotel h:
+  name   = tokenSetSimilarity(nameKey(h.name), nameKey(c.name))        // 0..1
+  addr   = tokenSetSimilarity(fold(h.address), fold(c.address))        // 0..1, 0 if either is empty
+  geo    = (distanceMeters(h, c) &lt;= 150) ? 1 : 0                        // only if both have coordinates
+  phone  = digits(h.phone) == digits(c.phone) ? 1 : 0                  // only if both have a phone
+  stars  = h.stars == c.stars ? 1 : (h.stars &amp;&amp; c.stars ? -1 : 0)
+  score  = 0.40*name + 0.25*addr + 0.20*geo + 0.05*stars
+  if phone == 1 and name &gt;= 0.5: score = max(score, 0.95)
+decision:
+  best &gt;= HIGH and best - second &gt;= MARGIN  -&gt; status 'auto'
+  best &gt;= LOW                               -&gt; review queue
+  otherwise                                 -&gt; no match</code></pre>
+<p>The weights and thresholds (<code>HIGH</code>, <code>LOW</code>, <code>MARGIN</code>) are starting points. They are chosen by testing on a labelled sample of about 50 hotels, and auto-linking stays off until that is done. If Mytour pages do not show phone or coordinates, those terms drop out and more cases go to review.</p>
+<h3>8.3 Room mapping</h3>
+<pre><code>for each Mytour room m of a confirmed hotel:
+  candidates = rooms of that hotel with source = 'sheet'
+  score = 0.5*tokenSetSimilarity(nameKey(m.name), nameKey(s.name))
+        + 0.25*(m.bed_type == s.bed_type)
+        + 0.25*(m.max_guests == s.max_guests)
+  link when score &gt;= ROOM_HIGH and clearly ahead of the next candidate, else review
+unlinked Mytour room -&gt; shown without a price ("Contact for price")
+unlinked sheet room  -&gt; kept, flagged for review</code></pre>
+<h3>8.4 Merge rules (code paths)</h3>
+<div class="scroll"><table>
+<thead><tr><th>Entity</th><th>Rule</th><th>Writes</th></tr></thead>
+<tbody>
+<tr><td>Rooms (physical details)</td><td>On a confirmed or auto link, Mytour values overwrite bed type, size, view, max guests and amenities. The old sheet value is kept in <code>field_sources</code> history.</td><td><code>rooms</code>, <code>field_sources</code></td></tr>
+<tr><td>Utilities</td><td>Map labels to <code>facility_catalog</code>. Insert missing codes with <code>source = 'mytour'</code>. Codes present only from the sheet get <code>confirmed = 0</code>. Nothing is deleted.</td><td><code>hotel_facilities</code></td></tr>
+<tr><td>Address, stars, coordinates</td><td>Fill only if empty. If different from the sheet, create a review item and keep the sheet value.</td><td><code>hotels</code></td></tr>
+<tr><td>Booking rules, prices, descriptions, images</td><td>No code path. The merge module has no write access to these tables.</td><td>none</td></tr>
+</tbody></table></div>
+<pre><code>// the guard that makes the rule structural, not just a convention
+const CRAWL_WRITABLE = {
+  hotels: ['address', 'area', 'stars', 'lat', 'lng'],
+  rooms: ['bed_type', 'size_m2', 'view', 'max_guests'],
+  hotel_facilities: ['*'],
+} as const;
+function assertCrawlCanWrite(table: string, field: string) { /* throws if not listed */ }</code></pre>
+<p>Overrides are applied after the merge, so a manual correction always wins. Each changed value writes a <code>field_sources</code> row with the source, URL and fetch time.</p>
+</section>
+
+<section id="pricing">
+<h2>9. Pricing service</h2>
+<pre><code>// src/domain/pricing.ts
+export function finalPrice(base: number, feePercent: number): number {
+  const pct = Math.min(100, Math.max(0, feePercent));
+  return Math.round((base * (100 + pct)) / 100 / 1000) * 1000;   // nearest 1,000 VND
+}
+// finalPrice(1_250_000, 10) === 1_375_000</code></pre>
+<ul>
+<li><strong>Source of the percentage:</strong> <code>settings.service_fee_percent</code>, read once per request (or cached with the page data version). It defaults to 10. A non-numeric value falls back to 10 and logs a warning.</li>
+<li><strong>Where it is applied:</strong> in the API and page renderers, immediately before output. <code>base_price</code> is never included in any response.</li>
+<li><strong>Null price:</strong> the room shows "Contact for price" (Vietnamese: "Liên hệ"). The headline price is the minimum final price of the hotel's priced rooms, or the same wording if none are priced.</li>
+<li><strong>Fee note:</strong> <code>settings.show_fee_note</code> controls whether "Includes 10% service fee" appears. The percentage in that note comes from the same setting.</li>
+<li><strong>Disclaimer:</strong> the call-to-confirm sentence is rendered by the shared layout next to every price, so no template can omit it. A test checks this.</li>
+</ul>
+</section>
+
+<section id="rules">
+<h2>10. Booking rules</h2>
+<ul>
+<li><strong>Storage:</strong> <code>booking_rules.raw_text</code> holds the sheet text exactly as exported. It is HTML-escaped on output and newlines are preserved.</li>
+<li><strong>Two levels:</strong> hotel-level rules (<code>room_id IS NULL</code>) and room-level rules. A room page section shows its own rules first, then the hotel rules.</li>
+<li><strong>Structured fields</strong> are optional extras for filtering and summaries. They stay <code>status = 'review'</code> until an admin confirms them, and only confirmed values are used for filters. The raw text is always the displayed content.</li>
+<li><strong>Missing rules:</strong> render "Please call to confirm" (Vietnamese equivalent), never a default value.</li>
+<li><strong>Sync date:</strong> <code>synced_at</code> is shown next to the rules.</li>
+<li><strong>Staleness:</strong> an admin report lists hotels whose rules text has not changed for a configured number of days, for a person to check.</li>
+<li><strong>Language:</strong> the Vietnamese original is shown on both language versions unless a reviewed translation exists. Translations are stored in a separate column and labelled.</li>
+<li><strong>Isolation:</strong> the crawl and merge code have no write permission to this table (section 8.4).</li>
+</ul>
+</section>
+
+<section id="web">
+<h2>11. Web layer</h2>
+<h3>11.1 Framework</h3>
+<p>Hono with <code>hono/jsx</code> for server-rendered pages. The app type is <code>Hono&lt;{ Bindings: Env }&gt;</code>. The Worker's default export combines <code>fetch</code> (Hono), <code>scheduled</code> and <code>queue</code>. Static files are served by the assets binding.</p>
+<h3>11.2 Pages</h3>
+<div class="scroll"><table>
+<thead><tr><th>Route</th><th>Content</th></tr></thead>
+<tbody>
+<tr><td><code>GET /</code> and <code>/en/</code></td><td>Directory: search, filters, city tabs, hotel cards, A to Z index</td></tr>
+<tr><td><code>GET /c/:city</code> and <code>/en/c/:city</code></td><td>City list</td></tr>
+<tr><td><code>GET /h/:slug</code> and <code>/en/h/:slug</code></td><td>Hotel detail: images, utilities, rooms, prices, booking rules, map placeholder, contact</td></tr>
+<tr><td><code>GET /a-z/:letter</code></td><td>Hotels by first letter of the folded name</td></tr>
+<tr><td><code>GET /terms</code>, <code>/en/terms</code></td><td>Terms page (to be written with legal review)</td></tr>
+<tr><td><code>GET /sitemap.xml</code>, <code>/robots.txt</code></td><td>SEO files, with language alternates</td></tr>
+</tbody></table></div>
+<h3>11.3 JSON API</h3>
+<div class="scroll"><table>
+<thead><tr><th>Endpoint</th><th>Query</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>GET /api/hotels</code></td><td><code>city, q, stars, facility[], sort, page, limit, lang</code></td><td>Published only. <code>limit</code> max 50. Validated with Zod.</td></tr>
+<tr><td><code>GET /api/hotels/:slug</code></td><td><code>lang</code></td><td>Full detail</td></tr>
+<tr><td><code>GET /api/cities</code></td><td></td><td>Slug and name per language</td></tr>
+<tr><td><code>GET /api/config</code></td><td></td><td>Fee-note flag, disclaimer text, supported languages. Never prices or percentages beyond what the page shows.</td></tr>
+<tr><td><code>/search</code>, <code>/chat</code></td><td></td><td>Existing RAG routes, unchanged, rate-limited (section 13)</td></tr>
+<tr><td><code>/admin/*</code></td><td></td><td>Reindex, status, crawl control, review queue. Bearer token for now.</td></tr>
+</tbody></table></div>
+<pre><code>// GET /api/hotels/mong-hotel?lang=vi   (example shape)
+{
+  "slug": "mong-hotel", "name": "…", "city": { "slug": "da-nang", "name": "Đà Nẵng" },
+  "stars": 4, "address": "…", "lat": 16.04, "lng": 108.24,
+  "description": "…",
+  "images": [{ "url": "https://…", "alt": "…" }],
+  "facilities": [{ "code": "pool", "label": "Hồ bơi", "confirmed": true }],
+  "rooms": [{
+    "name": "…", "bedType": "…", "sizeM2": 28, "maxGuests": 2,
+    "price": { "amount": 1375000, "currency": "VND", "unit": "night", "includesFeePercent": 10 },
+    "bookingRules": { "text": "…", "syncedAt": "2026-11-18T03:00:00Z" }
+  }],
+  "bookingRules": { "text": "…", "syncedAt": "…" },
+  "disclaimer": "Giá và tình trạng phòng thay đổi …",
+  "dataUpdatedAt": "2026-11-18T03:00:00Z"
+}</code></pre>
+<p>Field <code>includesFeePercent</code> is omitted when the fee note is turned off. <code>price</code> is <code>null</code> for unpriced rooms.</p>
+<h3>11.4 Search</h3>
+<pre><code>// build a safe FTS5 query from user text
+const tokens = fold(q).split(' ').filter(Boolean).slice(0, 6);
+const match = tokens.map(t =&gt; `"${t.replace(/"/g, '')}"*`).join(' AND ');
+// SELECT h.* FROM hotels_fts f JOIN hotels h ON h.id = f.hotel_id
+//   WHERE hotels_fts MATCH ? AND h.status = 'published' ...</code></pre>
+<p>User input is folded and quoted before it reaches the query, so FTS syntax characters cannot be injected. Filters by city, stars and facility are normal SQL conditions with bound parameters.</p>
+<h3>11.5 Rendering and caching</h3>
+<ul>
+<li>Pages are rendered with Hono JSX components (<code>Layout</code>, <code>HotelCard</code>, <code>RoomRow</code>, <code>PriceBlock</code>, <code>BookingRules</code>, <code>Disclaimer</code>).</li>
+<li>Pages use the Cache API with a key of URL, language and <code>data_version</code>. Every successful sync or merge increments <code>data_version</code>, which invalidates old entries without explicit purging. Public pages send a short <code>s-maxage</code> and <code>stale-while-revalidate</code>.</li>
+<li>List queries fetch hotels first, then facilities, images and rooms for those ids in single <code>IN (...)</code> queries, to avoid one query per hotel.</li>
+<li>Images use <code>loading="lazy"</code>, explicit width and height, and the original URLs unless a hotel's consent allows copying to R2.</li>
+</ul>
+</section>
+
+<section id="i18n">
+<h2>12. Languages</h2>
+<ul>
+<li><strong>URLs:</strong> Vietnamese at <code>/</code> (default), English under <code>/en/</code>. Each page emits <code>&lt;html lang&gt;</code>, <code>hreflang</code> alternates and a canonical link.</li>
+<li><strong>Dictionary:</strong> <code>vi.ts</code> and <code>en.ts</code> export the same typed key set. A unit test fails when a key is missing from either file.</li>
+<li><strong>Data fields:</strong> Vietnamese is the source. English description, labels and translated rules are used when present, otherwise the Vietnamese value is shown. Facility labels come from the catalogue in both languages.</li>
+<li><strong>Remembering the choice:</strong> the toggle writes <code>hd_lang</code> to <code>localStorage</code> inside <code>try/catch</code>. A small script, loaded before the page body, reads it. If the saved value is <code>en</code> and the visitor is on a Vietnamese URL, it redirects to the matching <code>/en/…</code> URL (and back for <code>vi</code>). A first visit with nothing stored stays on Vietnamese.</li>
+<li><strong>Crawlers and no-JS users</strong> are never redirected by script, so each URL has stable content.</li>
+</ul>
+<pre><code>// public/lang.js (outline)
+try {
+  const saved = localStorage.getItem('hd_lang');
+  const onEn = location.pathname.startsWith('/en/') || location.pathname === '/en';
+  if (saved === 'en' &amp;&amp; !onEn) location.replace('/en' + location.pathname + location.search);
+  if (saved === 'vi' &amp;&amp; onEn)  location.replace(location.pathname.replace(/^\/en/, '') || '/');
+} catch (e) { /* storage blocked: stay on the URL's language */ }</code></pre>
+</section>
+
+<section id="security">
+<h2>13. Security</h2>
+<div class="scroll"><table>
+<thead><tr><th>Area</th><th>Measure</th></tr></thead>
+<tbody>
+<tr><td>Public AI routes</td><td><code>/chat</code> and <code>/search</code> call Workers AI with no limits today. Add rate limiting (Cloudflare rate-limiting rules, or a Workers rate-limit binding; check the current options) and an input length cap before the website is public.</td></tr>
+<tr><td>Admin</td><td>Bearer token for now, compared in constant time. Later: single admin role with sign-in, password hashes via WebCrypto, session cookies (<code>HttpOnly</code>, <code>Secure</code>, <code>SameSite=Lax</code>), and an audit trail.</td></tr>
+<tr><td>Input</td><td>Every query parameter and body is validated with Zod; SQL uses bound parameters only.</td></tr>
+<tr><td>Output</td><td>JSX escapes by default. Booking-rule text is escaped and rendered with preserved line breaks, never as HTML.</td></tr>
+<tr><td>Headers</td><td>A Content Security Policy that allows only same-origin scripts and styles and HTTPS images; <code>X-Content-Type-Options</code>, <code>Referrer-Policy</code>, HSTS. No inline scripts.</td></tr>
+<tr><td>CORS</td><td>Off for public pages. Enabled only for named origins if a separate front end is ever added.</td></tr>
+<tr><td>Secrets</td><td>Admin token and Cloudflare API token are Worker secrets, never in <code>wrangler.jsonc</code> vars. The API token is scoped to Browser Run only.</td></tr>
+<tr><td>Personal data</td><td>Hotel phone numbers collected for matching sit in <code>hotel_match_keys</code>, are never returned by any API, and are deleted if a hotel is removed. No guest accounts or guest data are stored.</td></tr>
+<tr><td>Crawler conduct</td><td>Honour <code>robots.txt</code> and Content Signals, declare purposes truthfully, never evade blocks, keep a kill switch.</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="ops">
+<h2>14. Operations</h2>
+<h3>Observability</h3>
+<ul>
+<li>Structured JSON logs for every sync step with hotel id, outcome and duration.</li>
+<li><code>sync_runs</code> records created, updated and failed counts per run. The admin status page shows the latest run, hotels per status, review-queue size, stale rules and crawl job states.</li>
+<li>Alerts (email or webhook) for: dead-letter queue messages, a crawl target disabled by a robots or Content Signals refusal, sync not completed in 24 hours, extraction failure rate above a threshold.</li>
+</ul>
+<h3>Environments and deployment</h3>
+<ul>
+<li><strong>Staging</strong> uses its own D1 database, KV namespace and queues, and a copy of the sheets folder or a subset of it.</li>
+<li>Migrations are SQL files applied with <code>wrangler d1 migrations apply</code>; each is additive and tested on a copy before production.</li>
+<li>CI (GitHub Actions): install, typecheck, unit and integration tests, <code>wrangler deploy --dry-run</code>; deploy to staging on merge, to production on a manual approval.</li>
+<li><strong>Rollback:</strong> redeploy the previous Worker version; hide a bad hotel by setting <code>status = 'hidden'</code>; restore a field by deleting its override or re-running a forced sync.</li>
+</ul>
+<h3>Cost and limits to check</h3>
+<p>Workers AI usage for extraction and crawl JSON, Browser Run and Workers paid-plan limits, D1 row and query limits at your data size, and Queue throughput. None of these has been priced yet <span class="tag un">unverified</span>.</p>
+</section>
+
+<section id="testing">
+<h2>15. Testing</h2>
+<div class="scroll"><table>
+<thead><tr><th>Level</th><th>What</th><th>How</th></tr></thead>
+<tbody>
+<tr><td>Unit</td><td><code>finalPrice</code>, <code>fold</code>, slugs, similarity scoring, Zod schemas, merge guard, dictionary key parity</td><td>Vitest, pure functions</td></tr>
+<tr><td>Parser</td><td>Real sheet fixtures (redacted) to expected records, including rooms, prices, rules text and image URLs</td><td>Golden files</td></tr>
+<tr><td>Integration</td><td>Sync of a fixture tab into local D1: idempotent rerun, edited tab, deleted tab, override survives, Mytour rows survive a sheet sync, booking rules unchanged by a crawl</td><td>Vitest with the Workers test pool and a local D1</td></tr>
+<tr><td>Crawl</td><td>Recorded <code>/crawl</code> result JSON: outcomes, pagination cursor, refusal handling</td><td>Mocked <code>fetch</code></td></tr>
+<tr><td>Matching quality</td><td>About 50 labelled hotels and rooms; precision and recall at the chosen thresholds</td><td>Script that prints a report</td></tr>
+<tr><td>End to end</td><td>Vietnamese default, switching to English and persistence, disclaimer on every card and room, price equals base times 1.10 rounded, unpublished hotels hidden, missing rules show the call message</td><td>Playwright</td></tr>
+</tbody></table></div>
+<div class="note">The existing Vitest setup (<code>@cloudflare/vitest-plugin</code>) needs <code>CLOUDFLARE_API_TOKEN</code> because the AI and Vectorize bindings run against real Cloudflare. For unit and integration tests, pass the AI and Vectorize clients in through a small <code>Deps</code> interface and use fakes, so tests run without credentials.</div>
+</section>
+
+<section id="decisions">
+<h2>16. Decisions and open items</h2>
+<h3>Decisions recorded</h3>
+<div class="scroll"><table>
+<thead><tr><th>Decision</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>D1 as the website database</td><td>Native to Workers, SQL, FTS5, no extra service</td></tr>
+<tr><td>Hono with hono/jsx, not HonoX</td><td>HonoX appears pre-1.0, and Cloudflare documents plain Hono; we also need <code>scheduled</code> and <code>queue</code> exports</td></tr>
+<tr><td>Sync extends the existing queue pipeline</td><td>Reuses change detection, retries and deletes already deployed</td></tr>
+<tr><td>Mytour for rooms and utilities only</td><td>Sheets may be stale for these; booking rules and prices must stay exact, so they come only from the sheet</td></tr>
+<tr><td>Structural write guard for the crawler</td><td>Makes "never touch booking rules" a property of the code, not of care</td></tr>
+<tr><td>Fee applied server-side</td><td>Base price never reaches the browser; one setting changes all prices</td></tr>
+<tr><td>Vietnamese at <code>/</code>, English at <code>/en/</code></td><td>Server-rendered pages, search-friendly, with <code>localStorage</code> remembering the choice</td></tr>
+</tbody></table></div>
+<h3>Open items</h3>
+<ol>
+<li>Real sample sheet rows: layout of rooms, prices and room-level booking rules (decides the parser).</li>
+<li>Mytour <code>robots.txt</code>, terms and legal go/no-go; whether its pages show phone and coordinates; whether <code>render: false</code> is enough.</li>
+<li>Extraction accuracy on Vietnamese text, and the cost of Workers AI and Browser Run at your volume.</li>
+<li>The facility catalogue (initial list of codes and synonyms) and who maintains it.</li>
+<li>The structured booking-rule fields, and who confirms them.</li>
+<li>Hosting images: link to the sheet's URLs, or copy to R2 (needs hotel consent).</li>
+<li>Recovering the deployed Worker source into the repo before any change.</li>
+<li>Whether the English text of booking rules will be translated and reviewed, or shown in Vietnamese only.</li>
+</ol>
+<p style="color:var(--muted);font-size:14px">Prepared from the discussion, the approved mockup and the implementation plan. Nothing in this design has been implemented or deployed.</p>
+</section>
+
+</main>
+</div>
+</body>
+</html>
