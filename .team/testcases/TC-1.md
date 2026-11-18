@@ -3,7 +3,8 @@
 - id: TC-1
 - story: [STORY-13](../stories/STORY-13.md)
 - verifies: AC1
-- status: todo
+- status: in-progress
+- assignee: qa
 - rework count: 0
 - automation test file: `sheet-rag/e2e/TC-1.e2e.ts`
 - runs without Cloudflare credentials: yes (local fake D1 on `node:sqlite`)

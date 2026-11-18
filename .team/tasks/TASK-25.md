@@ -42,6 +42,11 @@ In `test/web/api/api.integration.spec.ts` (real `createApp` + `mountApi` + fake 
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Files: `sheet-rag/src/web/api/index.ts` (new: `mountApi`, re-exports `MAX_PAGE_SIZE`, `DEFAULT_PAGE_SIZE`), `sheet-rag/test/web/api/api.integration.spec.ts` (new, 6 tests). `src/index.ts` and `src/web/app.ts` not touched.
+- Signature: followed the AC section, `mountApi(deps: ApiDeps)`. The "Why" section shows `mountApi(env.DB, getSettingsFn)`, which does not match; TASK-15 should call `mountApi({ db: env.DB, getSettings })`.
+- Language: tests use `?lang=en` for list, detail, cities and suggest, as in TASK-23.
+- Test run: `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/web/api/api.integration.spec.ts`: 6 passed. Full unit run: 42 files, 284 passed.
+- Rate limit test: 60 GETs then the 61st from one `CF-Connecting-IP` gets 429 with no extra settings read.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

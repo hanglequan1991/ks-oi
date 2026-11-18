@@ -25,16 +25,11 @@ async function sampleDb(): Promise<FakeD1> {
 
 function buildApp(db: FakeD1) {
 	const d1 = db as unknown as D1Database;
-	let settingsCalls = 0;
-	const getSettingsCounted = async (): Promise<SiteSettings> => {
-		settingsCalls++;
-		return getSettings(d1, () => {});
-	};
-	const app = createApp({
-		getSettings: getSettingsCounted,
-		mount: mountApi({ db: d1, getSettings: getSettingsCounted }),
+	const getSettingsReal = () => getSettings(d1, () => {});
+	return createApp({
+		getSettings: getSettingsReal,
+		mount: mountApi({ db: d1, getSettings: getSettingsReal }),
 	});
-	return { app, settingsCalls: () => settingsCalls };
 }
 
 interface Reply {
@@ -44,7 +39,7 @@ interface Reply {
 	text: string;
 }
 
-async function get(app: ReturnType<typeof buildApp>["app"], path: string, headers?: Record<string, string>): Promise<Reply> {
+async function get(app: ReturnType<typeof buildApp>, path: string, headers?: Record<string, string>): Promise<Reply> {
 	const res = await app.request(path, { headers });
 	return { path, status: res.status, headers: res.headers, text: await res.text() };
 }
@@ -69,7 +64,7 @@ const SWEEP_PATHS = [
 	"/api/config",
 ];
 
-async function sweep(app: ReturnType<typeof buildApp>["app"]): Promise<Reply[]> {
+async function sweep(app: ReturnType<typeof buildApp>): Promise<Reply[]> {
 	const replies: Reply[] = [];
 	for (const path of SWEEP_PATHS) replies.push(await get(app, path));
 	return replies;
@@ -77,11 +72,14 @@ async function sweep(app: ReturnType<typeof buildApp>["app"]): Promise<Reply[]> 
 
 describe("API integration sweep (STORY-15)", () => {
 	it("no endpoint response contains a base price", async () => {
-		const { app } = buildApp(await sampleDb());
+		const app = buildApp(await sampleDb());
 		const replies = await sweep(app);
 
 		expect(replies.length).toBeGreaterThan(15);
 		for (const r of replies) {
+			// Every reply is a success, except the 404s for unpublished detail URLs.
+			const unpublishedDetail = UNPUBLISHED_SLUGS.some((slug) => r.path.startsWith(`/api/hotels/${slug}`));
+			expect(r.status, r.path).toBe(unpublishedDetail ? 404 : 200);
 			for (const price of SAMPLE_BASE_PRICE_STRINGS) {
 				expect(r.text, `${r.path} leaks ${price}`).not.toContain(price);
 			}
@@ -92,7 +90,7 @@ describe("API integration sweep (STORY-15)", () => {
 	});
 
 	it("non-published hotels never appear anywhere", async () => {
-		const { app } = buildApp(await sampleDb());
+		const app = buildApp(await sampleDb());
 		const replies = await sweep(app);
 
 		for (const r of replies) {
@@ -108,7 +106,7 @@ describe("API integration sweep (STORY-15)", () => {
 	});
 
 	it("only read endpoints exist", async () => {
-		const { app } = buildApp(await sampleDb());
+		const app = buildApp(await sampleDb());
 		const methods = ["POST", "PUT", "PATCH", "DELETE"];
 
 		for (const path of READ_ENDPOINTS) {
@@ -125,7 +123,7 @@ describe("API integration sweep (STORY-15)", () => {
 
 	it("fee setting changes flow from the database to the price", async () => {
 		const db = await sampleDb();
-		const { app } = buildApp(db);
+		const app = buildApp(db);
 		const deluxePrice = async () => {
 			const body = JSON.parse((await get(app, "/api/hotels/mong-hotel")).text) as {
 				rooms: Array<{ name: string; price: { amount: number; includesFeePercent?: number } | null }>;
@@ -153,8 +151,7 @@ describe("API integration sweep (STORY-15)", () => {
 	});
 
 	it("api responses carry noindex and security headers and are rate limited", async () => {
-		const db = await sampleDb();
-		const d1 = db as unknown as D1Database;
+		const d1 = (await sampleDb()) as unknown as D1Database;
 		let settingsCalls = 0;
 		const getSettingsCounted = async (): Promise<SiteSettings> => {
 			settingsCalls++;
@@ -198,7 +195,7 @@ describe("API integration sweep (STORY-15)", () => {
 		const saved = process.env.CLOUDFLARE_API_TOKEN;
 		delete process.env.CLOUDFLARE_API_TOKEN;
 		try {
-			const { app } = buildApp(await sampleDb());
+			const app = buildApp(await sampleDb());
 			const res = await get(app, "/api/config");
 			expect(res.status).toBe(200);
 			expect(JSON.parse(res.text)).toHaveProperty("serviceFeePercent", 10);
