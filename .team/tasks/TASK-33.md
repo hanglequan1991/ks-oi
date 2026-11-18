@@ -3,7 +3,7 @@
 - id: TASK-33
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-6 (test glob `test/client/**`). No file overlap with TASK-9: `public/app.css` is owned by TASK-9 and is not touched; the billing page loads this separate `/bill.css` after `/app.css` (design 18.11 names `public/bill.css` as the home of the print rules).

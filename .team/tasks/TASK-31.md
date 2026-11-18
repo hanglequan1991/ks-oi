@@ -49,6 +49,10 @@ In `test/client/bill-format.spec.ts`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Added `sheet-rag/src/client/bill/format.ts` and `sheet-rag/test/client/bill-format.spec.ts` (7 tests, all green). Full suite: 21 files, 125 tests passed.
+- `nightsText` strips leading zeros before reading the first 3 digits, so `'0012'` gives 12 (per AC4). Plain `parseNights` on the raw string would read `001` and give 1.
+- An all-zero input (`'0'`) gives text `1` and value 1, via `parseNights`' minimum clamp.
+- Caret: digits left of the caret are counted in raw, then mapped to the position after the same digit count in the new text (AC2 as corrected: caret 5 -> 5, caret 6 -> 6).
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

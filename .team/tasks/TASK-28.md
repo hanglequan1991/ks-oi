@@ -89,7 +89,12 @@ In `test/client/bill-state.spec.ts`.
 - Limits and money helpers imported from src/domain/money.ts only. setPrice caps value at MAX_PRICE before comparing with the default.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` gives 118 tests passing, 20 files passing. The only failing suite is `test/client/bill-format.spec.ts` (missing `src/client/bill/format`), which belongs to another task and is ignored. All 12 tests in `bill-state.spec.ts` pass.
+- Coverage: every AC 1 to 12 has a matching named test with meaningful assertions (30 row cap, min one row, order kept, unknown id, edited marker, default retyped, reset, pickRoom keeps edited price, null total counts 0, clamp 0/1000/12.7, applyRooms unedited/edited/vanished/other hotel, frozen input, store unsubscribe).
+- Code vs task: reducer matches every rule in the task. setPrice caps at MAX_PRICE before comparing with the default. Only `money.ts` is imported from the domain. The file stays pure (no DOM, fetch or random ids). Only the two listed files belong to this task; the git status shows no other changes from it.
+- Non-blocking gaps, not required for approval: no test for the 500 cap counted in code points (emoji), for `removeRow` closing the open dropdown, or for `hydrate` (30 cap, empty gives fallback row). A later task may add them.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
