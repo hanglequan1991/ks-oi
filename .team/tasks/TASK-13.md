@@ -51,6 +51,10 @@ All in `test/web/middleware/inputLimit.spec.ts`.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+- Tests cover AC1-AC6 (400 over limit and handler not called, exact max passes, JSON body field and body still readable via clone, 413 on Content-Length, code points, missing/non-string/invalid JSON, constants). Suite run: 14 files, 78 tests pass.
+- Only the two listed files were added.
+- Minor, no rework: (a) in the code-point test the comments say the decomposed string is "400 code points"; the assertion (600) is correct, the comment is wrong. (b) The 413 check only runs when `bodyFields` is non-empty; wire-up (TASK for routes) should always pass `bodyFields` for POST routes. (c) `messages` option is unused, as the dev flagged; leave it.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

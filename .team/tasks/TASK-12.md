@@ -47,6 +47,10 @@ All in `test/web/middleware/rateLimit.spec.ts` (fake clock, `app.request` with h
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+- Tests cover AC1-AC6 (429 + Retry-After + JSON body and handler not called, separate clients/prefixes, window reset with fake clock, fail open for missing/throwing resolver and throwing limiter, client key fallback, purge). Suite run: 14 files, 78 tests pass.
+- Code matches the task; only the two listed files were added. `next()` is outside the try block, so downstream errors are not swallowed.
+- Note for pm: task status still reads in-progress; set it per this verdict.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

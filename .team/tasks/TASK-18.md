@@ -71,6 +71,10 @@ In `test/domain/hotelView.spec.ts` (plain objects, no database).
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+- Tests cover AC1-AC8 (price with fee, null never zero, no base key/value leak across list/detail/city, clamping, fee note key absent when off, rules/facilities/images/dataUpdatedAt, English fallback and disclaimer, list min price, city names). Suite run: 14 files, 78 tests pass.
+- Code imports only `./pricing`, matches the specified exports and shapes; only the two listed files were added.
+- Minor: AC numbers in test comments (AC6, AC7...) do not match this task's numbering; cosmetic.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

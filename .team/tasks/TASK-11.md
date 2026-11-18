@@ -45,6 +45,10 @@ All in `test/web/middleware/security.spec.ts`.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+- Tests cover AC1-AC5 (noindex on html/json/404; five headers on html/json/404/500 via onError; CSP content; Cache-Control, status and body preserved). Suite run: 14 files, 78 tests pass.
+- Code matches the task; only the two listed files were added.
+- Process gap (minor): Dev notes section is empty. Judged on the code, no rework.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
