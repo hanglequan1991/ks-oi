@@ -37,6 +37,10 @@ In `test/web/i18n/bill-keys.spec.ts` (the TASK-7 parity test is not edited; run 
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Added `bill` group (all 45 keys from the list) to `vi.ts` and `en.ts`. Keys are the exact names listed above.
+- New spec `test/web/i18n/bill-keys.spec.ts` (5 tests, one per AC). Red before the dictionary edit (4 failed), green after.
+- Full suite: 25 files, 154 tests passed. TASK-7 parity test untouched and passing.
+- Placeholder strings use `{n}`, `{max}`, `{date}` only. No phone, Zalo or call wording.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
