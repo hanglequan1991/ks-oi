@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
-import { renderToString } from "hono/jsx/dom/server";
 
 describe("web test setup (TASK-6)", () => {
-	it("renders hono jsx to a string", () => {
-		const html = renderToString(<p>hi</p>);
+	it("renders hono jsx to a string", async () => {
+		const html = await (<p>hi</p>).toString();
 		expect(html).toBe("<p>hi</p>");
 	});
 

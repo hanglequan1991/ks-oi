@@ -37,7 +37,7 @@ Decisions: .team/decision.md (2026-11-18, rows on fee, disclaimer, settings seed
 
 ## Linked files
 - Tasks: TASK-1 (test tooling, fake D1), TASK-2 (schema migration), TASK-3 (settings seed migration), TASK-4 (domain pricing), TASK-5 (db settings access)
-- Test cases: TC-
+- Test cases: TC-1 (AC1 tables), TC-2 (AC2 re-run), TC-3 (AC5 changed value kept), TC-4 (AC3, AC4 seeded values), TC-5 (AC6 hotel status), TC-6 (AC7 booking rules), TC-7 (AC8 price), TC-8 (AC9 cascade), TC-9 (AC10 getSettings, local database), TC-10 (live D1, owner-run, skipped in sandbox)
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

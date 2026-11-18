@@ -41,6 +41,10 @@ All in `test/domain/pricing.spec.ts`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Implemented `src/domain/pricing.ts` (finalPrice, parseFeePercent, parseBoolSetting, DEFAULT_FEE_PERCENT) and `test/domain/pricing.spec.ts` (6 tests, one per unit test in the list, AC-P1..P5 covered).
+- `pricing.spec.ts`: 6/6 pass. Red run failed on missing module before implementation.
+- Full unit run: `test/web/smoke.spec.tsx` fails to load (outside this task's files, not touched by dev TASK-4).
+- Status left as `in-progress` for pm to set `review`.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

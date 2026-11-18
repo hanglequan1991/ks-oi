@@ -42,6 +42,9 @@ In `test/domain/fold.spec.ts`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Added `sheet-rag/src/domain/fold.ts` (foldText, searchTokens, likePrefixPattern, likeContainsPattern) and `sheet-rag/test/domain/fold.spec.ts` (4 tests, all pass).
+- Red confirmed first (module missing), then green.
+- Full unit run: 18 tests pass; `test/web/smoke.spec.tsx` fails on `Cannot find package 'react/jsx-dev-runtime'`. It is not part of TASK-17 and was not touched.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
