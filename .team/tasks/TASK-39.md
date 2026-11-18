@@ -3,7 +3,7 @@
 - id: TASK-39
 - story: [STORY-11](../stories/STORY-11.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-34 (both edit `package.json` and `package-lock.json`: never in parallel; run after TASK-34), TASK-6. Running the e2e tests against a real page also needs TASK-15 (Worker entry wired to the web app and `public/` served), which is blocked on the owner; this task does not.
@@ -46,7 +46,9 @@ In `test/client/playwright-config.spec.ts` (imports the config; no browser).
 - Full unit suite: 24 files, 149 tests passing; vitest unit config untouched.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+- Full suite run: 24 files, 149 tests green. The 4 listed tests exist (plus one extra on E2E_BASE_URL) and cover AC-P1 to AC-P4.
+- package.json: only `@playwright/test` (^1.65.1) in devDependencies and the `e2e` script were added. package-lock.json: 46 added lines, only @playwright/test, playwright and playwright-core entries. No browser download occurred (`~/.cache/ms-playwright` does not exist). vitest.unit.config.mts untouched and has no e2e include. playwright.config.ts matches the spec.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

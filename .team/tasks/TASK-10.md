@@ -3,7 +3,7 @@
 - id: TASK-10
 - story: [STORY-16](../stories/STORY-16.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-6 (test glob `test/client/**`)
@@ -49,7 +49,9 @@ All in `test/client/lang.spec.ts`, running `public/lang.js` through `node:vm` wi
 - Full suite: 137 passed, 1 failed in `test/client/playwright-config.spec.ts` (another task's file, not touched here).
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+- Full suite run: 24 files, 149 tests green. All 8 listed tests exist and map to AC1-AC6.
+- public/lang.js matches the spec: IIFE, no import/export/require, redirect keeps search and hash, `/en` and `/en/` map to `/`, root maps to `/en/`, `/enx` is not treated as English, every storage access is in try/catch, the click handler never calls preventDefault. Only the two listed files were touched.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

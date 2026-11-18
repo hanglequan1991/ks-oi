@@ -3,7 +3,7 @@
 - id: TASK-19
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-5 (`SiteSettings` type import in `types.ts`); TASK-1 (test runner). No dependency on TASK-17 (params do not fold text).
@@ -62,7 +62,13 @@ In `test/web/api/params.spec.ts` (no Hono, no database).
 - No `package.json` or lock file changes.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+- Full suite run: 24 files, 149 tests green. All 7 listed tests exist (plus 4 extra) and cover AC1-AC5. Only the three listed files were touched; package.json untouched by this task.
+- Dev decisions where the task was silent, judged against STORY-15 AC3/AC12/AC13 and TC-27/TC-35 (no conflict found):
+  1. Empty value (`city=`, `stars=`, `page=`, `lang=`, `limit=`) = absent: accepted. AC3 only requires invalid values to be rejected or capped; neither TC sends an empty value for these. Note for qa: `q=` on suggest is still rejected with `invalid_q` (it is read directly, not via the absent rule), which is what TC-35 step 1 expects.
+  2. stars/facility deduplicated: accepted, matches the task rule ("duplicates removed") and AC3 of the task. One nuance for later QA: the 10-facility cap counts distinct values after dedupe, so 11 repeated identical values is accepted; 11 distinct ones are rejected (TC-27 does not test this).
+  3. suggest q trimmed: accepted. AC12/AC13 say 1 to 60 characters; TC-35 blank (`%20%20`) gives `invalid_q`, 61 characters gives `invalid_q`, `%`, `_`, `"*"`, `a OR b`, `%00`, emoji pass through with ok (the route must return a safe 200). Length is counted in UTF-16 units, so a 60-emoji q is rejected; acceptable.
+- TC-27 consistency: `limit=500/51` capped to 50, `limit=abc/0/-5` rejected naming limit (so qa asserts rejection for 0 and -5), `facility=POOL %`, `city=Da Nang`, `city='...`, `lang=fr`, 500-character q all give `invalid_param`; `q=%25` and `q=_` pass as plain text (the query layer must escape LIKE, TASK-17).
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
