@@ -101,6 +101,7 @@ pre code{background:none;padding:0}
 <tr><td>Prices, descriptions, photos</td><td>From the Excel sheets only.</td></tr>
 <tr><td>Admin area</td><td>Hidden <code>/admin</code>, sign-in by username and password, single admin role. The first admin (<code>admin</code>) is created by a one-time script with a generated password shown once. The interface is in Vietnamese and English. No two-factor sign-in and no Cloudflare Access. Admins can edit the fee, contact details and the disclaimer text; every change is audited and kept in a history. A lockout after repeated failed logins sends an alert (webhook first, email optional). The owner runs the first-admin script on their own machine with a Cloudflare login.</td></tr>
 <tr><td>Billing page</td><td>Public <code>/bill</code> and <code>/en/bill</code>, not linked, <code>noindex</code>. Grid of hotel, room, nights, price and total with a note per row; default price is the final price including the service fee and can be overwritten; the draft is kept in the browser; output is the screen total and browser print / save as PDF.</td></tr>
+<tr><td>Releases</td><td>Version 1 = Phases 0, 1, 2, 3 and 4b (data foundation and the billing page). Version 2 = Phases 4, 5, 6 and 7 (website pages, Mytour crawl, admin and review tools, hardening). Phase 4b is listed before Phase 4.</td></tr>
 </tbody></table></div>
 </section>
 
@@ -175,6 +176,11 @@ CREATE TABLE field_sources (hotel_id TEXT, entity TEXT, field TEXT, source TEXT,
 <section id="phases">
 <h2>4. Phases</h2>
 <p>Size: <span class="tag s">S</span> small, <span class="tag">M</span> medium, <span class="tag">L</span> large. Phases 1 to 4 are independent of Mytour.</p>
+<div class="card">
+<p><strong>Version 1:</strong> Phases 0, 1, 2, 3 and 4b. The data foundation (database, sheet sync, API) and the public billing page.</p>
+<p><strong>Version 2:</strong> Phases 4, 5, 6 and 7. The website pages (directory and hotel detail), the Mytour crawl, the admin and review tools, and hardening.</p>
+<p style="margin-bottom:0">Phase 4b is listed before Phase 4 on purpose. The phase numbers are unchanged so that existing references stay valid.</p>
+</div>
 
 <details class="phase" open>
 <summary><span class="n">Phase 0</span> Prerequisites and checks <span class="meta">Size S · blocks everything</span></summary>
@@ -239,22 +245,7 @@ CREATE TABLE field_sources (hotel_id TEXT, entity TEXT, field TEXT, source TEXT,
 </details>
 
 <details class="phase">
-<summary><span class="n">Phase 4</span> Website pages <span class="meta">Size M · needs Phase 3</span></summary>
-<div class="body">
-<ul>
-<li>Pages from the approved mockup: directory (home), hotel detail, mobile layout.</li>
-<li>Language: <code>vi</code> by default; the VI/EN toggle writes <code>hd_lang</code> to <code>localStorage</code> inside <code>try/catch</code>, and reads it on load.</li>
-<li>Disclaimer on every hotel card, every room row and the price panel, in the chosen language.</li>
-<li>Booking rules shown verbatim at hotel level and under each room, with the sheet sync date. If a rule is missing, show "Please call to confirm", never a default.</li>
-<li>Server-rendered or pre-rendered hotel pages with titles and descriptions for search engines.</li>
-<li>Accessibility basics: labels, focus order, 44 px touch targets, text contrast.</li>
-</ul>
-<p><strong>Done when:</strong> an e2e test loads the home page in Vietnamese, switches to English, reloads and still sees English, and finds the disclaimer on every card.</p>
-</div>
-</details>
-
-<details class="phase">
-<summary><span class="n">Phase 4b</span> Billing page (<code>/bill</code>) <span class="meta">Size M · needs Phases 3 and 4</span></summary>
+<summary><span class="n">Phase 4b</span> Billing page (<code>/bill</code>) <span class="meta">Size M · Version 1 · needs Phase 3</span></summary>
 <div class="body">
 <p>A public page where a visitor builds a bill across several hotels and rooms. The approved mockup is boards 4 to 6 of the design canvas (desktop, mobile, print).</p>
 <ul>
@@ -270,6 +261,23 @@ CREATE TABLE field_sources (hotel_id TEXT, entity TEXT, field TEXT, source TEXT,
 <li><strong>API:</strong> reuses <code>/api/hotels/:slug</code> (rooms and final prices) and <code>/api/config</code>; adds <code>GET /api/suggest</code> for the hotel dropdown. Details are in section 18 of the technical design.</li>
 </ul>
 <p><strong>Done when:</strong> a visitor can add two rows, pick a hotel and room from the dropdowns, see the default final price, overwrite it, see line and grand totals update, reload and find the draft restored, clear it, and print a clean bill with the disclaimer. The base price is never present in any response to the browser.</p>
+</div>
+</details>
+
+<p style="margin:24px 0 12px"><strong>Version 2 starts here (Phases 4, 5, 6, 7).</strong></p>
+
+<details class="phase">
+<summary><span class="n">Phase 4</span> Website pages <span class="meta">Size M · Version 2 · needs Phase 3</span></summary>
+<div class="body">
+<ul>
+<li>Pages from the approved mockup: directory (home), hotel detail, mobile layout.</li>
+<li>Language: <code>vi</code> by default; the VI/EN toggle writes <code>hd_lang</code> to <code>localStorage</code> inside <code>try/catch</code>, and reads it on load.</li>
+<li>Disclaimer on every hotel card, every room row and the price panel, in the chosen language.</li>
+<li>Booking rules shown verbatim at hotel level and under each room, with the sheet sync date. If a rule is missing, show "Please call to confirm", never a default.</li>
+<li>Server-rendered or pre-rendered hotel pages with titles and descriptions for search engines.</li>
+<li>Accessibility basics: labels, focus order, 44 px touch targets, text contrast.</li>
+</ul>
+<p><strong>Done when:</strong> an e2e test loads the home page in Vietnamese, switches to English, reloads and still sees English, and finds the disclaimer on every card.</p>
 </div>
 </details>
 
@@ -407,6 +415,7 @@ final = round(base * (1 + fee / 100) / 1000) * 1000      // nearest 1,000 VND
 <li>The final list of structured booking-rule fields, and who confirms them.</li>
 <li>Sample sheet rows showing how room-level booking rules and prices are laid out, to design the room-type mapping.</li>
 <li>Billing page: whether the printed bill needs a bill number or a customer name field (not in the spec), and whether mobile and print should also drop the row number from the note label.</li>
+<li>Version 1 needs a few pieces that sit in Version 2 phases: the shared page layout, language handling and disclaimer (Phase 4), changing the fee, phone numbers and disclaimer without an admin page (Phase 6), and rate limiting on the public endpoints (Phase 7). Decision pending.</li>
 </ol>
 <p style="color:var(--muted);font-size:14px">Prepared from the discussion and the approved mockup. Nothing in this plan has been implemented or deployed.</p>
 </section>
