@@ -1,0 +1,77 @@
+/* Base styles for Version 1 pages. Mobile first, no external fonts or imports. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #1d1d1f;
+  background: #ffffff;
+}
+
+main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+header nav {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 0.5rem 1rem;
+  text-align: right;
+}
+
+footer {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+  border-top: 1px solid #d2d2d7;
+}
+
+a {
+  color: #0b5cad;
+}
+
+a:focus-visible {
+  outline: 2px solid #0b5cad;
+  outline-offset: 2px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+.price {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fee-note {
+  display: block;
+  color: #515154;
+}
+
+.disclaimer {
+  margin: 0;
+  color: #515154;
+  font-size: 0.9rem;
+}
+
+@media (min-width: 40rem) {
+  main {
+    padding: 1.5rem;
+  }
+}

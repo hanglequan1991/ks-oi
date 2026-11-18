@@ -224,7 +224,7 @@ describe("Layout and renderPage (TASK-9)", () => {
 		const enHtml = await htmlOf(appFor({ lang: "en", path: "/en/rooms/1" }), "/en/rooms/1");
 		const enToggles = tags(enHtml, "a").filter((a) => a["data-lang"] !== undefined);
 		expect(enToggles).toEqual([{ href: "/rooms/1", "data-lang": "vi", hreflang: "vi" }]);
-		expect(enHtml).toContain("Tiếng Việt");
+		expect(enHtml).toContain("Chuyển sang tiếng Việt");
 
 		// The billing page and any admin area are not linked from the layout.
 		expect(html).not.toMatch(/href="[^"]*\/bill/);

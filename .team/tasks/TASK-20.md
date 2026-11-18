@@ -3,7 +3,7 @@
 - id: TASK-20
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 0
 - depends on: TASK-2 (schema), TASK-16 (sample data), TASK-17 (`searchTokens`, `likeContainsPattern`), TASK-18 (`HotelListRow` type), TASK-1 (fake D1)
@@ -51,9 +51,13 @@ In `test/db/hotelList.spec.ts`, fake D1 + `applyMigrations` + `seedApiSample`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Implemented `src/db/hotelList.ts` and `test/db/hotelList.spec.ts` (9 tests, all pass; full unit suite 27 files / 172 tests green).
+- Spec conflict on `q = '%'`: the Behaviour rule says a `q` that folds to no tokens is ignored. `%` folds to no tokens, so `q = '%'` returns all 3 published hotels (same as no `q`). AC6 says `q = '%'` "does not match everything". The implementation and test follow the Behaviour rule. The AC6 test asserts no throw, unchanged data, and the same rows as no `q`. Change this if the rule should be different.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
+Q (to product): AC6 says `q = '%'` must not match everything, but the Behaviour rule says a `q` with no searchable tokens is ignored, and `%` folds to no tokens. So `q = '%'` returns all 3 published hotels. Should `%` (a q with no tokens) (a) be ignored, as the Behaviour rule says, so it returns all published hotels, or (b) return no rows? Option (b) would need the Behaviour rule changed for non-empty q that folds to nothing.
+A:

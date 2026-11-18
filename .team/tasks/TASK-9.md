@@ -56,6 +56,11 @@ All in `test/web/pages/layout.spec.tsx` (render with `new Hono()` and `app.reque
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Added `Layout.tsx`, `render.ts`, `public/app.css`, `test/web/pages/layout.spec.tsx` (9 tests, all pass; full unit suite 27 files / 172 tests green).
+- Layout is sync (no async components) so `String(element)` in `renderPage` works.
+- hreflang: `vi`, `en` and `x-default` (= Vietnamese URL); all absolute via `origin`.
+- Toggle text is `common.switchToEn` on vi pages and `common.switchToVi` on en pages.
+- The header holds only the language toggle; no admin or `/bill` links anywhere in the layout.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
