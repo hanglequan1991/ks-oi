@@ -31,6 +31,10 @@
 
 ## QA notes
 <!-- Written by qa. -->
+- Automation test: `sheet-rag/e2e/TC-2.e2e.ts` (one test, Node-only, runs under the chromium project; mobile project skips it, as in TC-1).
+- Step 2 needs a `facility_catalog` row for `pool` before the `hotel_facilities` link, because of the foreign key. The test inserts it first.
+- Expected results 3 to 5 are asserted: row counts and a full row snapshot of every table, settings = 5 rows, and field-by-field checks of the city, hotel, room (1250000), rule and facility link after two re-runs.
+- Run: `npx playwright test -c playwright.node.config.ts e2e/TC-2.e2e.ts --trace off --project=chromium` (1 passed).
 
 ## Review
 <!-- Written by qalead. -->
