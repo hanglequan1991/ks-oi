@@ -3,7 +3,7 @@
 - id: TASK-4
 - story: [STORY-13](../stories/STORY-13.md)
 - type: backend        <!-- frontend | backend -->
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-1 (test runner only; no file overlap with TASK-2 or TASK-3, so it can run in parallel with them)

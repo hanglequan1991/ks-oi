@@ -3,7 +3,8 @@
 - id: TASK-34
 - story: [STORY-11](../stories/STORY-11.md)
 - type: backend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-6 (it also edits `package.json` and `package-lock.json`: run **after** TASK-6, never in parallel with TASK-6 or TASK-39), TASK-1 (`test` script)
 - size: fits a 100k-token context (one small script, one test, three config lines)

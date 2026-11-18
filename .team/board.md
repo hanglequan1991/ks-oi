@@ -9,9 +9,9 @@ Table format (copy for each story; test cases go in the same table with Type `qa
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
 | [TASK-1](tasks/TASK-1.md) | backend | vitest.unit.config.mts, package.json (test script only), test/fakes/d1.ts, test/fakes/migrations.ts, test/fakes/d1.spec.ts, test/fakes/migrations.spec.ts | dev | done | 0 | deps: none; lead approved |
-| [TASK-2](tasks/TASK-2.md) | backend | migrations/0001_init.sql, test/migrations/0001_init.spec.ts | dev | review | 0 | deps: TASK-1 |
-| [TASK-3](tasks/TASK-3.md) | backend | migrations/0002_seed_settings.sql, test/migrations/0002_seed_settings.spec.ts | - | todo | 0 | deps: TASK-2 |
-| [TASK-4](tasks/TASK-4.md) | backend | src/domain/pricing.ts, test/domain/pricing.spec.ts | dev | review | 0 | deps: TASK-1 |
+| [TASK-2](tasks/TASK-2.md) | backend | migrations/0001_init.sql, test/migrations/0001_init.spec.ts | dev | done | 0 | deps: TASK-1 |
+| [TASK-3](tasks/TASK-3.md) | backend | migrations/0002_seed_settings.sql, test/migrations/0002_seed_settings.spec.ts | dev | in-progress | 0 | deps: TASK-2 |
+| [TASK-4](tasks/TASK-4.md) | backend | src/domain/pricing.ts, test/domain/pricing.spec.ts | dev | done | 0 | deps: TASK-1 |
 | [TASK-5](tasks/TASK-5.md) | backend | src/db/settings.ts, test/db/settings.spec.ts | - | todo | 0 | deps: TASK-3, TASK-4, TASK-1 |
 
 QA test cases for STORY-13 (TC-10 needs a live Cloudflare D1 deployment and cannot run locally).
@@ -33,8 +33,8 @@ QA test cases for STORY-13 (TC-10 needs a live Cloudflare D1 deployment and cann
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TASK-6](tasks/TASK-6.md) | backend | package.json (add hono only), package-lock.json, vitest.unit.config.mts, tsconfig.json, test/web/smoke.spec.tsx | dev | review | 0 | deps: TASK-1 |
-| [TASK-7](tasks/TASK-7.md) | backend | src/web/i18n/vi.ts, src/web/i18n/en.ts, src/web/i18n/t.ts, test/web/i18n-keys.spec.ts, test/web/i18n/t.spec.ts | - | todo | 0 | deps: TASK-6 |
+| [TASK-6](tasks/TASK-6.md) | backend | package.json (add hono only), package-lock.json, vitest.unit.config.mts, tsconfig.json, test/web/smoke.spec.tsx | dev | done | 0 | deps: TASK-1 |
+| [TASK-7](tasks/TASK-7.md) | backend | src/web/i18n/vi.ts, src/web/i18n/en.ts, src/web/i18n/t.ts, test/web/i18n-keys.spec.ts, test/web/i18n/t.spec.ts | dev | in-progress | 0 | deps: TASK-6 |
 | [TASK-8](tasks/TASK-8.md) | frontend | src/web/pages/components/Disclaimer.tsx, FeeNote.tsx, PriceBlock.tsx, test/web/pages/components.spec.tsx | - | todo | 0 | deps: TASK-7, TASK-5, TASK-6 |
 | [TASK-9](tasks/TASK-9.md) | frontend | src/web/pages/Layout.tsx, src/web/render.ts, public/app.css, test/web/pages/layout.spec.tsx | - | todo | 0 | deps: TASK-8, TASK-7, TASK-6 |
 | [TASK-10](tasks/TASK-10.md) | frontend | public/lang.js, test/client/lang.spec.ts | - | todo | 0 | deps: TASK-6 |
@@ -49,7 +49,7 @@ QA test cases for STORY-13 (TC-10 needs a live Cloudflare D1 deployment and cann
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
 | [TASK-16](tasks/TASK-16.md) | backend | test/fixtures/apiSample.ts, test/fixtures/apiSample.spec.ts | - | todo | 0 | deps: TASK-2, TASK-3, TASK-1 |
-| [TASK-17](tasks/TASK-17.md) | backend | src/domain/fold.ts, test/domain/fold.spec.ts | dev | review | 0 | deps: TASK-1 |
+| [TASK-17](tasks/TASK-17.md) | backend | src/domain/fold.ts, test/domain/fold.spec.ts | dev | done | 0 | deps: TASK-1 |
 | [TASK-18](tasks/TASK-18.md) | backend | src/domain/hotelView.ts, test/domain/hotelView.spec.ts | - | todo | 0 | deps: TASK-4, TASK-1 |
 | [TASK-19](tasks/TASK-19.md) | backend | src/web/api/params.ts, src/web/api/types.ts, test/web/api/params.spec.ts | - | todo | 0 | deps: TASK-5, TASK-1 |
 | [TASK-20](tasks/TASK-20.md) | backend | src/db/hotelList.ts, test/db/hotelList.spec.ts | - | todo | 0 | deps: TASK-2, TASK-16, TASK-17, TASK-18, TASK-1 |
@@ -65,7 +65,7 @@ Sequencing note: package.json and package-lock.json are edited by TASK-1, TASK-6
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TASK-26](tasks/TASK-26.md) | backend | src/domain/money.ts, test/domain/money.spec.ts | - | todo | 0 | deps: TASK-1 (test runner only) |
+| [TASK-26](tasks/TASK-26.md) | backend | src/domain/money.ts, test/domain/money.spec.ts | dev | in-progress | 0 | deps: TASK-1 (test runner only) |
 | [TASK-27](tasks/TASK-27.md) | frontend | src/web/i18n/vi.ts, src/web/i18n/en.ts, test/web/i18n/bill-keys.spec.ts | - | todo | 0 | deps: TASK-7; sole STORY-11 editor of vi.ts/en.ts |
 | [TASK-28](tasks/TASK-28.md) | frontend | src/client/bill/state.ts, test/client/bill-state.spec.ts | - | todo | 0 | deps: TASK-26, TASK-6 |
 | [TASK-29](tasks/TASK-29.md) | frontend | src/client/bill/storage.ts, test/client/bill-storage.spec.ts | - | todo | 0 | deps: TASK-28, TASK-26 |
@@ -73,7 +73,7 @@ Sequencing note: package.json and package-lock.json are edited by TASK-1, TASK-6
 | [TASK-31](tasks/TASK-31.md) | frontend | src/client/bill/format.ts, test/client/bill-format.spec.ts | - | todo | 0 | deps: TASK-26, TASK-6 |
 | [TASK-32](tasks/TASK-32.md) | frontend | src/client/bill/api.ts, test/client/bill-api.spec.ts | - | todo | 0 | deps: TASK-28, TASK-6; server contract TASK-23/TASK-24 (tested with fake fetch) |
 | [TASK-33](tasks/TASK-33.md) | frontend | public/bill.css, test/client/bill-css.spec.ts | - | todo | 0 | deps: TASK-6; does not touch public/app.css (TASK-9) |
-| [TASK-34](tasks/TASK-34.md) | backend | scripts/build-client.mjs, package.json (three scripts + esbuild devDependency), package-lock.json, .gitignore, test/client/build.spec.ts | - | todo | 0 | deps: TASK-6, TASK-1; package.json/package-lock.json sequence: TASK-1, 6, 34, 39 (sequential) |
+| [TASK-34](tasks/TASK-34.md) | backend | scripts/build-client.mjs, package.json (three scripts + esbuild devDependency), package-lock.json, .gitignore, test/client/build.spec.ts | dev | in-progress | 0 | deps: TASK-6, TASK-1; package.json/package-lock.json sequence: TASK-1, 6, 34, 39 (sequential) |
 | [TASK-35](tasks/TASK-35.md) | frontend | src/client/bill/viewModel.ts, src/client/bill/render.ts, test/client/bill-viewmodel.spec.ts | - | todo | 0 | deps: TASK-28, TASK-31, TASK-26, TASK-33 (read-only class contract) |
 | [TASK-36](tasks/TASK-36.md) | frontend | src/client/bill/config.ts, src/client/bill/main.ts, test/client/bill-config.spec.ts, test/client/bill-guard.spec.ts | - | todo | 0 | deps: TASK-28, TASK-29, TASK-30, TASK-31, TASK-32, TASK-35, TASK-34 |
 | [TASK-37](tasks/TASK-37.md) | frontend | src/web/pages/Bill.tsx, test/web/pages/bill-page.spec.tsx | - | todo | 0 | deps: TASK-9, TASK-8, TASK-27, TASK-7, TASK-5, TASK-33, TASK-6 |
