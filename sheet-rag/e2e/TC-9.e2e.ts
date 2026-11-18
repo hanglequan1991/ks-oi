@@ -89,12 +89,9 @@ test.describe("TC-9: application reads the settings through getSettings with a l
 		// Step 4: empty the settings table. No error is thrown; defaults for fee and note, empty disclaimers.
 		await run(db, "DELETE FROM settings");
 		const emptyWarnings: string[] = [];
-		let empty: Awaited<ReturnType<typeof getSettings>> | undefined;
-		await expect(
-			(async () => {
-				empty = await getSettings(asD1(db), (msg) => emptyWarnings.push(msg));
-			})(),
-		).resolves.toBeUndefined();
+		const empty = await getSettings(asD1(db), (msg) => {
+			emptyWarnings.push(msg);
+		});
 		expect(empty).toEqual({
 			serviceFeePercent: 10,
 			showFeeNote: true,
@@ -102,9 +99,8 @@ test.describe("TC-9: application reads the settings through getSettings with a l
 			disclaimerEn: "",
 		});
 
-		// Expected 5: no network call was made (the fetch stub above would have thrown),
-		// and the test ran with CLOUDFLARE_API_TOKEN unset.
+		// Expected 5: no network call was made during the whole test, and no Cloudflare token was set.
+		expect(fetchCalls, "fetch must not be called").toBe(0);
 		expect(process.env.CLOUDFLARE_API_TOKEN, "no Cloudflare token in the environment").toBeUndefined();
-		expect(globalThis.fetch).not.toBe(originalFetch === undefined ? null : undefined);
 	});
 });

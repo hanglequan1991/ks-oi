@@ -30,9 +30,20 @@
 
 ## QA notes
 <!-- Written by qa. -->
+- Automation test: `sheet-rag/e2e/TC-9.e2e.ts` (Node-only, chromium project only; imports `getSettings` via relative path `../src/db/settings`; Playwright loads the TypeScript source with no config change).
+- Network blocked: `globalThis.fetch` is replaced by a counting stub that throws; asserted 0 calls. `CLOUDFLARE_API_TOKEN` deleted at start and asserted unset.
+- Run: `npx playwright test -c playwright.node.config.ts e2e/TC-9.e2e.ts --trace off --project=chromium` (inside `sheet-rag/`): 1 passed.
+- Expected texts are the TC-4 literals; `onWarn` spy asserted to be called exactly once for `abc`.
 
 ## Review
 <!-- Written by qalead. -->
+Verdict: approve
+
+- Re-ran `npx playwright test -c playwright.node.config.ts e2e/TC-9.e2e.ts --trace off --project=chromium` in `sheet-rag/`: 1 passed.
+- Steps 1 to 4 are followed in order. Expected results are asserted with real values: defaults via `toEqual` against the literal VI/EN texts, then fee 12 and note false after a second `applyMigrations` with the disclaimers unchanged, then fee 10 with exactly one `onWarn` call for `abc`, then an empty table giving fee 10, note true and empty disclaimers without throwing.
+- Expected result 5 is covered: `fetch` is replaced with a counting stub that throws, `fetchCalls` is asserted to be 0, and `CLOUDFLARE_API_TOKEN` is deleted and asserted unset.
+- No sleeps, no selectors. The test touches only its own file and uses the shared fakes read-only.
+- Optional, non-blocking: step 4 collects `emptyWarnings` but does not assert on it, which is fine because the TC does not specify it.
 
 ## Questions
 <!-- Q: ...   A: ... -->

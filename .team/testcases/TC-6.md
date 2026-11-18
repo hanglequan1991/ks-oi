@@ -3,7 +3,7 @@
 - id: TC-6
 - story: [STORY-13](../stories/STORY-13.md)
 - verifies: AC7
-- status: todo
+- status: done
 - rework count: 0
 - automation test file: `sheet-rag/e2e/TC-6.e2e.ts`
 - runs without Cloudflare credentials: yes (local fake D1)

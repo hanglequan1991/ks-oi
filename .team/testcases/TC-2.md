@@ -3,7 +3,7 @@
 - id: TC-2
 - story: [STORY-13](../stories/STORY-13.md)
 - verifies: AC2
-- status: in-progress
+- status: done
 - assignee: qa
 - rework count: 0
 - automation test file: `sheet-rag/e2e/TC-2.e2e.ts`
