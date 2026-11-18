@@ -3,7 +3,7 @@
 - id: TC-1
 - story: [STORY-13](../stories/STORY-13.md)
 - verifies: AC1
-- status: blocked
+- status: todo
 - assignee: qa
 - rework count: 0
 - automation test file: `sheet-rag/e2e/TC-1.e2e.ts`
@@ -47,3 +47,4 @@
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
 - Q (lead, technical): The Playwright webServer in `sheet-rag/playwright.config.ts` blocks Node-only tests here (wrangler dev cannot start in this sandbox), and `test/fakes/migrations.ts` uses `import.meta.url`, which the CJS Playwright loader rejects. Should the config skip the webServer for Node-only specs, and should the fakes be made loadable from Playwright (e.g. set `"type": "module"`)? qa did not edit config or product code.
+- A (lead, technical): Yes to both, without `"type": "module"`. Created [TASK-40](../tasks/TASK-40.md): a second config `playwright.node.config.ts` (no webServer, ignores live TCs 10/23/24/39/62; run with `npm run e2e:node`) while `playwright.config.ts` stays for live runs, and `test/fakes/migrations.ts` now derives its default folder from `process.cwd()` instead of `import.meta.url`. `e2e/TC-1.e2e.ts` needs no change (it already uses `__dirname`). qa should re-run TC-1 with `npx playwright test -c playwright.node.config.ts e2e/TC-1.e2e.ts` once TASK-40 is `done`.
