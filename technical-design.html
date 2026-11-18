@@ -78,6 +78,7 @@ pre code{background:none;padding:0}
   <li><a href="#ops">14. Operations</a></li>
   <li><a href="#testing">15. Testing</a></li>
   <li><a href="#decisions">16. Decisions and open items</a></li>
+  <li><a href="#admin">17. Admin area</a></li>
 </ol>
 </nav>
 
@@ -703,7 +704,7 @@ try {
 <thead><tr><th>Area</th><th>Measure</th></tr></thead>
 <tbody>
 <tr><td>Public AI routes</td><td><code>/chat</code> and <code>/search</code> call Workers AI with no limits today. Add rate limiting (Cloudflare rate-limiting rules, or a Workers rate-limit binding; check the current options) and an input length cap before the website is public.</td></tr>
-<tr><td>Admin</td><td>Bearer token for now, compared in constant time. Later: single admin role with sign-in, password hashes via WebCrypto, session cookies (<code>HttpOnly</code>, <code>Secure</code>, <code>SameSite=Lax</code>), and an audit trail.</td></tr>
+<tr><td>Admin</td><td>Username and password sign-in with server-side sessions, lockout and an audit trail (section 17). The bearer token stays only for machine endpoints such as <code>/admin/reindex</code>.</td></tr>
 <tr><td>Input</td><td>Every query parameter and body is validated with Zod; SQL uses bound parameters only.</td></tr>
 <tr><td>Output</td><td>JSX escapes by default. Booking-rule text is escaped and rendered with preserved line breaks, never as HTML.</td></tr>
 <tr><td>Headers</td><td>A Content Security Policy that allows only same-origin scripts and styles and HTTPS images; <code>X-Content-Type-Options</code>, <code>Referrer-Policy</code>, HSTS. No inline scripts.</td></tr>
@@ -774,6 +775,165 @@ try {
 <li>Whether the English text of booking rules will be translated and reviewed, or shown in Vietnamese only.</li>
 </ol>
 <p style="color:var(--muted);font-size:14px">Prepared from the discussion, the approved mockup and the implementation plan. Nothing in this design has been implemented or deployed.</p>
+</section>
+
+<section id="admin">
+<h2>17. Admin area</h2>
+<p>A small server-rendered area at <code>/admin</code>. It is not linked from the public site. It has a login page, user management and configuration (service fee, phone numbers and similar). It is one role (admin), as decided earlier.</p>
+
+<h3>17.1 Being "hidden"</h3>
+<ul>
+<li>No link anywhere on the site. Not in <code>sitemap.xml</code>, and not in <code>robots.txt</code> either, because listing it there would advertise it.</li>
+<li>Every <code>/admin</code> response sends <code>X-Robots-Tag: noindex, nofollow</code> and <code>Cache-Control: no-store</code>.</li>
+<li>Without a session, any <code>/admin</code> page redirects to <code>/admin/login</code>.</li>
+</ul>
+<div class="note">A hidden URL is not a security measure. Scanners find <code>/admin</code> quickly, so the protection is the login, the lockout, rate limiting and the audit trail below. If you want a second layer, put Cloudflare Access in front of the path (not designed here).</div>
+
+<h3>17.2 Pages and routes</h3>
+<div class="scroll"><table>
+<thead><tr><th>Route</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>GET/POST /admin/login</code></td><td>Username and password form. Generic error text for every failure.</td></tr>
+<tr><td><code>POST /admin/logout</code></td><td>Deletes the session</td></tr>
+<tr><td><code>GET /admin</code></td><td>Dashboard: last sync time, hotels waiting for review, links to Users, Config and Account</td></tr>
+<tr><td><code>GET/POST /admin/account</code></td><td>Change own password (forced after first login or after a reset)</td></tr>
+<tr><td><code>GET /admin/users</code></td><td>List users: username, status, created, last login</td></tr>
+<tr><td><code>POST /admin/users</code></td><td>Create a user with a generated temporary password, shown once</td></tr>
+<tr><td><code>POST /admin/users/:id/reset-password</code></td><td>New temporary password, shown once; the user must change it at next login</td></tr>
+<tr><td><code>POST /admin/users/:id/disable</code> and <code>/enable</code></td><td>Disable ends all of that user's sessions</td></tr>
+<tr><td><code>GET/POST /admin/config</code></td><td>Edit the settings in 17.6, with a price preview</td></tr>
+<tr><td><code>GET /admin/audit</code></td><td>Latest changes: who, what, when</td></tr>
+<tr><td><code>POST /admin/reindex</code>, <code>GET /admin/status</code></td><td>Existing machine endpoints, still protected by the bearer token</td></tr>
+</tbody></table></div>
+<p>All pages are plain HTML forms rendered by Hono JSX, in Vietnamese by default, with no client-side framework. Every state-changing action is a <code>POST</code>.</p>
+
+<h3>17.3 Data model (<code>migrations/0003_admin.sql</code>)</h3>
+<pre><code>CREATE TABLE admin_users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  password_hash TEXT NOT NULL,            -- base64 of the derived key
+  password_salt TEXT NOT NULL,
+  password_iterations INTEGER NOT NULL,   -- stored so the cost can be raised later
+  must_change_password INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled')),
+  failed_logins INTEGER NOT NULL DEFAULT 0,
+  locked_until TEXT,
+  created_by TEXT, created_at TEXT NOT NULL, last_login_at TEXT
+);
+CREATE TABLE admin_sessions (
+  token_hash TEXT PRIMARY KEY,            -- sha256 of the cookie value; the raw token is never stored
+  user_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  csrf_token TEXT NOT NULL,
+  created_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, expires_at TEXT NOT NULL,
+  ip TEXT, user_agent TEXT
+);
+CREATE TABLE admin_audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL,
+  user_id TEXT, action TEXT NOT NULL, target TEXT,
+  detail TEXT                              -- JSON; never contains passwords or tokens
+);
+ALTER TABLE settings ADD COLUMN updated_at TEXT;
+ALTER TABLE settings ADD COLUMN updated_by TEXT;</code></pre>
+
+<h3>17.4 First admin from a generated password</h3>
+<p>The first account is created by a one-time script run by the owner, not by an open web page. An open "setup" endpoint would let anyone who reaches it first become the admin.</p>
+<pre><code>npm run admin:create-first        (scripts/create-first-admin.ts)
+  1. refuses to run if any row exists in admin_users
+  2. generates a 20-character password from a CSPRNG (no look-alike characters)
+  3. hashes it with the same code the Worker uses to verify
+  4. inserts user "admin" with must_change_password = 1 (wrangler d1 execute)
+  5. prints the username and the password once in the terminal; it is not stored or logged anywhere</code></pre>
+<p>On first login the admin is sent straight to the change-password page and can use nothing else until it is changed. If the password is lost, the same script can run with a <code>--reset</code> flag that works only while explicitly invoked by someone with Cloudflare access.</p>
+
+<h3>17.5 Authentication and sessions</h3>
+<pre><code>POST /admin/login  { username, password, _csrf }
+  1. look up the user (case-insensitive); if unknown, still run a hash comparison against a dummy hash
+  2. if locked_until &gt; now, or status = 'disabled': same generic error
+  3. verify the password (constant-time compare)
+  4. fail: failed_logins += 1; at 5 failures lock for 15 minutes; audit 'login_failed'
+  5. success: reset counters, create a new session (random 32 bytes), audit 'login'
+     Set-Cookie: __Host-hd_admin=&lt;token&gt;; Secure; HttpOnly; SameSite=Strict; Path=/
+  6. if must_change_password: redirect to /admin/account (the only page allowed)</code></pre>
+<ul>
+<li><strong>Password hashing:</strong> PBKDF2-SHA256 through WebCrypto with a 16-byte random salt. Workers may cap the iteration count (I recall 100,000); check the current limit <span class="tag un">unverified</span>. The iteration count is stored per user, so it can be raised and passwords rehashed at next login. An optional secret "pepper" can be mixed in.</li>
+<li><strong>Sessions:</strong> idle timeout 30 minutes, absolute lifetime 12 hours, a fresh token at every login. Logging out, disabling a user, or changing a password deletes that user's other sessions.</li>
+<li><strong>CSRF:</strong> <code>SameSite=Strict</code> cookies, an Origin check on every <code>POST</code>, and a per-session token in every form.</li>
+<li><strong>Brute force:</strong> the per-account lockout above, plus a Cloudflare rate-limiting rule on <code>/admin/login</code>.</li>
+<li><strong>Password rules:</strong> at least 12 characters for a password chosen by the user; generated ones are 20.</li>
+<li><strong>Machine endpoints:</strong> a request is accepted if it has a valid session cookie (pages) or the bearer token (<code>/admin/reindex</code>, <code>/admin/status</code>). The token compare is constant-time.</li>
+</ul>
+
+<h3>17.6 User management rules</h3>
+<ul>
+<li>Create: an admin enters a username; the system generates a temporary password and shows it once. The new user must change it at first login.</li>
+<li>Reset: the same, for an existing user. There is no email-based reset, as decided earlier.</li>
+<li>Disable and enable instead of delete, so the audit trail keeps meaning.</li>
+<li>Guards: you cannot disable yourself, and you cannot disable the last active admin. Both are enforced on the server, not just hidden in the page.</li>
+<li>Usernames: 3 to 32 characters, letters, digits, dot, dash, underscore; unique case-insensitively.</li>
+</ul>
+
+<h3>17.7 Configuration</h3>
+<p>Settings live in the <code>settings</code> table. A single registry in code defines each key's type, validation, default and a label, and drives both the form and the validation, so a new setting is one entry.</p>
+<div class="scroll"><table>
+<thead><tr><th>Key</th><th>Type and validation</th><th>Used by</th></tr></thead>
+<tbody>
+<tr><td><code>service_fee_percent</code></td><td>Number 0 to 100, up to 2 decimals. Default 10.</td><td>Price service</td></tr>
+<tr><td><code>show_fee_note</code></td><td>Boolean</td><td>Price block ("Includes 10% service fee")</td></tr>
+<tr><td><code>contact_phone</code></td><td>Vietnamese phone number; stored normalised (+84…), shown formatted</td><td>Call button on hotel pages</td></tr>
+<tr><td><code>contact_zalo_phone</code></td><td>Same format. The link is built as <code>https://zalo.me/&lt;digits&gt;</code> <span class="tag un">unverified</span></td><td>Zalo button</td></tr>
+<tr><td><code>contact_facebook_url</code>, <code>contact_website</code></td><td>URL, must start with <code>https://</code></td><td>Footer and contact area</td></tr>
+<tr><td><code>contact_email</code></td><td>Email address</td><td>Footer</td></tr>
+<tr><td><code>auto_publish</code></td><td>Boolean. Publish hotels automatically when validation passes.</td><td>Sheet sync</td></tr>
+<tr><td><code>rules_stale_days</code></td><td>Integer 1 to 365</td><td>Stale booking-rules report</td></tr>
+<tr><td><code>disclaimer_vi</code>, <code>disclaimer_en</code></td><td>Text up to 500 characters, not empty</td><td>Call-to-confirm sentence beside prices</td></tr>
+</tbody></table></div>
+<ul>
+<li>The config page shows a price preview: a sample base price and the final price for the entered percentage, using the same <code>finalPrice</code> function as the site.</li>
+<li>A save writes <code>updated_at</code> and <code>updated_by</code>, adds an audit row with old and new values, and bumps <code>data_version</code> so cached pages refresh. A hidden <code>updated_at</code> field in the form rejects a save based on a stale page.</li>
+<li>Changes to the disclaimer text are audited. Because that text is the legal protection discussed earlier, whether admins may edit it is an open question.</li>
+</ul>
+
+<h3>17.8 Audit trail</h3>
+<p>Every login, failed login, logout, user change, password change and setting change writes one <code>admin_audit</code> row. Sensitive values (passwords, tokens) are never written. The audit page shows the latest 100 rows.</p>
+
+<h3>17.9 Code and folders</h3>
+<pre><code>sheet-rag/
+  migrations/0003_admin.sql
+  scripts/create-first-admin.ts
+  src/admin/
+    routes.ts            Hono sub-app mounted at /admin
+    middleware.ts        session or bearer check, CSRF, no-store and noindex headers
+    password.ts          generate, hash, verify (shared with the script)
+    session.ts           create, load, extend, revoke
+    users.ts             create, reset, enable, disable, last-admin guard
+    config.ts            settings registry, validation, save
+    audit.ts             write and read audit rows
+    pages/               Login.tsx  Dashboard.tsx  Users.tsx  Config.tsx  Account.tsx  Audit.tsx
+  test/admin/            password.spec.ts  session.spec.ts  users.spec.ts  config.spec.ts  routes.spec.ts
+  e2e/                   admin-login.e2e.ts  admin-users.e2e.ts  admin-config.e2e.ts</code></pre>
+<p>Dependency rule: <code>admin/</code> may import <code>domain/</code> and <code>db/</code>. Nothing public imports <code>admin/</code>, and the website only reads settings through <code>db/</code>.</p>
+
+<h3>17.10 Tests</h3>
+<ul>
+<li>Password: generated passwords meet the rules; hash and verify round-trip; wrong password fails; unknown user takes about the same time.</li>
+<li>Lockout after 5 failures, and a successful login resets the counter.</li>
+<li>Sessions: idle and absolute expiry, a new token at login, revoked on disable and on password change.</li>
+<li>Every <code>/admin</code> route without a session returns the login redirect (or 401 for the bearer endpoints); every <code>POST</code> without a valid CSRF token or Origin is rejected.</li>
+<li>Users: cannot disable yourself or the last active admin; a reset forces a password change.</li>
+<li>Config: invalid phone, URL, email and out-of-range fee are rejected; the preview equals <code>finalPrice</code>; a save bumps <code>data_version</code> and writes an audit row.</li>
+<li>The audit table never contains a password or token (a test searches the stored JSON).</li>
+<li>The first-admin script refuses to run when an admin already exists.</li>
+<li>End to end: first login forces a password change; a created user can sign in; a changed fee shows on the public pages.</li>
+</ul>
+
+<h3>17.11 Open questions</h3>
+<ol>
+<li>Is "first admin from generated password" read correctly: username <code>admin</code>, system-generated password, shown once?</li>
+<li>Username or email as the sign-in name? This design uses a username; earlier notes mentioned email.</li>
+<li>Admin interface in Vietnamese only, or with an English toggle?</li>
+<li>May admins edit the disclaimer text, or should it be fixed in code and reviewed by a lawyer?</li>
+<li>Is two-factor sign-in wanted later, and do you want Cloudflare Access as an extra layer?</li>
+</ol>
 </section>
 
 </main>

@@ -271,8 +271,10 @@ CREATE TABLE field_sources (hotel_id TEXT, entity TEXT, field TEXT, source TEXT,
 <summary><span class="n">Phase 6</span> Admin and review tools <span class="meta">Size M · overlaps STORY-7, 8, 9</span></summary>
 <div class="body">
 <ul>
-<li>Protected admin page (single admin role, sign-in).</li>
-<li>Fee settings: edit <code>service_fee_percent</code> (0 to 100) and the fee note switch, with a price preview.</li>
+<li>Hidden <code>/admin</code> area (not linked, not in the sitemap or robots.txt, <code>noindex</code>, <code>no-store</code>) with a login page: username and password, server-side sessions, lockout after repeated failures, CSRF protection and an audit trail. Single admin role.</li>
+<li>First admin created by a one-time script with a generated password shown once; the admin must change it at first login.</li>
+<li>User management: create, reset password (temporary password shown once), disable and enable; cannot disable yourself or the last active admin.</li>
+<li>Configuration page: service fee percentage (0 to 100) with a price preview, fee note switch, contact phone, Zalo phone, Facebook, email, website, auto-publish, stale-rules days. Every save is audited and refreshes the page cache. Details are in section 17 of the technical design.</li>
 <li>Review queue: hotels with failed validation and uncertain Mytour matches; approve, edit or reject; edits go into <code>overrides</code>.</li>
 <li>Sync status: last sync time, hotels per status, errors.</li>
 </ul>
