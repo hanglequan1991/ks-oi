@@ -31,6 +31,9 @@
 
 ## QA notes
 <!-- Written by qa. -->
+- Automated in `sheet-rag/e2e/TC-4.e2e.ts` (one test, chromium project only, Node-only, fake D1).
+- Expected texts are literals copied from implementation-plan.html section 5. Both disclaimers are checked for NFC on both sides and compared with strict equality.
+- Passes: `npx playwright test -c playwright.node.config.ts e2e/TC-4.e2e.ts --trace off --project=chromium` (1 passed).
 
 ## Review
 <!-- Written by qalead. -->
