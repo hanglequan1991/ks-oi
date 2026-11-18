@@ -3,7 +3,7 @@
 - id: TASK-22
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-2 (schema), TASK-16 (sample data), TASK-17 (`foldText`, `likePrefixPattern`), TASK-1 (fake D1)

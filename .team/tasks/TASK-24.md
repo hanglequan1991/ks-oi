@@ -3,7 +3,8 @@
 - id: TASK-24
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-14 (`WebEnv`, `createApp`, `mount` hook), TASK-5 (settings), TASK-16 (sample data), TASK-18 (`toCityItem`), TASK-19 (params, `ApiDeps`), TASK-22 (cities and suggest queries)
 - size: fits a 100k-token context (three small routes)

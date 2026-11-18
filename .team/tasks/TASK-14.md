@@ -3,7 +3,7 @@
 - id: TASK-14
 - story: [STORY-16](../stories/STORY-16.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-5 (settings), TASK-7 (language helpers), TASK-9 (Layout and `renderPage`), TASK-11 (security), TASK-12 (rate limit), TASK-13 (input limit)

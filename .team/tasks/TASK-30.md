@@ -3,7 +3,7 @@
 - id: TASK-30
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-17 (`foldText` in `src/domain/fold.ts`), TASK-6 (test glob `test/client/**`)

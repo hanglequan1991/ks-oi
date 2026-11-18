@@ -3,7 +3,7 @@
 - id: TASK-29
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-28 (`BillRow`, `emptyRow`), TASK-26 (limits)

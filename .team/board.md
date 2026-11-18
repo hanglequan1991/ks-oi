@@ -41,7 +41,7 @@ QA test cases for STORY-13 (TC-10 needs a live Cloudflare D1 deployment and cann
 | [TASK-11](tasks/TASK-11.md) | backend | src/web/middleware/security.ts, test/web/middleware/security.spec.ts | dev | done | 0 | deps: TASK-6; lead approved |
 | [TASK-12](tasks/TASK-12.md) | backend | src/web/middleware/rateLimit.ts, test/web/middleware/rateLimit.spec.ts | dev | done | 0 | deps: TASK-6; lead approved |
 | [TASK-13](tasks/TASK-13.md) | backend | src/web/middleware/inputLimit.ts, test/web/middleware/inputLimit.spec.ts | dev | done | 0 | deps: TASK-6; lead approved |
-| [TASK-14](tasks/TASK-14.md) | backend | src/web/app.ts, test/web/app.spec.tsx | dev | in-progress | 0 | deps: TASK-5, TASK-7, TASK-9, TASK-11, TASK-12, TASK-13; TASK-13's body-size check only runs when bodyFields is non-empty; wiring must always pass bodyFields on POST routes |
+| [TASK-14](tasks/TASK-14.md) | backend | src/web/app.ts, test/web/app.spec.tsx | dev | done | 0 | deps: TASK-5, TASK-7, TASK-9, TASK-11, TASK-12, TASK-13; lead approved; guards only /search, /chat, /api/suggest, /api/hotels/*; mount must register each page at both /x and /en/x |
 | [TASK-15](tasks/TASK-15.md) | backend | src/index.ts, src/env.ts (new if needed), wrangler.jsonc, test/index.web.spec.ts (provisional list) | - | blocked | 0 | waiting for the owner's real sheet-rag source (src/index.ts, src/rag/); deps: TASK-14, TASK-10, TASK-9; TASK-13's body-size check only runs when bodyFields is non-empty; wiring must always pass bodyFields on POST routes |
 
 QA test cases for STORY-16 (TC-11 to TC-22 need Playwright from TASK-39 and, for real runs, TASK-15; TC-23 and TC-24 need a live deployment).
@@ -73,7 +73,7 @@ QA test cases for STORY-16 (TC-11 to TC-22 need Playwright from TASK-39 and, for
 | [TASK-19](tasks/TASK-19.md) | backend | src/web/api/params.ts, src/web/api/types.ts, test/web/api/params.spec.ts | dev | done | 0 | deps: TASK-5, TASK-1; lead approved |
 | [TASK-20](tasks/TASK-20.md) | backend | src/db/hotelList.ts, test/db/hotelList.spec.ts | dev | done | 0 | deps: TASK-2, TASK-16, TASK-17, TASK-18, TASK-1; lead approved |
 | [TASK-21](tasks/TASK-21.md) | backend | src/db/hotelDetail.ts, test/db/hotelDetail.spec.ts | dev | done | 0 | deps: TASK-2, TASK-16, TASK-18, TASK-1; lead approved |
-| [TASK-22](tasks/TASK-22.md) | backend | src/db/cities.ts, src/db/suggest.ts, test/db/cities.spec.ts, test/db/suggest.spec.ts | dev | review | 0 | deps: TASK-2, TASK-16, TASK-17, TASK-1 |
+| [TASK-22](tasks/TASK-22.md) | backend | src/db/cities.ts, src/db/suggest.ts, test/db/cities.spec.ts, test/db/suggest.spec.ts | dev | done | 0 | deps: TASK-2, TASK-16, TASK-17, TASK-1; lead approved; cities sorted in JS by folded name |
 | [TASK-23](tasks/TASK-23.md) | backend | src/web/api/hotels.ts, test/web/api/hotels.spec.ts | - | todo | 0 | deps: TASK-14, TASK-5, TASK-16, TASK-18, TASK-19, TASK-20, TASK-21 |
 | [TASK-24](tasks/TASK-24.md) | backend | src/web/api/meta.ts, test/web/api/meta.spec.ts | - | todo | 0 | deps: TASK-14, TASK-5, TASK-16, TASK-18, TASK-19, TASK-22 |
 | [TASK-25](tasks/TASK-25.md) | backend | src/web/api/index.ts, test/web/api/api.integration.spec.ts | - | todo | 0 | deps: TASK-23, TASK-24, TASK-3, TASK-14 |
@@ -107,10 +107,10 @@ Sequencing note: package.json and package-lock.json are edited by TASK-1, TASK-6
 | [TASK-26](tasks/TASK-26.md) | backend | src/domain/money.ts, test/domain/money.spec.ts | dev | done | 0 | deps: TASK-1 (test runner only) |
 | [TASK-27](tasks/TASK-27.md) | frontend | src/web/i18n/vi.ts, src/web/i18n/en.ts, test/web/i18n/bill-keys.spec.ts | dev | done | 0 | lead approved; deps: TASK-7; sole STORY-11 editor of vi.ts/en.ts |
 | [TASK-28](tasks/TASK-28.md) | frontend | src/client/bill/state.ts, test/client/bill-state.spec.ts | dev | done | 0 | lead approved; deps: TASK-26, TASK-6 |
-| [TASK-29](tasks/TASK-29.md) | frontend | src/client/bill/storage.ts, test/client/bill-storage.spec.ts | dev | review | 0 | deps: TASK-28, TASK-26 |
-| [TASK-30](tasks/TASK-30.md) | frontend | src/client/bill/combobox.ts, test/client/bill-combobox.spec.ts | dev | in-progress | 0 | deps: TASK-17, TASK-6 |
+| [TASK-29](tasks/TASK-29.md) | frontend | src/client/bill/storage.ts, test/client/bill-storage.spec.ts | dev | done | 0 | deps: TASK-28, TASK-26; lead approved |
+| [TASK-30](tasks/TASK-30.md) | frontend | src/client/bill/combobox.ts, test/client/bill-combobox.spec.ts | dev | done | 0 | deps: TASK-17, TASK-6; lead approved |
 | [TASK-31](tasks/TASK-31.md) | frontend | src/client/bill/format.ts, test/client/bill-format.spec.ts | dev | done | 0 | deps: TASK-26, TASK-6; lead approved |
-| [TASK-32](tasks/TASK-32.md) | frontend | src/client/bill/api.ts, test/client/bill-api.spec.ts | dev | in-progress | 0 | deps: TASK-28, TASK-6; server contract TASK-23/TASK-24 (tested with fake fetch) |
+| [TASK-32](tasks/TASK-32.md) | frontend | src/client/bill/api.ts, test/client/bill-api.spec.ts | dev | done | 0 | lead approved; deps: TASK-28, TASK-6; server contract TASK-23/TASK-24 (tested with fake fetch) |
 | [TASK-33](tasks/TASK-33.md) | frontend | public/bill.css, test/client/bill-css.spec.ts | dev | done | 0 | lead approved; deps: TASK-6; does not touch public/app.css (TASK-9) |
 | [TASK-34](tasks/TASK-34.md) | backend | scripts/build-client.mjs, package.json (three scripts + esbuild devDependency), package-lock.json, .gitignore, test/client/build.spec.ts | dev | done | 0 | lead approved; deps: TASK-6, TASK-1, TASK-26 (money.ts parseVnd; lead answer); must wait until TASK-26 is done; package.json/package-lock.json sequence: TASK-1, 6, 34, 39 (sequential) |
 | [TASK-35](tasks/TASK-35.md) | frontend | src/client/bill/viewModel.ts, src/client/bill/render.ts, test/client/bill-viewmodel.spec.ts | dev | done | 0 | deps: TASK-28, TASK-31, TASK-26, TASK-33 (read-only class contract); lead approved |

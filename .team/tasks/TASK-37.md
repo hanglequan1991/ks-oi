@@ -67,7 +67,13 @@ A: Exclude the Layout-emitted references; do not change Layout (TASK-9 is done a
 Then set status to review when 9 of 9 pass.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag: 36 files, 234 tests, all passed (bill-page.spec.tsx 9/9).
+- AC1-AC9 each have a named test. The AC4 test now runs for vi and en, as required by the answer: one bill `<a>` (the Layout toggle, `data-lang` marker, twin target), none inside `<main>`, and an href/src whitelist.
+- Code checks: the config is `<script type="application/json" id="bill-config">`, serialised with `<`, `>`, `&`, U+2028 and U+2029 escaped; the only scripts are `/lang.js`, `/bill.js` (defer) and the JSON block. There is no inline executable code and no `style=`. `/bill.css` and `/bill.js` are referenced. `<noscript>` uses `bill.noscript`. `Disclaimer` and `FeeNote` come from settings, render once, and sit inside `.bill-notes`; `showsPrice={false}`. There is no phone, Zalo, `/admin` or `<form>`. Limits come from `MAX_ROWS`, `MAX_NIGHTS` and `MAX_NOTE` in `money.ts`.
+- Only the two listed files are part of this task. `git status` shows no other source change.
+- Non-blocking note: no test sends U+2028/U+2029 through the config. The code handles them; not required by the ACs.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
