@@ -787,7 +787,7 @@ try {
 <li>Every <code>/admin</code> response sends <code>X-Robots-Tag: noindex, nofollow</code> and <code>Cache-Control: no-store</code>.</li>
 <li>Without a session, any <code>/admin</code> page redirects to <code>/admin/login</code>.</li>
 </ul>
-<div class="note">A hidden URL is not a security measure. Scanners find <code>/admin</code> quickly, so the protection is the login, the lockout, rate limiting and the audit trail below. If you want a second layer, put Cloudflare Access in front of the path (not designed here).</div>
+<div class="note">A hidden URL is not a security measure. Scanners find <code>/admin</code> quickly, so the protection is the login, the lockout, rate limiting and the audit trail below. No second factor and no Cloudflare Access are planned (decision); revisit if the site grows.</div>
 
 <h3>17.2 Pages and routes</h3>
 <div class="scroll"><table>
@@ -795,6 +795,7 @@ try {
 <tbody>
 <tr><td><code>GET/POST /admin/login</code></td><td>Username and password form. Generic error text for every failure.</td></tr>
 <tr><td><code>POST /admin/logout</code></td><td>Deletes the session</td></tr>
+<tr><td><code>POST /admin/lang</code></td><td>Switch the interface between Vietnamese and English</td></tr>
 <tr><td><code>GET /admin</code></td><td>Dashboard: last sync time, hotels waiting for review, links to Users, Config and Account</td></tr>
 <tr><td><code>GET/POST /admin/account</code></td><td>Change own password (forced after first login or after a reset)</td></tr>
 <tr><td><code>GET /admin/users</code></td><td>List users: username, status, created, last login</td></tr>
@@ -805,7 +806,8 @@ try {
 <tr><td><code>GET /admin/audit</code></td><td>Latest changes: who, what, when</td></tr>
 <tr><td><code>POST /admin/reindex</code>, <code>GET /admin/status</code></td><td>Existing machine endpoints, still protected by the bearer token</td></tr>
 </tbody></table></div>
-<p>All pages are plain HTML forms rendered by Hono JSX, in Vietnamese by default, with no client-side framework. Every state-changing action is a <code>POST</code>.</p>
+<p>All pages are plain HTML forms rendered by Hono JSX, with no client-side framework. Every state-changing action is a <code>POST</code>.</p>
+<p><strong>Admin language:</strong> Vietnamese by default, with an English toggle on every admin page and on the login page. The admin texts live in the same dictionaries as the website (<code>vi.ts</code> and <code>en.ts</code>, under an <code>admin</code> group), so the key-parity test covers them. Before sign-in, the choice is kept in a cookie and in <code>localStorage</code> (<code>hd_lang</code>); after sign-in it is stored on the user (<code>admin_users.language</code>) so it follows them between browsers.</p>
 
 <h3>17.3 Data model (<code>migrations/0003_admin.sql</code>)</h3>
 <pre><code>CREATE TABLE admin_users (
@@ -818,6 +820,7 @@ try {
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled')),
   failed_logins INTEGER NOT NULL DEFAULT 0,
   locked_until TEXT,
+  language TEXT NOT NULL DEFAULT 'vi' CHECK (language IN ('vi','en')),
   created_by TEXT, created_at TEXT NOT NULL, last_login_at TEXT
 );
 CREATE TABLE admin_sessions (
@@ -833,7 +836,11 @@ CREATE TABLE admin_audit (
   detail TEXT                              -- JSON; never contains passwords or tokens
 );
 ALTER TABLE settings ADD COLUMN updated_at TEXT;
-ALTER TABLE settings ADD COLUMN updated_by TEXT;</code></pre>
+ALTER TABLE settings ADD COLUMN updated_by TEXT;
+CREATE TABLE settings_history (            -- every saved value, so we can show what was displayed when
+  id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL, value TEXT NOT NULL,
+  changed_at TEXT NOT NULL, changed_by TEXT NOT NULL
+);</code></pre>
 
 <h3>17.4 First admin from a generated password</h3>
 <p>The first account is created by a one-time script run by the owner, not by an open web page. An open "setup" endpoint would let anyone who reaches it first become the admin.</p>
@@ -844,6 +851,8 @@ ALTER TABLE settings ADD COLUMN updated_by TEXT;</code></pre>
   4. inserts user "admin" with must_change_password = 1 (wrangler d1 execute)
   5. prints the username and the password once in the terminal; it is not stored or logged anywhere</code></pre>
 <p>On first login the admin is sent straight to the change-password page and can use nothing else until it is changed. If the password is lost, the same script can run with a <code>--reset</code> flag that works only while explicitly invoked by someone with Cloudflare access.</p>
+
+<p><strong>Where the password comes from:</strong> from the terminal output of that script, which the project owner runs once on a machine that is signed in to Cloudflare (for example <code>npx wrangler login</code>, then the script with the remote database selected). Nothing else ever shows it. Do not run it in a CI job, because CI logs can be read by others. If the printed password is lost before the first login, run the script again with <code>--reset</code>.</p>
 
 <h3>17.5 Authentication and sessions</h3>
 <pre><code>POST /admin/login  { username, password, _csrf }
@@ -890,7 +899,8 @@ ALTER TABLE settings ADD COLUMN updated_by TEXT;</code></pre>
 <ul>
 <li>The config page shows a price preview: a sample base price and the final price for the entered percentage, using the same <code>finalPrice</code> function as the site.</li>
 <li>A save writes <code>updated_at</code> and <code>updated_by</code>, adds an audit row with old and new values, and bumps <code>data_version</code> so cached pages refresh. A hidden <code>updated_at</code> field in the form rejects a save based on a stale page.</li>
-<li>Changes to the disclaimer text are audited. Because that text is the legal protection discussed earlier, whether admins may edit it is an open question.</li>
+<li><strong>Disclaimer text is editable by admins</strong> (decision). Because it is the legal protection, the form adds guards: both languages are required and not empty, a "restore default" button brings back the text built into the code, a warning says the change is logged and should be reviewed legally, and every saved version is kept in <code>settings_history</code> with who changed it and when, so it is always possible to show which wording was live on a given date.</li>
+<li>Every setting save also writes a <code>settings_history</code> row, not only the disclaimer.</li>
 </ul>
 
 <h3>17.8 Audit trail</h3>
@@ -923,16 +933,22 @@ ALTER TABLE settings ADD COLUMN updated_by TEXT;</code></pre>
 <li>Config: invalid phone, URL, email and out-of-range fee are rejected; the preview equals <code>finalPrice</code>; a save bumps <code>data_version</code> and writes an audit row.</li>
 <li>The audit table never contains a password or token (a test searches the stored JSON).</li>
 <li>The first-admin script refuses to run when an admin already exists.</li>
+<li>Admin language: every <code>admin</code> dictionary key exists in both languages; the toggle changes the page and is stored on the user.</li>
+<li>Disclaimer: saving requires both languages; "restore default" works; each save adds a history row; the public pages show the latest saved text.</li>
 <li>End to end: first login forces a password change; a created user can sign in; a changed fee shows on the public pages.</li>
 </ul>
 
-<h3>17.11 Open questions</h3>
+<h3>17.11 Decisions</h3>
+<ul>
+<li>Sign in with a username (not email). The first admin is <code>admin</code>, created with a generated password shown once.</li>
+<li>The admin interface is Vietnamese and English.</li>
+<li>Admins may edit the disclaimer text, with audit and history.</li>
+<li>No two-factor sign-in and no Cloudflare Access.</li>
+</ul>
+<h3>17.12 Remaining questions</h3>
 <ol>
-<li>Is "first admin from generated password" read correctly: username <code>admin</code>, system-generated password, shown once?</li>
-<li>Username or email as the sign-in name? This design uses a username; earlier notes mentioned email.</li>
-<li>Admin interface in Vietnamese only, or with an English toggle?</li>
-<li>May admins edit the disclaimer text, or should it be fixed in code and reviewed by a lawyer?</li>
-<li>Is two-factor sign-in wanted later, and do you want Cloudflare Access as an extra layer?</li>
+<li>Where will the project owner run the first-admin script (their own machine, with Cloudflare login)? It needs a Cloudflare-authenticated terminal.</li>
+<li>Should failed-login lockout also notify someone (email or webhook), or only be visible on the audit page?</li>
 </ol>
 </section>
 
