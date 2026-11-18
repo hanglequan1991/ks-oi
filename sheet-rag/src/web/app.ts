@@ -102,10 +102,13 @@ export function createApp(deps: WebDeps): Hono<WebEnv> {
 		rateLimit({ limiter: limiters.suggest, keyPrefix: "suggest" }),
 		inputLimit({ queryFields: ["q"], bodyFields: ["q"], maxChars: SEARCH_MAX_CHARS }),
 	);
-	app.use(
-		["/api/hotels", "/api/hotels/*", "/api/cities", "/api/config"],
-		rateLimit({ limiter: limiters.data, keyPrefix: "data" }),
-	);
+	// One `use` per path: this Hono version does not accept an array of paths.
+	// "/api/hotels/*" also matches the bare "/api/hotels", so it is not listed
+	// twice (a second guard would count each request twice).
+	const dataLimit = rateLimit({ limiter: limiters.data, keyPrefix: "data" });
+	app.use("/api/hotels/*", dataLimit);
+	app.use("/api/cities", dataLimit);
+	app.use("/api/config", dataLimit);
 
 	// Later stories register their routes here.
 	deps.mount?.(app);

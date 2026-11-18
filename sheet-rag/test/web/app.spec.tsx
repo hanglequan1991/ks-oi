@@ -80,9 +80,16 @@ function stubRoutes(hits: string[] = []) {
 	};
 }
 
+// The language comes from the path, so a page is registered at both its
+// Vietnamese and its /en address (the routes are the mount's job, not the app's).
+function bothLangs(app: Hono<WebEnv>, path: string, handler: Parameters<Hono<WebEnv>["get"]>[1]) {
+	app.get(path, handler);
+	app.get(`/en${path}`, handler);
+}
+
 // Sample page without a price: must not read settings.
 function samplePage(app: Hono<WebEnv>) {
-	app.get("/sample", (c) =>
+	bothLangs(app, "/sample", (c) =>
 		renderPage(
 			c,
 			<Layout
@@ -101,7 +108,7 @@ function samplePage(app: Hono<WebEnv>) {
 
 // Page with a price: reads settings through the request-scoped helper.
 function pricePage(app: Hono<WebEnv>) {
-	app.get("/price", async (c) => {
+	bothLangs(app, "/price", async (c) => {
 		const settings = await getSiteSettings(c);
 		return renderPage(
 			c,
