@@ -58,11 +58,16 @@ function buildWhere(query: HotelListQuery): Where {
 		params.push(code);
 	}
 
-	// A q that folds to no tokens is ignored. Every token must appear in name_search.
-	const tokens = query.q ? searchTokens(query.q) : [];
+	// A blank or absent q is ignored. Every token must appear in name_search.
+	// A non-blank q that folds to no tokens (e.g. "%", "_") matches nothing.
+	const raw = query.q?.trim() ?? "";
+	const tokens = raw ? searchTokens(raw) : [];
 	for (const token of tokens) {
 		clauses.push("h.name_search LIKE ? ESCAPE '\\'");
 		params.push(likeContainsPattern(token));
+	}
+	if (raw !== "" && tokens.length === 0) {
+		clauses.push("1 = 0");
 	}
 
 	return { sql: clauses.join(" AND "), params };

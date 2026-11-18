@@ -66,6 +66,14 @@ In `test/client/bill-viewmodel.spec.ts`.
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- `indexText` / `index` are 1-based and renumbered on every removal.
+- `patchRow(doc, rowEl, row)` expects the `.bill-item` element that `renderRows` created. It keeps handlers and labels in a module WeakMap keyed by that element, so it can build the reset button and badge later.
+- `renderRows` puts `data-row-id` on each `.bill-item`. Value spans carry `data-field` (`index`, `total`), and `renderOptions` marks its meta span with `data-field="meta"`.
+- `.c-room` carries `data-has-list` ("true" or "false"). TASK-37 uses it to show the room list only for a picked hotel.
+- Hooks the page template (TASK-37) must provide: `[data-bill-summary]` (grand total), `[data-action="add"]` (add button), `[data-add-hint]` (limit hint).
+- Labels read from the `bill` group, all present in `test/web/i18n/bill-keys.spec.ts`: `noteLabel`, `colIndex`, `colHotel`, `colRoom`, `colNight`, `colPricing`, `colTotal`, `hotelPlaceholder`, `roomPlaceholder`, `pricePlaceholder`, `listboxHotel`, `listboxRoom`, `edited`, `useDefault`, `addRowLimit`. `notePlaceholder` is read only when present.
+- Pure view model covered by 10 tests; `render.ts` is DOM-only and not unit tested (guard test TASK-36 and Playwright TCs).
+- Note mirror is a `.print-only` span after the textarea, and it keeps line breaks through CSS `pre-wrap`.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

@@ -133,10 +133,11 @@ describe("listPublishedHotels", () => {
 		const db = await sampleDb();
 		const d1 = db as unknown as D1Database;
 
-		// The fold strips % and _, so these inputs become plain words or nothing.
-		// A q that folds to no tokens is ignored, so '%' returns the same rows as no q.
-		const unfiltered = await slugsOf(db, query());
-		expect(await slugsOf(db, query({ q: "%" }))).toEqual(unfiltered);
+		// Blank or absent q is ignored. A non-blank q that folds to no tokens matches nothing.
+		const allThree = ["dong-do-hotel", "mong-hotel", "sao-hotel"];
+		expect(await slugsOf(db, query({ q: "   " }))).toEqual(allThree);
+		expect(await slugsOf(db, query())).toEqual(allThree);
+		expect(await listPublishedHotels(d1, query({ q: "%" }))).toEqual({ rows: [], total: 0 });
 
 		expect(await slugsOf(db, query({ q: "a_b" }))).toEqual([]);
 

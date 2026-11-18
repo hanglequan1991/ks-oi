@@ -1,6 +1,6 @@
 // DOM builder for the bill page (technical design 18.5). Not unit tested; the
 // guard test (TASK-36) and the Playwright TCs cover it. User text reaches the
-// DOM only through textContent, value and setAttribute. Never innerHTML.
+// DOM only through textContent, value and setAttribute. No HTML string injection.
 // Imports only from its own folder (design 3.4).
 
 import type { BillView, RowView, Labels } from "./viewModel";
@@ -43,8 +43,13 @@ const C = {
 	noteField: "note-field",
 } as const;
 
-// Handlers of each rendered row item, so patchRow can create controls later.
-const bound = new WeakMap<HTMLElement, RowHandlers>();
+interface Bound {
+	handlers: RowHandlers;
+	labels: Labels;
+}
+
+// Handlers and labels of each rendered row item, so patchRow can create controls later.
+const bound = new WeakMap<HTMLElement, Bound>();
 
 function text(labels: Labels, key: string): string {
 	return labels[key] ?? "";
@@ -67,6 +72,7 @@ function makeValue(doc: Document, field: string, value: string): HTMLSpanElement
 	return span;
 }
 
+/** Print mirror: always the next sibling of the control it mirrors. */
 function makeMirror(doc: Document, value: string): HTMLSpanElement {
 	const mirror = doc.createElement("span");
 	mirror.classList.add(C.printOnly);
@@ -76,25 +82,23 @@ function makeMirror(doc: Document, value: string): HTMLSpanElement {
 
 function makeInput(
 	doc: Document,
-	attrs: { aria: string; placeholder: string; inputmode?: string },
+	aria: string,
+	placeholder: string,
 	value: string,
+	inputmode?: string,
 ): HTMLInputElement {
 	const input = doc.createElement("input");
 	input.type = "text";
 	input.autocomplete = "off";
-	input.setAttribute("aria-label", attrs.aria);
-	input.setAttribute("placeholder", attrs.placeholder);
-	if (attrs.inputmode) input.setAttribute("inputmode", attrs.inputmode);
+	input.setAttribute("aria-label", aria);
+	if (placeholder) input.setAttribute("placeholder", placeholder);
+	if (inputmode) input.setAttribute("inputmode", inputmode);
 	input.value = value;
 	return input;
 }
 
-function makeCombo(
-	doc: Document,
-	wrapper: HTMLDivElement,
-	input: HTMLInputElement,
-	listLabel: string,
-): void {
+/** Input, its mirror and the (empty) listbox, inside a .combo wrapper. */
+function makeCombo(doc: Document, cell: HTMLElement, input: HTMLInputElement, listLabel: string): void {
 	const combo = doc.createElement("div");
 	combo.classList.add(C.combo);
 	const list = doc.createElement("ul");
@@ -104,111 +108,21 @@ function makeCombo(
 	combo.appendChild(input);
 	combo.appendChild(makeMirror(doc, input.value));
 	combo.appendChild(list);
-	wrapper.appendChild(combo);
+	cell.appendChild(combo);
 }
 
-function buildRow(doc: Document, view: RowView, labels: Labels, h: RowHandlers): HTMLElement {
-	const id = view.id;
-	const item = doc.createElement("div");
-	item.classList.add(C.item);
-	item.setAttribute("data-row-id", id);
-	bound.set(item, h);
-
-	const row = doc.createElement("div");
-	row.classList.add(C.row);
-
-	const index = makeCell(doc, C.index, text(labels, "colIndex"));
-	index.appendChild(makeValue(doc, "index", view.indexText));
-	row.appendChild(index);
-
-	// Hotel combo.
-	const hotel = makeCell(doc, C.hotel, text(labels, "colHotel"));
-	const hotelInput = makeInput(
-		doc,
-		{ aria: view.hotelAria, placeholder: text(labels, "hotelPlaceholder") },
-		view.hotelText,
-	);
-	hotelInput.addEventListener("input", (e) => h.onHotelInput(id, e));
-	hotelInput.addEventListener("keydown", (e) => h.onHotelKey(id, e));
-	hotelInput.addEventListener("focus", (e) => h.onHotelFocus(id, e));
-	makeCombo(doc, hotel, hotelInput, text(labels, "listboxHotel"));
-	row.appendChild(hotel);
-
-	// Room combo. data-has-list tells the wiring whether a room list exists.
-	const room = makeCell(doc, C.room, text(labels, "colRoom"));
-	room.setAttribute("data-has-list", String(view.roomHasList));
-	const roomInput = makeInput(
-		doc,
-		{ aria: view.roomAria, placeholder: text(labels, "roomPlaceholder") },
-		view.roomText,
-	);
-	roomInput.addEventListener("input", (e) => h.onRoomInput(id, e));
-	roomInput.addEventListener("keydown", (e) => h.onRoomKey(id, e));
-	roomInput.addEventListener("focus", (e) => h.onRoomFocus(id, e));
-	makeCombo(doc, room, roomInput, text(labels, "listboxRoom"));
-	row.appendChild(room);
-
-	// Nights.
-	const night = makeCell(doc, C.night, text(labels, "colNight"));
-	const nightInput = makeInput(
-		doc,
-		{ aria: view.nightAria, placeholder: "", inputmode: "numeric" },
-		view.nightsText,
-	);
-	nightInput.addEventListener("input", (e) => h.onNights(id, e));
-	night.appendChild(nightInput);
-	night.appendChild(makeMirror(doc, view.nightsText));
-	row.appendChild(night);
-
-	// Price, with the edited badge and the reset button.
-	const price = makeCell(doc, C.price, text(labels, "colPricing"));
-	const priceInput = makeInput(
-		doc,
-		{ aria: view.priceAria, placeholder: text(labels, "pricePlaceholder"), inputmode: "numeric" },
-		view.priceText,
-	);
-	priceInput.addEventListener("input", (e) => h.onPrice(id, e));
-	price.appendChild(priceInput);
-	price.appendChild(makeMirror(doc, view.priceText));
-	if (view.showReset) appendMarkers(doc, price, labels, id, h);
-	row.appendChild(price);
-
-	row.appendChild(makeCell(doc, C.total, text(labels, "colTotal")));
-	row.lastElementChild?.appendChild(makeValue(doc, "total", view.totalText));
-
-	// Remove.
-	const remove = makeCell(doc, C.remove, "");
-	const button = doc.createElement("button");
-	button.type = "button";
-	button.textContent = "×";
-	button.addEventListener("click", (e) => h.onRemove(id, e));
-	remove.appendChild(button);
-	row.appendChild(remove);
-
-	item.appendChild(row);
-	item.appendChild(buildNote(doc, view, labels, h));
-	applyRowState(item, view);
-	return item;
-}
-
-function appendMarkers(
-	doc: Document,
-	price: HTMLElement,
-	labels: Labels,
-	rowId: string,
-	h: RowHandlers,
-): void {
+function appendMarkers(doc: Document, priceCell: HTMLElement, rowId: string, info: Bound): void {
 	const badge = doc.createElement("span");
 	badge.classList.add(C.badgeEdited);
-	badge.textContent = text(labels, "edited");
-	price.appendChild(badge);
+	badge.textContent = text(info.labels, "edited");
+	priceCell.appendChild(badge);
 
 	const reset = doc.createElement("button");
 	reset.type = "button";
 	reset.classList.add(C.btnReset);
-	reset.textContent = text(labels, "useDefault");
-	reset.addEventListener("click", (e) => h.onReset(rowId, e));
-	price.appendChild(reset);
+	reset.textContent = text(info.labels, "useDefault");
+	reset.addEventListener("click", (e) => info.handlers.onReset(rowId, e));
+	priceCell.appendChild(reset);
 }
 
 function buildNote(doc: Document, view: RowView, labels: Labels, h: RowHandlers): HTMLElement {
@@ -224,7 +138,7 @@ function buildNote(doc: Document, view: RowView, labels: Labels, h: RowHandlers)
 	field.classList.add(C.noteField);
 	field.setAttribute("maxlength", "500");
 	field.setAttribute("aria-label", view.noteAria);
-	field.setAttribute("placeholder", text(labels, "notePlaceholder"));
+	if (labels.notePlaceholder) field.setAttribute("placeholder", labels.notePlaceholder);
 	field.value = view.noteText;
 	field.addEventListener("input", (e) => h.onNote(view.id, e));
 	note.appendChild(field);
@@ -232,12 +146,81 @@ function buildNote(doc: Document, view: RowView, labels: Labels, h: RowHandlers)
 	return note;
 }
 
+function buildRow(doc: Document, view: RowView, labels: Labels, h: RowHandlers): HTMLElement {
+	const id = view.id;
+	const item = doc.createElement("div");
+	item.classList.add(C.item);
+	item.setAttribute("data-row-id", id);
+	bound.set(item, { handlers: h, labels });
+
+	const row = doc.createElement("div");
+	row.classList.add(C.row);
+
+	const index = makeCell(doc, C.index, text(labels, "colIndex"));
+	index.appendChild(makeValue(doc, "index", view.indexText));
+	row.appendChild(index);
+
+	const hotel = makeCell(doc, C.hotel, text(labels, "colHotel"));
+	const hotelInput = makeInput(doc, view.hotelAria, text(labels, "hotelPlaceholder"), view.hotelText);
+	hotelInput.addEventListener("input", (e) => h.onHotelInput(id, e));
+	hotelInput.addEventListener("keydown", (e) => h.onHotelKey(id, e));
+	hotelInput.addEventListener("focus", (e) => h.onHotelFocus(id, e));
+	makeCombo(doc, hotel, hotelInput, text(labels, "listboxHotel"));
+	row.appendChild(hotel);
+
+	const room = makeCell(doc, C.room, text(labels, "colRoom"));
+	const roomInput = makeInput(doc, view.roomAria, text(labels, "roomPlaceholder"), view.roomText);
+	roomInput.addEventListener("input", (e) => h.onRoomInput(id, e));
+	roomInput.addEventListener("keydown", (e) => h.onRoomKey(id, e));
+	roomInput.addEventListener("focus", (e) => h.onRoomFocus(id, e));
+	makeCombo(doc, room, roomInput, text(labels, "listboxRoom"));
+	row.appendChild(room);
+
+	const night = makeCell(doc, C.night, text(labels, "colNight"));
+	const nightInput = makeInput(doc, view.nightAria, "", view.nightsText, "numeric");
+	nightInput.addEventListener("input", (e) => h.onNights(id, e));
+	night.appendChild(nightInput);
+	night.appendChild(makeMirror(doc, view.nightsText));
+	row.appendChild(night);
+
+	const price = makeCell(doc, C.price, text(labels, "colPricing"));
+	const priceInput = makeInput(
+		doc,
+		view.priceAria,
+		text(labels, "pricePlaceholder"),
+		view.priceText,
+		"numeric",
+	);
+	priceInput.addEventListener("input", (e) => h.onPrice(id, e));
+	price.appendChild(priceInput);
+	price.appendChild(makeMirror(doc, view.priceText));
+	if (view.showReset) appendMarkers(doc, price, id, { handlers: h, labels });
+	row.appendChild(price);
+
+	const total = makeCell(doc, C.total, text(labels, "colTotal"));
+	total.appendChild(makeValue(doc, "total", view.totalText));
+	row.appendChild(total);
+
+	const remove = makeCell(doc, C.remove, "");
+	const button = doc.createElement("button");
+	button.type = "button";
+	button.textContent = "×";
+	button.addEventListener("click", (e) => h.onRemove(id, e));
+	remove.appendChild(button);
+	row.appendChild(remove);
+
+	item.appendChild(row);
+	item.appendChild(buildNote(doc, view, labels, h));
+	applyRowState(item, view);
+	return item;
+}
+
 /** Classes and attributes that depend on the view, applied on build and patch. */
 function applyRowState(item: HTMLElement, view: RowView): void {
-	const note = item.querySelector<HTMLElement>(`.${C.note}`);
-	note?.classList.toggle(C.isEmpty, view.noteEmpty);
-	const room = item.querySelector<HTMLElement>(`.${C.room}`);
-	room?.setAttribute("data-has-list", String(view.roomHasList));
+	item.querySelector<HTMLElement>(`.${C.note}`)?.classList.toggle(C.isEmpty, view.noteEmpty);
+	item
+		.querySelector<HTMLElement>(`.${C.room}`)
+		?.setAttribute("data-has-list", String(view.roomHasList));
 	const button = item.querySelector<HTMLButtonElement>(`.${C.remove} button`);
 	if (button) {
 		button.disabled = !view.canRemove;
@@ -259,54 +242,40 @@ export function renderRows(
 	}
 }
 
-/** Only the values, totals, markers and mirrors of one row. Focused inputs keep their value. */
+/**
+ * Updates one row in place: values of unfocused inputs, mirrors, totals, the
+ * edited marker and the note state. rowEl is the row's .bill-item element.
+ */
 export function patchRow(doc: Document, rowEl: HTMLElement, row: RowView): void {
-	const labelsHandlers = bound.get(rowEl);
+	const info = bound.get(rowEl);
 
-	const setInput = (cls: string, value: string, aria: string): void => {
-		const input = rowEl.querySelector<HTMLInputElement | HTMLTextAreaElement>(`.${cls} input, .${cls} textarea`);
-		if (!input) return;
-		if (doc.activeElement !== input) input.value = value;
-		input.setAttribute("aria-label", aria);
-		input.nextElementSibling?.textContent !== undefined &&
-			(input.nextElementSibling!.textContent = value);
+	const patchControl = (cls: string, value: string, aria: string): void => {
+		const control = rowEl.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+			`.${cls} input, .${cls} textarea`,
+		);
+		if (!control) return;
+		if (doc.activeElement !== control) control.value = value;
+		control.setAttribute("aria-label", aria);
+		const mirror = control.nextElementSibling;
+		if (mirror) mirror.textContent = value;
 	};
 
-	setInput(C.hotel, row.hotelText, row.hotelAria);
-	setInput(C.room, row.roomText, row.roomAria);
-	setInput(C.night, row.nightsText, row.nightAria);
-	setInput(C.price, row.priceText, row.priceAria);
+	patchControl(C.hotel, row.hotelText, row.hotelAria);
+	patchControl(C.room, row.roomText, row.roomAria);
+	patchControl(C.night, row.nightsText, row.nightAria);
+	patchControl(C.price, row.priceText, row.priceAria);
+	patchControl(C.note, row.noteText, row.noteAria);
 
 	const priceCell = rowEl.querySelector<HTMLElement>(`.${C.price}`);
-	if (priceCell) {
-		const badge = priceCell.querySelector(`.${C.badgeEdited}`);
-		const reset = priceCell.querySelector(`.${C.btnReset}`);
-		if (row.showReset && (!badge || !reset) && labelsHandlers) {
-			// Markers are created on demand with the handlers stored at build time.
-			badge?.remove();
-			reset?.remove();
-			const fresh = doc.createElement("span");
-			fresh.classList.add(C.badgeEdited);
-			fresh.textContent = "";
-			priceCell.appendChild(fresh);
-			const btn = doc.createElement("button");
-			btn.type = "button";
-			btn.classList.add(C.btnReset);
-			btn.addEventListener("click", (e) => labelsHandlers.onReset(row.id, e));
-			priceCell.appendChild(btn);
-		} else if (!row.showReset) {
-			badge?.remove();
-			reset?.remove();
+	if (priceCell && info) {
+		const hasMarkers = priceCell.querySelector(`.${C.btnReset}`) !== null;
+		if (row.showReset && !hasMarkers) {
+			appendMarkers(doc, priceCell, row.id, info);
+		} else if (!row.showReset && hasMarkers) {
+			priceCell.querySelector(`.${C.badgeEdited}`)?.remove();
+			priceCell.querySelector(`.${C.btnReset}`)?.remove();
 		}
 	}
-
-	const note = rowEl.querySelector<HTMLTextAreaElement>(`.${C.noteField}`);
-	if (note) {
-		if (doc.activeElement !== note) note.value = row.noteText;
-		note.setAttribute("aria-label", row.noteAria);
-	}
-	const mirror = note?.nextElementSibling;
-	if (mirror) mirror.textContent = row.noteText;
 
 	const total = rowEl.querySelector<HTMLElement>('[data-field="total"]');
 	if (total) total.textContent = row.totalText;
