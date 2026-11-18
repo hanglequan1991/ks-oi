@@ -42,7 +42,7 @@ Pulled forward from Version 2 (Phase 4 layout, languages, disclaimer; Phase 7 ra
 13. AC13: Given the chat or search endpoints, when they receive overly long input, then they refuse it before calling the AI service.
 
 ## Linked files
-- Tasks: TASK-
+- Tasks: [TASK-6](../tasks/TASK-6.md) (setup: hono, JSX, test globs), [TASK-7](../tasks/TASK-7.md) (i18n, AC1/2/4/6/8), [TASK-8](../tasks/TASK-8.md) (Disclaimer, FeeNote, PriceBlock, AC7/8), [TASK-9](../tasks/TASK-9.md) (Layout, renderPage guard, AC1/2/4/7/8/9), [TASK-10](../tasks/TASK-10.md) (lang.js, AC3/4/5), [TASK-11](../tasks/TASK-11.md) (security headers, noindex, AC9/12), [TASK-12](../tasks/TASK-12.md) (rate limit, AC10/11), [TASK-13](../tasks/TASK-13.md) (input cap, AC13), [TASK-14](../tasks/TASK-14.md) (app composition, all ACs end to end), [TASK-15](../tasks/TASK-15.md) (wiring into real index.ts; blocked until the owner commits the real source)
 - Test cases: TC-
 
 ## Questions
