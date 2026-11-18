@@ -51,6 +51,11 @@ In `test/web/routes/bill.spec.tsx` (uses `createApp({ getSettings, mount })`, fa
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Files: `sheet-rag/src/web/routes/bill.ts` (new), `sheet-rag/test/web/routes/bill.spec.tsx` (new). `src/index.ts` and `src/web/app.ts` not touched.
+- `bill.ts` is `.ts`, so it calls `BillPage({...})` as a function instead of JSX (no JSX syntax in the file).
+- Each route reads `deps.getSettings()` once per request (no memo). `Cache-Control` set on the route; no cookie.
+- Test notes: Hono prints `<meta ... />` self-closed, so the noindex meta test accepts both forms.
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/web/routes/bill.spec.tsx`: 9 passed. Full unit run: 41 files, 278 tests, all passed.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
