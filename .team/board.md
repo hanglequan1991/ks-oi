@@ -28,7 +28,7 @@ Run note (all stories): e2e TCs run via `npx playwright test -c playwright.node.
 | [TC-6](testcases/TC-6.md) | qa | e2e/TC-6.e2e.ts | qa | done | 0 | qalead approved |
 | [TC-7](testcases/TC-7.md) | qa | e2e/TC-7.e2e.ts | qa | done | 0 | qalead approved |
 | [TC-8](testcases/TC-8.md) | qa | e2e/TC-8.e2e.ts | qa | done | 0 | qalead approved |
-| [TC-9](testcases/TC-9.md) | qa | e2e/TC-9.e2e.ts | qa | review | 0 | awaiting qalead review |
+| [TC-9](testcases/TC-9.md) | qa | e2e/TC-9.e2e.ts | qa | done | 0 | qalead approved |
 | [TC-10](testcases/TC-10.md) | qa | e2e/TC-10.e2e.ts | - | blocked | 0 | needs live Cloudflare D1; owner runs |
 
 Follow-up candidate (lead): booking_rules does not enforce that room_id belongs to the same hotel_id (composite FK or trigger + a new TC); raised by qa/qalead in TC-6; low-medium priority.
@@ -48,12 +48,15 @@ Follow-up candidate (lead): booking_rules does not enforce that room_id belongs 
 | [TASK-14](tasks/TASK-14.md) | backend | src/web/app.ts, test/web/app.spec.tsx | dev | done | 0 | deps: TASK-5, TASK-7, TASK-9, TASK-11, TASK-12, TASK-13; lead approved; guards only /search, /chat, /api/suggest, /api/hotels/*; mount must register each page at both /x and /en/x |
 | [TASK-15](tasks/TASK-15.md) | backend | src/index.ts, src/env.ts (new if needed), wrangler.jsonc, test/index.web.spec.ts (provisional list) | - | blocked | 0 | waiting for the owner's real sheet-rag source (src/index.ts, src/rag/); deps: TASK-14, TASK-10, TASK-9; TASK-13's body-size check only runs when bodyFields is non-empty; wiring must always pass bodyFields on POST routes; wiring must also guard /en/search and /en/chat with the same rate limit and input caps as /search and /chat (TASK-14 only guards the vi paths); mount must register each page at both /x and /en/x |
 | [TASK-40](tasks/TASK-40.md) | backend | playwright.node.config.ts (new), package.json (e2e:node script only), test/fakes/migrations.ts, test/fakes/migrations.spec.ts (one test), test/client/playwright-node-config.spec.ts (new) | dev | done | 0 | lead approved; deps: TASK-39, TASK-1 (both done); PREREQUISITE FOR ALL e2e TCs (now satisfied); sole package.json editor now; task file lists story as STORY-13, placed here per coordinator |
+| [TASK-41](tasks/TASK-41.md) | backend | playwright.node.config.ts, test/client/playwright-node-config.spec.ts | dev | in-progress | 0 | deps: TASK-40 (done); browser-path selection (PW_CHROMIUM_PATH, then installed Chromium/headless shell, only when Playwright's default is absent) in the node config; prerequisite for all browser TCs |
+
+Sequencing note: after TASK-41 is done, all browser TCs (TC-12 onwards) can run. Order: STORY-16 TC-12..22 first, then STORY-15 TC-25..38, then STORY-11 TC-40 (harness) then TC-41..61. Live TCs 23, 24, 39, 62 are blocked for the owner.
 
 QA test cases for STORY-16 (TC-11 to TC-22 need Playwright from TASK-39 and, for real runs, TASK-15; TC-23 and TC-24 need a live deployment).
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TC-11](testcases/TC-11.md) | qa | e2e/TC-11.e2e.ts | qa | in-progress | 0 | needs Playwright (TASK-39) |
+| [TC-11](testcases/TC-11.md) | qa | e2e/TC-11.e2e.ts | qa | done | 0 | qalead approved; inline executablePath workaround is temporary (see TASK-41) |
 | [TC-12](testcases/TC-12.md) | qa | e2e/TC-12.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
 | [TC-13](testcases/TC-13.md) | qa | e2e/TC-13.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
 | [TC-14](testcases/TC-14.md) | qa | e2e/TC-14.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
