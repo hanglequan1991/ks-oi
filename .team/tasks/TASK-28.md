@@ -3,7 +3,7 @@
 - id: TASK-28
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-26 (limits and `clampNights`, `lineTotal`), TASK-6 (test glob `test/client/**`)

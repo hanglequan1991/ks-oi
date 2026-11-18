@@ -3,7 +3,7 @@
 - id: TASK-8
 - story: [STORY-16](../stories/STORY-16.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-7 (`t`, `format`, `Lang`), TASK-5 (`SiteSettings` type), TASK-6 (JSX setup)
@@ -51,6 +51,13 @@ All in `test/web/pages/components.spec.tsx`.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Unit suite run: 21 files, 125 tests passed (includes the 7 in components.spec.tsx).
+- AC1-AC6 each have a meaningful test (distinct sample strings, fallback and throw, escaping of `<b>` and `&`, 12.5% decimal, fee flag off, null amount gives "", vi/en formatting).
+- Only the four listed files were added. Hono JSX escapes text children, so the disclaimer is not injected as raw HTML; no inline style or script.
+- `PriceBlock` takes only `amount`, so the base price cannot be an input. `SiteSettings` has no base-price field, and the block never prints the disclaimer (tested).
+- Minor, non-blocking: `edited` is accepted but unused, as the dev noted.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
