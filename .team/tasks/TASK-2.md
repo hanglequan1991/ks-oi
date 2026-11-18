@@ -46,6 +46,10 @@ All in `test/migrations/0001_init.spec.ts`, using `createFakeD1()` and `applyMig
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Added `migrations/0001_init.sql` with the 9 tables from section 5 (no hotels_fts, no crawl/sync/admin tables), all `IF NOT EXISTS`, no seed data.
+- `rooms.base_price` has the tightened CHECK from the task (`typeof = 'integer'` and `>= 0`, NULL allowed).
+- Test file reads only `migrations/0001_init.sql` (not the folder), so it does not depend on 0002.
+- Red confirmed (missing SQL file), then green: 10/10 in `0001_init.spec.ts`; full unit suite 31/31.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

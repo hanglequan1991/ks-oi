@@ -38,6 +38,14 @@ Supports every STORY-16 AC (all later tasks need it).
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: before setup, `test/web/smoke.spec.tsx` was not collected ("No test files found") because the unit config did not include `test/web`.
+- `npm install hono` ran fine. `hono` was already in `package.json` at HEAD (added by another commit), so my install left `package.json` unchanged relative to HEAD.
+- JSX: the `esbuild` option in `vitest.unit.config.mts` alone was ignored by vitest 5 / vite 8 (it still used `react/jsx-dev-runtime`). Added `oxc: { jsx: { runtime: "automatic", importSource: "hono/jsx" } }`, which fixed it. The `esbuild` block is kept as requested.
+- `hono/jsx/dom/server` does not exist in the installed hono, so the smoke test renders with `(<p>hi</p>).toString()`.
+- AC-S1: `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/web/smoke.spec.tsx` gives `Test Files 1 passed (1)`, `Tests 3 passed (3)`.
+- AC-S2: `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/fakes` gives `Test Files 2 passed (2)`, `Tests 8 passed (8)`.
+- AC-S3: `npx tsc --noEmit` shows only the pre-existing errors in `src/index.ts` (lines 46 and 57, `Ai_Cf_Baai_Bge_M3_Output` has no `data`). Nothing from `test/` or the `.tsx` file.
+- Full suite note: `npm test -- --run` now also collects `test/migrations/0001_init.spec.ts`, which fails with ENOENT on `sheet-rag/migrations/0001_init.sql`. That file does not exist yet and `test/migrations/` is untracked work from another task. This is not caused by this task, but the full suite is red until that migration file lands.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
