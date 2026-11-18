@@ -64,6 +64,10 @@ In `test/domain/hotelView.spec.ts` (plain objects, no database).
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: spec failed on missing module. Green: 9/9 in `test/domain/hotelView.spec.ts`; full unit suite 78/78 in 14 files.
+- Fee clamping is delegated to `finalPrice` (src/domain/pricing.ts); not re-implemented.
+- "Empty" for English fallback means null or whitespace-only.
+- Room `description` is not translated (no `description_en` on RoomRow), per the task.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

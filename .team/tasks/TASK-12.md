@@ -41,6 +41,9 @@ All in `test/web/middleware/rateLimit.spec.ts` (fake clock, `app.request` with h
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Implemented `createMemoryLimiter` (returns `RateLimiter` plus a `size()` helper used by the purge test), `rateLimit`, and `RateLimitOptions` extras: `message` (value of the `error` field, default `too_many_requests`), `clientKey`, `retryAfterSeconds` (default 60).
+- Fail open covers: resolver returns undefined, resolver throws, and `limiter.limit` throws. `next()` is called outside the try block so downstream errors are not swallowed.
+- Test run: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` gives 14 files, 78 tests passing.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->
