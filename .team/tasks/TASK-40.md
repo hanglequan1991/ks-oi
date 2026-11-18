@@ -3,7 +3,7 @@
 - id: TASK-40
 - story: [STORY-13](../stories/STORY-13.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-39 (done), TASK-1 (done)
@@ -50,8 +50,12 @@ Shared files: `package.json` (do not run in parallel with any other task touchin
 - Comment in migrations.ts avoids the literal text `import.meta` (the no-import.meta test reads the file text).
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework
-1. Specific, actionable note. -->
+Verdict: approve
+
+- AC1-AC5 each covered by a meaningful test (config shape + regex positive/negative cases, package scripts, no import.meta, `--list` under CJS, main config webServer; plus the no-dir migrations test).
+- `env -u CLOUDFLARE_API_TOKEN npm test -- --run`: 43 files, 290 tests passed.
+- `npx playwright test -c playwright.node.config.ts e2e/TC-1.e2e.ts --trace off --project=chromium`: 1 passed.
+- Only the 5 listed files changed; package.json diff is only the `e2e:node` line; `playwright.config.ts` unchanged; testIgnore covers TC-10/23/24/39/62.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

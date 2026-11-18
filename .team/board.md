@@ -16,10 +16,12 @@ Table format (copy for each story; test cases go in the same table with Type `qa
 
 QA test cases for STORY-13 (TC-10 needs a live Cloudflare D1 deployment and cannot run locally).
 
+Run note (all stories): e2e TCs run via `npx playwright test -c playwright.node.config.ts e2e/TC-<n>.e2e.ts` inside sheet-rag/. Live TCs 10, 23, 24, 39, 62 use the main config (playwright.config.ts).
+
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TC-1](testcases/TC-1.md) | qa | e2e/TC-1.e2e.ts | qa | in-progress | 0 | must wait for TASK-40 (node-only Playwright config); do not run until it is done |
-| [TC-2](testcases/TC-2.md) | qa | e2e/TC-2.e2e.ts | - | todo | 0 | |
+| [TC-1](testcases/TC-1.md) | qa | e2e/TC-1.e2e.ts | qa | done | 0 | qalead approved; TASK-40 done |
+| [TC-2](testcases/TC-2.md) | qa | e2e/TC-2.e2e.ts | qa | in-progress | 0 | |
 | [TC-3](testcases/TC-3.md) | qa | e2e/TC-3.e2e.ts | - | todo | 0 | |
 | [TC-4](testcases/TC-4.md) | qa | e2e/TC-4.e2e.ts | - | todo | 0 | |
 | [TC-5](testcases/TC-5.md) | qa | e2e/TC-5.e2e.ts | - | todo | 0 | |
@@ -43,7 +45,7 @@ QA test cases for STORY-13 (TC-10 needs a live Cloudflare D1 deployment and cann
 | [TASK-13](tasks/TASK-13.md) | backend | src/web/middleware/inputLimit.ts, test/web/middleware/inputLimit.spec.ts | dev | done | 0 | deps: TASK-6; lead approved |
 | [TASK-14](tasks/TASK-14.md) | backend | src/web/app.ts, test/web/app.spec.tsx | dev | done | 0 | deps: TASK-5, TASK-7, TASK-9, TASK-11, TASK-12, TASK-13; lead approved; guards only /search, /chat, /api/suggest, /api/hotels/*; mount must register each page at both /x and /en/x |
 | [TASK-15](tasks/TASK-15.md) | backend | src/index.ts, src/env.ts (new if needed), wrangler.jsonc, test/index.web.spec.ts (provisional list) | - | blocked | 0 | waiting for the owner's real sheet-rag source (src/index.ts, src/rag/); deps: TASK-14, TASK-10, TASK-9; TASK-13's body-size check only runs when bodyFields is non-empty; wiring must always pass bodyFields on POST routes; wiring must also guard /en/search and /en/chat with the same rate limit and input caps as /search and /chat (TASK-14 only guards the vi paths); mount must register each page at both /x and /en/x |
-| [TASK-40](tasks/TASK-40.md) | backend | playwright.node.config.ts (new), package.json (e2e:node script only), test/fakes/migrations.ts, test/fakes/migrations.spec.ts (one test), test/client/playwright-node-config.spec.ts (new) | dev | in-progress | 0 | deps: TASK-39, TASK-1 (both done); PREREQUISITE FOR ALL e2e TCs (TC-1 and every other TC must wait for it); sole package.json editor now; task file lists story as STORY-13, placed here per coordinator |
+| [TASK-40](tasks/TASK-40.md) | backend | playwright.node.config.ts (new), package.json (e2e:node script only), test/fakes/migrations.ts, test/fakes/migrations.spec.ts (one test), test/client/playwright-node-config.spec.ts (new) | dev | done | 0 | lead approved; deps: TASK-39, TASK-1 (both done); PREREQUISITE FOR ALL e2e TCs (now satisfied); sole package.json editor now; task file lists story as STORY-13, placed here per coordinator |
 
 QA test cases for STORY-16 (TC-11 to TC-22 need Playwright from TASK-39 and, for real runs, TASK-15; TC-23 and TC-24 need a live deployment).
 

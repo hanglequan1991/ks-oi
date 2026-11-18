@@ -3,7 +3,7 @@
 - id: TC-1
 - story: [STORY-13](../stories/STORY-13.md)
 - verifies: AC1
-- status: todo
+- status: done
 - assignee: qa
 - rework count: 0
 - automation test file: `sheet-rag/e2e/TC-1.e2e.ts`
@@ -41,8 +41,14 @@
 - Diagnostic run with `E2E_BASE_URL` set (skips the webServer) still fails on blocker 2, so the assertions were not exercised.
 
 ## Review
-<!-- Written by qalead. Verdict: approve | rework
-1. Specific, actionable note. -->
+Verdict: approve
+
+Run: `npx playwright test -c playwright.node.config.ts e2e/TC-1.e2e.ts --trace off` in sheet-rag/: chromium passed (22ms), mobile skipped by design, no flakiness (no sleeps, no selectors, no browser page).
+
+1. Steps 1-5 map one to one to the test: empty DB, empty `sqlite_master` check (`toEqual([])`), `applyMigrations` resolves `undefined`, all nine required tables asserted with per-table messages, seed alone rejects.
+2. Assertions are real: the negative case matches `/no such table: settings/` and also checks the bare DB still has no tables, so the seed does not create the schema silently. The out-of-scope check covers `crawl_`, `admin_`, `sync_` on the actual table list.
+3. Fakes are used properly: `createFakeD1()` for two separate DBs, `applyMigrations(db, dir)` with the real `migrations/` folder, no mocks of the code under test, `CLOUDFLARE_API_TOKEN` deleted. Only its own file is touched.
+4. Note (non-blocking): the mobile project reports "skipped" because the test is Node-only and deliberately runs once under chromium. This is acceptable and matches the TC preconditions.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
