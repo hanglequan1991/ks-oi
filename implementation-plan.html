@@ -99,7 +99,7 @@ pre code{background:none;padding:0}
 <tr><td>Mytour</td><td>Optional source for <strong>room details</strong> (type, bed, size, max guests, view, in-room amenities) and <strong>hotel utilities</strong>, because the sheets may be out of date. Never prices, booking rules, descriptions, photos or reviews. Gated by the checks in Phase 0.</td></tr>
 <tr><td>Booking rules</td><td>From the Excel sheets only, at hotel level and at room level. Shown verbatim with the sync date. The crawler never reads or writes them.</td></tr>
 <tr><td>Prices, descriptions, photos</td><td>From the Excel sheets only.</td></tr>
-<tr><td>Admin area</td><td>Hidden <code>/admin</code>, sign-in by username and password, single admin role. The first admin (<code>admin</code>) is created by a one-time script with a generated password shown once. The interface is in Vietnamese and English. No two-factor sign-in and no Cloudflare Access. Admins can edit the fee, contact details and the disclaimer text; every change is audited and kept in a history.</td></tr>
+<tr><td>Admin area</td><td>Hidden <code>/admin</code>, sign-in by username and password, single admin role. The first admin (<code>admin</code>) is created by a one-time script with a generated password shown once. The interface is in Vietnamese and English. No two-factor sign-in and no Cloudflare Access. Admins can edit the fee, contact details and the disclaimer text; every change is audited and kept in a history. A lockout after repeated failed logins sends an alert (webhook first, email optional). The owner runs the first-admin script on their own machine with a Cloudflare login.</td></tr>
 </tbody></table></div>
 </section>
 
@@ -276,6 +276,7 @@ CREATE TABLE field_sources (hotel_id TEXT, entity TEXT, field TEXT, source TEXT,
 <li>First admin created by a one-time script with a generated password shown once in the owner's terminal; the admin must change it at first login.</li>
 <li>Admin interface in Vietnamese and English. Disclaimer text is editable (both languages required, restore-default button, every version kept in a history table).</li>
 <li>User management: create, reset password (temporary password shown once), disable and enable; cannot disable yourself or the last active admin.</li>
+<li>Lockout alerts: when an account is locked after repeated failed logins, send a webhook notification (email optional, later) in addition to the audit entry. The webhook URL and email are set on the config page.</li>
 <li>Configuration page: service fee percentage (0 to 100) with a price preview, fee note switch, contact phone, Zalo phone, Facebook, email, website, auto-publish, stale-rules days. Every save is audited and refreshes the page cache. Details are in section 17 of the technical design.</li>
 <li>Review queue: hotels with failed validation and uncertain Mytour matches; approve, edit or reject; edits go into <code>overrides</code>.</li>
 <li>Sync status: last sync time, hotels per status, errors.</li>

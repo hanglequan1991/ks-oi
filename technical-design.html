@@ -859,7 +859,8 @@ CREATE TABLE settings_history (            -- every saved value, so we can show 
   1. look up the user (case-insensitive); if unknown, still run a hash comparison against a dummy hash
   2. if locked_until &gt; now, or status = 'disabled': same generic error
   3. verify the password (constant-time compare)
-  4. fail: failed_logins += 1; at 5 failures lock for 15 minutes; audit 'login_failed'
+  4. fail: failed_logins += 1; at 5 failures lock for 15 minutes; audit 'login_failed';
+     when the lock starts: audit 'lockout' and send an alert (17.5a), without blocking the response
   5. success: reset counters, create a new session (random 32 bytes), audit 'login'
      Set-Cookie: __Host-hd_admin=&lt;token&gt;; Secure; HttpOnly; SameSite=Strict; Path=/
   6. if must_change_password: redirect to /admin/account (the only page allowed)</code></pre>
@@ -868,6 +869,14 @@ CREATE TABLE settings_history (            -- every saved value, so we can show 
 <li><strong>Sessions:</strong> idle timeout 30 minutes, absolute lifetime 12 hours, a fresh token at every login. Logging out, disabling a user, or changing a password deletes that user's other sessions.</li>
 <li><strong>CSRF:</strong> <code>SameSite=Strict</code> cookies, an Origin check on every <code>POST</code>, and a per-session token in every form.</li>
 <li><strong>Brute force:</strong> the per-account lockout above, plus a Cloudflare rate-limiting rule on <code>/admin/login</code>.</li>
+<li><strong id="alerts">17.5a Lockout alerts (decision):</strong> when an account becomes locked, the Worker sends a notification in addition to the audit entry.
+  <ul>
+  <li><strong>Webhook first:</strong> a JSON <code>POST</code> to the URL in <code>alert_webhook_url</code> (any service that accepts a webhook, such as Slack, Discord, Telegram through a relay, or your own endpoint). Content: event name, username, source IP, time, failure count. Never a password or token.</li>
+  <li><strong>Email is optional:</strong> if <code>alert_email</code> is set, the same message is sent by email. Sending email from a Worker depends on the email service chosen (for example Cloudflare's Email Workers, which can only send to verified addresses) and has not been checked <span class="tag un">unverified</span>, so it ships after the webhook.</li>
+  <li><strong>Behaviour:</strong> sent in the background (<code>ctx.waitUntil</code>), so a slow or failing receiver never delays or blocks the login response. A failed send writes an <code>alert_failed</code> audit row.</li>
+  <li><strong>Noise control:</strong> at most one alert per account per hour, and a summary count in the next alert.</li>
+  <li><strong>Scope:</strong> the same alert path is reused for other admin events later (for example the first login of a new user), if you want them.</li>
+  </ul></li>
 <li><strong>Password rules:</strong> at least 12 characters for a password chosen by the user; generated ones are 20.</li>
 <li><strong>Machine endpoints:</strong> a request is accepted if it has a valid session cookie (pages) or the bearer token (<code>/admin/reindex</code>, <code>/admin/status</code>). The token compare is constant-time.</li>
 </ul>
@@ -895,6 +904,8 @@ CREATE TABLE settings_history (            -- every saved value, so we can show 
 <tr><td><code>auto_publish</code></td><td>Boolean. Publish hotels automatically when validation passes.</td><td>Sheet sync</td></tr>
 <tr><td><code>rules_stale_days</code></td><td>Integer 1 to 365</td><td>Stale booking-rules report</td></tr>
 <tr><td><code>disclaimer_vi</code>, <code>disclaimer_en</code></td><td>Text up to 500 characters, not empty</td><td>Call-to-confirm sentence beside prices</td></tr>
+<tr><td><code>alert_webhook_url</code></td><td>URL, must start with <code>https://</code>; empty means no webhook. Treat as a secret-like value: shown masked after saving.</td><td>Lockout alerts</td></tr>
+<tr><td><code>alert_email</code></td><td>Email address; empty means no email</td><td>Lockout alerts (after the email service is chosen)</td></tr>
 </tbody></table></div>
 <ul>
 <li>The config page shows a price preview: a sample base price and the final price for the entered percentage, using the same <code>finalPrice</code> function as the site.</li>
@@ -918,6 +929,7 @@ CREATE TABLE settings_history (            -- every saved value, so we can show 
     users.ts             create, reset, enable, disable, last-admin guard
     config.ts            settings registry, validation, save
     audit.ts             write and read audit rows
+    alerts.ts            lockout notifications (webhook, optional email)
     pages/               Login.tsx  Dashboard.tsx  Users.tsx  Config.tsx  Account.tsx  Audit.tsx
   test/admin/            password.spec.ts  session.spec.ts  users.spec.ts  config.spec.ts  routes.spec.ts
   e2e/                   admin-login.e2e.ts  admin-users.e2e.ts  admin-config.e2e.ts</code></pre>
@@ -927,6 +939,7 @@ CREATE TABLE settings_history (            -- every saved value, so we can show 
 <ul>
 <li>Password: generated passwords meet the rules; hash and verify round-trip; wrong password fails; unknown user takes about the same time.</li>
 <li>Lockout after 5 failures, and a successful login resets the counter.</li>
+<li>Lockout alert: sent once when the lock starts; contains no password or token; not repeated within the hour; a failing or slow webhook does not delay the login response and writes an <code>alert_failed</code> audit row.</li>
 <li>Sessions: idle and absolute expiry, a new token at login, revoked on disable and on password change.</li>
 <li>Every <code>/admin</code> route without a session returns the login redirect (or 401 for the bearer endpoints); every <code>POST</code> without a valid CSRF token or Origin is rejected.</li>
 <li>Users: cannot disable yourself or the last active admin; a reset forces a password change.</li>
@@ -944,11 +957,13 @@ CREATE TABLE settings_history (            -- every saved value, so we can show 
 <li>The admin interface is Vietnamese and English.</li>
 <li>Admins may edit the disclaimer text, with audit and history.</li>
 <li>No two-factor sign-in and no Cloudflare Access.</li>
+<li>The owner runs the first-admin script on their own machine with a Cloudflare login.</li>
+<li>A lockout sends an alert (webhook first, email optional) as well as an audit entry.</li>
 </ul>
 <h3>17.12 Remaining questions</h3>
 <ol>
-<li>Where will the project owner run the first-admin script (their own machine, with Cloudflare login)? It needs a Cloudflare-authenticated terminal.</li>
-<li>Should failed-login lockout also notify someone (email or webhook), or only be visible on the audit page?</li>
+<li>Which service should receive the lockout webhook (Slack, Discord, Telegram, or another)? Its URL goes in the config page, not in the code.</li>
+<li>Which email address, if any, should also get lockout alerts? Email delivery waits until the sending service is chosen.</li>
 </ol>
 </section>
 
