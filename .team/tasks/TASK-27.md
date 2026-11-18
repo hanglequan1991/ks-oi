@@ -3,7 +3,7 @@
 - id: TASK-27
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-7 (creates `vi.ts`, `en.ts`, `t.ts` and the key-parity test). Shared files: this is the only STORY-11 task that edits `vi.ts` and `en.ts`; do not run in parallel with any other task that edits them.
@@ -43,7 +43,12 @@ In `test/web/i18n/bill-keys.spec.ts` (the TASK-7 parity test is not edited; run 
 - Placeholder strings use `{n}`, `{max}`, `{date}` only. No phone, Zalo or call wording.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: full unit suite passes (28 files, 182 tests), including the TASK-7 parity test and the 5 new tests in `bill-keys.spec.ts`.
+- Checked `vi.ts` and `en.ts` by eye: all 42 listed keys exist in both languages with the same `{n}`, `{max}`, `{date}` placeholders; `noteLabel` is exactly `NOTE` / `GHI CHÚ` with no placeholder; `colHotel` vi is `Khách sạn`; both `noscript` texts mention JavaScript; no phone, Zalo or call wording.
+- Minor, no action: dev notes say 45 keys, the list has 42 (the spec checks the 42).
+- Only the three listed files changed.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

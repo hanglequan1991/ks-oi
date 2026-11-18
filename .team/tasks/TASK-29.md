@@ -3,7 +3,8 @@
 - id: TASK-29
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-28 (`BillRow`, `emptyRow`), TASK-26 (limits)
 - size: fits a 100k-token context (one file, injected storage and timers)

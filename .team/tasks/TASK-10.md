@@ -3,7 +3,7 @@
 - id: TASK-10
 - story: [STORY-16](../stories/STORY-16.md)
 - type: frontend        <!-- frontend | backend -->
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-6 (test glob `test/client/**`)

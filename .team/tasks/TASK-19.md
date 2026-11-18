@@ -3,7 +3,7 @@
 - id: TASK-19
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-5 (`SiteSettings` type import in `types.ts`); TASK-1 (test runner). No dependency on TASK-17 (params do not fold text).

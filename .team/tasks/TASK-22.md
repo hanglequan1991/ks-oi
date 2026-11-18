@@ -3,7 +3,8 @@
 - id: TASK-22
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-2 (schema), TASK-16 (sample data), TASK-17 (`foldText`, `likePrefixPattern`), TASK-1 (fake D1)
 - size: fits a 100k-token context (two small queries)

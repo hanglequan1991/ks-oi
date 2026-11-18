@@ -3,7 +3,7 @@
 - id: TASK-20
 - story: [STORY-15](../stories/STORY-15.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-2 (schema), TASK-16 (sample data), TASK-17 (`searchTokens`, `likeContainsPattern`), TASK-18 (`HotelListRow` type), TASK-1 (fake D1)
@@ -56,7 +56,14 @@ In `test/db/hotelList.spec.ts`, fake D1 + `applyMigrations` + `seedApiSample`.
 - `npm test -- --run test/db/hotelList.spec.ts`: 9/9 pass. Full suite: 181 of 182 pass; the one failure is `test/client/bill-viewmodel.spec.ts` (TASK-35, `src/client/bill/render.ts` is modified by another dev, not this task).
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: full unit suite passes (28 files, 182 tests), including the 9 tests in `test/db/hotelList.spec.ts`.
+- Binding: every user value (city, stars, facility codes, LIKE patterns, limit, offset) goes through `?` and `.bind`; the only text built into SQL is fixed (placeholder lists, a whitelisted ORDER BY looked up from a fixed map with a fallback to `name`).
+- LIKE: per-token `name_search LIKE ? ESCAPE '\'` with `likeContainsPattern`; published-only clause is always first.
+- q: blank or absent is ignored; non-blank with no tokens adds `1 = 0` to both the page and COUNT queries (lead's decision, Option b).
+- Paging: limit clamped 1..50, page at least 1, non-finite input handled; stable order ends on unique slug; total comes from a separate COUNT with the same WHERE.
+- Imports only `src/domain/`; only the two listed files changed.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

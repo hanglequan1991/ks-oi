@@ -3,7 +3,7 @@
 - id: TASK-9
 - story: [STORY-16](../stories/STORY-16.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-8 (components), TASK-7 (i18n helpers), TASK-6
@@ -63,7 +63,14 @@ All in `test/web/pages/layout.spec.tsx` (render with `new Hono()` and `app.reque
 - The header holds only the language toggle; no admin or `/bill` links anywhere in the layout.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework -->
+Verdict: approve
+
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag/: 28 files, 182 tests pass.
+- Every AC (1-8) has a matching meaningful test in `layout.spec.tsx` (9 tests, parsed attributes, not trivial string checks).
+- `renderPage` guard: throws on `data-price` without `data-disclaimer` before `c.html` is called (test asserts `html` not called); price-free pages pass.
+- CSP: only `<script src="/lang.js">` in head (no defer, no inline body), no `style=`, no inline handlers; `app.css` has no imports or external URLs.
+- Canonical = origin + pathForLang(path, lang); hreflang vi/en/x-default (x-default = Vietnamese URL); toggle is a plain `<a href data-lang hreflang>`; noindex, nofollow present; no /bill or admin links.
+- Only the four listed files are in scope.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

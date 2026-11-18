@@ -3,7 +3,7 @@
 - id: TASK-39
 - story: [STORY-11](../stories/STORY-11.md)
 - type: backend        <!-- frontend | backend -->
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-34 (both edit `package.json` and `package-lock.json`: never in parallel; run after TASK-34), TASK-6. Running the e2e tests against a real page also needs TASK-15 (Worker entry wired to the web app and `public/` served), which is blocked on the owner; this task does not.
