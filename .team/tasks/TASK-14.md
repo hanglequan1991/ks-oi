@@ -56,6 +56,14 @@ All in `test/web/app.spec.tsx`, using `app.request` and fake `getSettings` (no D
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Files: `sheet-rag/src/web/app.ts` (new), `sheet-rag/test/web/app.spec.tsx` (new). src/index.ts not touched.
+- Tests: 10 in app.spec.tsx (the 8 listed plus 2 extra: default memory limiters, failing limiter fails open). `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/web/app.spec.tsx`: 10 passed.
+- bodyFields is passed on every guarded route (`/search`, `/chat`, `/api/suggest`), so the TASK-13 body check runs on POST.
+- Hono 4.13 `app.use()` does not accept an array of paths; one `use` per path.
+- `/api/hotels/*` also matches the bare `/api/hotels` in Hono, so it is registered once (a second guard would double count).
+- Language comes from the URL path, so routes are not rewritten: `mount` must register each page at both `/x` and `/en/x`. Later routes (TASK-38, TASK-23/24/25, TASK-15) need to do this. The test helper `bothLangs` shows the pattern.
+- `getSiteSettings(c)` memoizes one loader per request (WeakMap keyed by the Hono context); a rejected `getSettings` gives 500 through `onError`.
+- Full unit run: 233 of 234 pass. The one failure is `test/web/pages/bill-page.spec.tsx` (TASK-37, another dev), not my files.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

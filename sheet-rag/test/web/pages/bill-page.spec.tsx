@@ -98,15 +98,37 @@ describe("BillPage (TASK-37)", () => {
 		expect(pct).toContain("Includes 12.5% service fee");
 	});
 
-	it("no phone, zalo, admin or self links", async () => {
-		const html = await render("en");
-		for (const bad of ["tel:", "zalo", "Zalo", "phone", "/admin", `href="/bill"`, `href="/en/bill"`]) {
-			expect(html).not.toContain(bad);
-		}
-		// The only bill URLs are the canonical and alternate links from Layout.
-		const billUrls = [...html.matchAll(/(?:href|src)="([^"]*bill[^"]*)"/g)].map((m) => m[1]);
-		for (const u of billUrls) {
-			expect(u).toMatch(/^https:\/\/example\.test\/|^\/bill\.(css|js)$/);
+	it("no phone, zalo or admin links; bill URL only via layout language toggle and canonical/hreflang", async () => {
+		for (const lang of ["vi", "en"] as const) {
+			const html = await render(lang);
+			for (const bad of ["tel:", "zalo", "Zalo", "phone", "/admin"]) {
+				expect(html, `${lang}: ${bad}`).not.toContain(bad);
+			}
+
+			// Exactly one <a> to a bill URL: the Layout language toggle (marked data-lang), pointing to the twin page.
+			const other = lang === "en" ? "vi" : "en";
+			const toggleTarget = lang === "en" ? "/bill" : "/en/bill";
+			const billAnchors = [...html.matchAll(/<a\b([^>]*)>/g)]
+				.map((m) => m[1])
+				.filter((attrs) => {
+					const href = attrs.match(/\shref="([^"]*)"/);
+					return href !== null && /^(\/en)?\/bill\/?(\?|#|$)/.test(href[1]);
+				});
+			expect(billAnchors, `${lang}: bill anchors`).toHaveLength(1);
+			expect(billAnchors[0]).toContain(`href="${toggleTarget}"`);
+			expect(billAnchors[0]).toContain(`data-lang="${other}"`);
+
+			// No bill link inside the page content.
+			const main = between(html, `<main`, `</main>`);
+			expect(main, `${lang}: main`).not.toMatch(/<a\b[^>]*\shref="\/(en\/)?bill/);
+
+			// Every href/src that mentions bill is one of the allowed targets.
+			const allowedAbsolute = new Set([`${ORIGIN}/bill`, `${ORIGIN}/en/bill`]);
+			const billUrls = [...html.matchAll(/(?:href|src)="([^"]*bill[^"]*)"/g)].map((m) => m[1]);
+			for (const u of billUrls) {
+				const allowed = allowedAbsolute.has(u) || u === "/bill.css" || u === "/bill.js" || u === toggleTarget;
+				expect(allowed, `${lang}: ${u}`).toBe(true);
+			}
 		}
 	});
 
