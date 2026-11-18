@@ -38,6 +38,16 @@
 
 ## Review
 <!-- Written by qalead. -->
+Verdict: approve
+
+- Ran `npx playwright test -c playwright.node.config.ts e2e/TC-2.e2e.ts --trace off --project=chromium`: 1 passed.
+- Steps 1 to 5 are followed in order. Runs 1, 2 and 3 of `applyMigrations` are each asserted to resolve; the inserts are asserted successful.
+- Assertions are real: per-table row counts before and after, settings is exactly the 5 expected keys (before and after, equal), city/hotel/room (base_price 1250000)/rule/facility link checked field for field, plus a full `SELECT *` snapshot of every user table compared before and after the re-runs.
+- No sleeps, no browser selectors; only its own test file is touched; no Cloudflare token is used.
+- Deviation accepted: inserting a `facility_catalog` row (`pool`) before the `hotel_facilities` link is required by the foreign key and does not weaken the test (the extra row is included in the before/after counts and snapshot). The TC step 2 was incomplete, so it is amended below.
+- Optional, non-blocking: none.
+
+Step 2 amendment (qalead): insert a `facility_catalog` row `pool` first, then the facility link.
 
 ## Questions
 <!-- Q: ...   A: ... -->

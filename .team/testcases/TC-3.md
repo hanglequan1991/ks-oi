@@ -30,6 +30,9 @@
 
 ## QA notes
 <!-- Written by qa. -->
+- Automated in `sheet-rag/e2e/TC-3.e2e.ts` (Node-only, fake D1, chromium project only).
+- Covers steps 1-5 and expected results 1-5: three edits each affect 1 row, re-run keeps edits and the 5 rows, deleted `data_version` is re-created as `1` while the edits stay.
+- Run: `npx playwright test -c playwright.node.config.ts e2e/TC-3.e2e.ts --trace off --project=chromium` -> 1 passed.
 
 ## Review
 <!-- Written by qalead. -->
