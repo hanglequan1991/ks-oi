@@ -3,7 +3,7 @@
 - id: TASK-1
 - story: [STORY-13](../stories/STORY-13.md)
 - type: backend        <!-- frontend | backend -->
-- status: todo
+- status: done
 - rework count: 0
 - depends on: none
 - size: fits a 100k-token context (few files, one behaviour)

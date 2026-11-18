@@ -3,7 +3,8 @@
 - id: TASK-6
 - story: [STORY-16](../stories/STORY-16.md)
 - type: backend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-1 (edits the `vitest.unit.config.mts` that TASK-1 creates)
 - size: fits a 100k-token context (few files, one behaviour)
