@@ -26,6 +26,8 @@ import {
 	markTabsSeenBatch,
 	pickOldestFirst,
 	recordTabError,
+	type SyncStateRow,
+	type TabCheckMeta,
 	type TabKey,
 } from "../db/syncState";
 import { buildDataVersionStatement } from "./overrides";
@@ -47,6 +49,12 @@ import type { ParsedHotel } from "./record";
 
 /** Version of the sheet parser. Changing it makes every tab hash differently, so all are re-applied. */
 export const PARSER_VERSION = "1";
+
+/**
+ * Oldest last_checked_at a tab may have and still be skipped (TASK-73). Drive's `modified` is opaque text,
+ * so a stale result must not hide an edit forever: every tab is read at least once per this age.
+ */
+export const SKIP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Tries of one tab read. The public page source retries up to 3 times (MAX_TRIES in publicGoogleSource),
@@ -234,6 +242,25 @@ function tabsOf(file: SheetFile, cached: SyncFileTab[]): SheetTab[] {
 }
 
 /**
+ * True when the tab cannot have changed since its last check (TASK-73): the file's modified text is set
+ * and equals the stored one, the stored parser version is current, the state is clean (hash present, no
+ * error, not missing), and the check is younger than SKIP_MAX_AGE_MS. A skipped tab is not read.
+ */
+function isSkippable(
+	modified: string | undefined,
+	row: SyncStateRow | undefined,
+	nowMs: number,
+	force: boolean,
+): boolean {
+	if (force || typeof modified !== "string" || modified === "") return false;
+	if (row === undefined || row.hash === null || row.last_error !== null || row.missing_since !== null) return false;
+	if (row.file_modified === null || row.file_modified !== modified) return false;
+	if (row.parser_version !== PARSER_VERSION || row.last_checked_at === null) return false;
+	const checkedMs = Date.parse(row.last_checked_at);
+	return Number.isFinite(checkedMs) && nowMs - checkedMs < SKIP_MAX_AGE_MS;
+}
+
+/**
  * Lists the tabs of every file, skipping listTabs where the cache proves nothing changed (same
  * `modified` and skip signature). A file that must be listed is listed only when the budget can also
  * pay for one tab afterwards. A file that cannot be listed uses its cached tabs when the skip signature
@@ -245,12 +272,14 @@ async function listWithCache(
 	source: SheetSource,
 	budget: SubrequestBudget,
 	now: string,
-): Promise<{ tabs: SheetTab[]; incomplete: boolean }> {
+): Promise<{ tabs: SheetTab[]; incomplete: boolean; modifiedOf: Map<string, string | undefined> }> {
 	const files = await source.listFiles();
 	const cache = await getSyncFiles(db);
 	const skipSignature = source.skipSignature;
 	const tabs: SheetTab[] = [];
 	let incomplete = false;
+	// The modified text of this run's listing, taken before any read. It is what a read stores (TASK-73).
+	const modifiedOf = new Map<string, string | undefined>(files.map((file) => [file.fileId, file.modified]));
 
 	for (const file of files) {
 		const row = cache.get(file.fileId);
@@ -289,7 +318,7 @@ async function listWithCache(
 		}
 		incomplete = true;
 	}
-	return { tabs, incomplete };
+	return { tabs, incomplete, modifiedOf };
 }
 
 export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<SyncSummary> {
@@ -312,8 +341,11 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 	const items: RunNoteItem[] = [];
 	let aborted: SyncSummary["aborted"];
 	let tabs: SheetTab[] = [];
+	let modifiedOf = new Map<string, string | undefined>();
 	let listingIncomplete = false;
 	let started = 0;
+	// Listed tabs that are read or skipped candidates this run (skippable tabs excluded, TASK-73).
+	let candidateCount = 0;
 
 	const fail = (tab: string | null, reason: string, readPhase = false): void => {
 		counts.failed++;
@@ -323,11 +355,12 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 
 	const finish = async (failedRun: boolean): Promise<SyncSummary> => {
 		await finishRun(db, runId, counts, items, deps.now());
-		// Every listed tab that was not started is deferred (cap, budget, deadline or breaker).
+		// Every candidate tab that was not started is deferred (cap, budget, deadline or breaker).
+		// Skipped tabs are not deferred: they were never candidates.
 		const summary: SyncSummary = {
 			...counts,
 			failures: [...readFailures, ...failures],
-			deferred: tabs.length - started,
+			deferred: candidateCount - started,
 		};
 		if (failedRun) summary.failed_run = true;
 		if (aborted) summary.aborted = aborted;
@@ -339,6 +372,7 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 	try {
 		const listing = await listWithCache(db, source, budget, now);
 		tabs = listing.tabs;
+		modifiedOf = listing.modifiedOf;
 		listingIncomplete = listing.incomplete;
 		if (listingIncomplete) items.push({ kind: "info", reason: "listing_incomplete" });
 	} catch (error) {
@@ -359,9 +393,26 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 			now,
 		);
 
-		const { picked } = pickOldestFirst(tabs, state, limits.maxTabsPerRun);
+		// Skippable tabs leave the candidates before the pick, so they do not use the per-run cap. They
+		// stay in `tabs` for the removal plan and make no read and no D1 write of their own (TASK-73).
+		const nowMs = Date.parse(now);
+		const candidates: SheetTab[] = [];
+		for (const tab of tabs) {
+			const skippable = isSkippable(
+				modifiedOf.get(tab.fileId),
+				state.get(keyOf(tab.fileId, tab.gid)),
+				nowMs,
+				opts.force === true,
+			);
+			if (skippable) counts.unchanged++;
+			else candidates.push(tab);
+		}
+		candidateCount = candidates.length;
+
+		const { picked } = pickOldestFirst(candidates, state, limits.maxTabsPerRun);
 		const autoPublish = await readAutoPublish(db);
-		const unchangedKeys: TabKey[] = [];
+		// Unchanged tabs store this run's listing value of file modified, and the parser version (TASK-73).
+		const unchangedKeys: Array<TabKey & { meta: TabCheckMeta }> = [];
 		// last_checked_at (sync_tab_checks) means "last attempt", not "last success": it only orders the
 		// picks (pickOldestFirst), so a tab that keeps failing rotates to the back instead of starving the
 		// rest. A failed tab keeps its hash, so change detection and the retry are unaffected.
@@ -425,9 +476,14 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 			}
 
 			const single = planSync({ tabs: [tab], state, hashes: new Map([[key, hash]]), force: opts.force });
+			const fileModified = modifiedOf.get(tab.fileId) ?? null;
 			if (single.unchanged.length > 0) {
 				counts.unchanged++;
-				unchangedKeys.push({ fileId: tab.fileId, gid: tab.gid });
+				unchangedKeys.push({
+					fileId: tab.fileId,
+					gid: tab.gid,
+					meta: { fileModified, parserVersion: PARSER_VERSION },
+				});
 				continue;
 			}
 
@@ -451,6 +507,8 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 				hash,
 				now,
 				autoPublish,
+				fileModified,
+				parserVersion: PARSER_VERSION,
 			});
 			for (const facility of result.unmappedFacilities) {
 				items.push({ kind: "unmapped_facility", tab: tab.tabName, facility });

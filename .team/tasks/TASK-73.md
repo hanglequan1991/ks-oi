@@ -3,7 +3,7 @@
 - id: TASK-73
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 0
 - depends on: TASK-72 (columns and helpers), TASK-70 (listing cache; both edit runSync.ts, TASK-70 first), TASK-69 (done)
@@ -50,8 +50,14 @@ Design (lead):
 
 ## Dev notes
 <!-- Written by dev. -->
+- Implemented in `sheet-rag/src/sync/runSync.ts`: exported `SKIP_MAX_AGE_MS` (7 days), `isSkippable` predicate, skippable tabs removed before `pickOldestFirst` and counted in `unchanged`, `modifiedOf` built from this run's listing, `meta` passed to `markTabsChecked` (unchanged reads) and to `syncHotel` (applied tabs).
+- New spec `sheet-rag/test/sync/runSyncReadSkip.spec.ts`: 32 tests, all green (AC1 to AC8).
+- Measured idle-run D1 calls: 50 tabs = 7 (asserted `toBe(7)`, bound 8); 450 tabs = 15 = 6 + ceil(450/50) (asserted `toBe(15)`, bound 16). Fetches = 1 in both.
+- Convergence (AC8): 3 files x 150 tabs, cap 25, hourly steps: 18 reading runs then 1 idle run (19 cold runs in total). A changed file re-reads only its 150 tabs.
+- Full suite: 2 failures, both in `sheet-rag/test/sync/runSyncListing.spec.ts` (TASK-70). Both assert that an idle run still calls readCsv (`unchanged modified skips listTabs and plans identically`, `idle run makes zero listTabs fetches and one listing fetch`). TASK-73 intentionally removes those reads, so the assertions are now wrong. The file is not in this task's file list, so I did not edit it.
 
 ## Review
 <!-- Written by lead. -->
 
 ## Questions
+- Business/technical question for lead: TASK-70 tests in `sheet-rag/test/sync/runSyncListing.spec.ts` (`unchanged modified skips listTabs and plans identically`, line ~125 `expect(second.readCsv).toEqual(first.readCsv)`; `idle run makes zero listTabs fetches and one listing fetch`, line ~243 `expect(idleSmall.readCsv).toHaveLength(2)`) assert that idle runs still read tabs. TASK-73 deliberately makes those reads zero. Those assertions must change, but `runSyncListing.spec.ts` is not in TASK-73's file list. Please confirm whether to (a) add that file to TASK-73 and update those two assertions to expect zero readCsv on idle runs, or (b) have another task update them. Until answered, the full suite has 2 failing tests (596 passed).
