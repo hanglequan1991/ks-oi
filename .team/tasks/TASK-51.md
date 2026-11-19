@@ -31,6 +31,9 @@
 - `sheet-rag/test/sync/writeRooms.spec.ts`
 
 ## Dev notes
+- Added `src/sync/writeRooms.ts` (`buildRoomStatements`, returns prepared statements only). Order: delete removed sheet rooms (json_each on kept ids), upsert rooms (`WHERE rooms.source = 'sheet'` guard), delete hotel's rules, insert rules.
+- Rule ids use the first 16 hex of sha256 (same width as hotel and room ids). Room `name_search` = foldText(name). Bed type, size, view, max guests and description are copied from the record when present.
+- Tests: 6 in `test/sync/writeRooms.spec.ts` on the fake D1 with real migrations. Full unit suite: 56 files, 394 tests pass.
 
 ## Review
 

@@ -34,6 +34,12 @@
 ## Dev notes
 The facility_catalog is empty after migrations (no seed exists); tests insert their own catalog rows. Seeding the real catalog is not part of this story (see assumptions in the lead report).
 
+- Implemented `buildHotelStatements` and `unmappedFacilities` in `src/sync/writeHotel.ts`. Facility matching is done in SQL (`INSERT OR IGNORE ... SELECT` joined on `facility_catalog`), so the builder stays synchronous.
+- The hotel upsert also updates `city_slug` on conflict (not in the AC3 list), so a renamed city file moves its hotels. The city row is inserted earlier in the same batch.
+- `unmappedFacilities` returns the verbatim label, first occurrence per folded form.
+- `existingStatus` is not used in SQL: status is only written on insert, which keeps existing status.
+- Tests: `test/sync/writeHotel.spec.ts`, 7 passing. Full unit suite: 56 files, 394 tests passing.
+
 ## Review
 
 ## Questions
