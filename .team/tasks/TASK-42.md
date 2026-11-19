@@ -65,6 +65,13 @@ Shared files: `package.json` (nothing else is in flight on it; TASK-39/40 are do
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Files: `sheet-rag/src/site.ts` (new), `sheet-rag/wrangler.hotel.jsonc` (new), `sheet-rag/package.json` (two scripts added), `sheet-rag/DEPLOY-hotel-dictionary.md` (new), `sheet-rag/test/web/site.spec.tsx` (new), `sheet-rag/test/web/site-config.spec.ts` (new). Task file updated (Dev notes only).
+- TDD: red run failed on missing `src/site`, `wrangler.hotel.jsonc`, the scripts and the docs; green: 12 new tests pass; full unit suite 45 files / 309 tests pass.
+- Cache key: the app is cached in a WeakMap keyed on `env.DB` (stable per isolate), as allowed by the design.
+- Dry run `npx wrangler deploy --dry-run -c wrangler.hotel.jsonc --outdir .wrangler/dry-run-hotel` exit 0 with wrangler 4.160.1: `build` key accepted (no fallback needed), `[custom build] npm run build:client` ran, bindings listed `env.DB (hotel-dictionary)` and `env.ASSETS`. No network or login needed. The build rewrote `public/bill.js` with identical git content (no diff).
+- `.wrangler/` is in `.gitignore` (line 167), so no `.gitignore` change is needed.
+- `npx tsc --noEmit`: no errors in the new files; existing errors elsewhere (src/index.ts, src/client, src/web/routes/bill.ts JSX typing) were already there and are not touched.
+- Process note: once I ran `git stash` in `sheet-rag/` by mistake and popped it at once. The stash held only my `package.json` edit; the tree is restored, the stash list is empty, and `wrangler.jsonc` and `src/index.ts` are unchanged.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework

@@ -1,0 +1,42 @@
+/**
+ * Wrangler config for the `hotel-dictionary` Worker (Version 1 site: billing
+ * page and JSON API). It is a separate Worker with its own D1 database.
+ * Owner steps are in DEPLOY-hotel-dictionary.md.
+ *
+ * Replace REPLACE_WITH_D1_ID with the database_id printed by
+ * `npx wrangler d1 create hotel-dictionary` before deploying.
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "hotel-dictionary",
+	"main": "src/site.ts",
+	"compatibility_date": "2026-11-10",
+	"observability": {
+		"enabled": true
+	},
+	/**
+	 * Build step: bundles the browser code into public/bill.js before deploy.
+	 */
+	"build": {
+		"command": "npm run build:client"
+	},
+	/**
+	 * D1 database (settings, hotels, cities). The Phase 2 sheet sync will write here.
+	 */
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "hotel-dictionary",
+			"database_id": "REPLACE_WITH_D1_ID",
+			"migrations_dir": "migrations"
+		}
+	],
+	/**
+	 * Static assets. Matching files are served before the Worker runs (no
+	 * run_worker_first, so static requests are not billed as Worker requests).
+	 */
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS"
+	}
+}

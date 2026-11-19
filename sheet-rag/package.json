@@ -12,7 +12,9 @@
     "e2e:node": "playwright test -c playwright.node.config.ts",
     "build:client": "node scripts/build-client.mjs",
     "predeploy": "npm run build:client",
-    "predev": "npm run build:client"
+    "predev": "npm run build:client",
+    "deploy:hotel": "wrangler deploy -c wrangler.hotel.jsonc",
+    "dry-run:hotel": "wrangler deploy --dry-run -c wrangler.hotel.jsonc --outdir .wrangler/dry-run-hotel"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.3",
