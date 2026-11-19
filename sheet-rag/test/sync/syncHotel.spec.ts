@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createFakeD1, type FakeD1 } from "../fakes/d1";
 import { applyMigrations } from "../fakes/migrations";
 import { syncHotel } from "../../src/sync/syncHotel";
+import { recordTabSuccess } from "../../src/db/syncState";
 import { hotelIdFor } from "../../src/sync/hash";
 import type { ParsedHotel, ParsedRoom } from "../../src/sync/record";
 import type { SheetTab } from "../../src/sync/sheetSource";

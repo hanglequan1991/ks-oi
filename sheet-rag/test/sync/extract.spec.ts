@@ -142,22 +142,13 @@ describe("extract", () => {
 			messages: unknown[];
 			response_format: {
 				type: string;
-				json_schema: { name: string; schema: Record<string, any> };
+				json_schema: Record<string, any>;
 			};
 		};
 		expect(ai.calls[0].model).toBe(EXTRACTOR_MODEL);
 		expect(Array.isArray(input.messages)).toBe(true);
 		expect(input.response_format.type).toBe("json_schema");
-		expect(typeof input.response_format.json_schema.name).toBe("string");
-
-		const schema = input.response_format.json_schema.schema;
-		expect(schema.type).toBe("object");
-		expect(schema.additionalProperties).toBe(false);
-		expect(schema.properties.descriptionVi).toEqual({ type: ["string", "null"] });
-		expect(schema.properties.facilities).toEqual({
-			type: "array",
-			items: { type: "string" },
-		});
+		expectDirectSchema(input.response_format.json_schema);
 	});
 
 	it("retry call also sends response_format", async () => {
@@ -169,9 +160,11 @@ describe("extract", () => {
 		expect(ai.calls).toHaveLength(2);
 		for (const call of ai.calls) {
 			expect(call.model).toBe(EXTRACTOR_MODEL);
-			expect((call.input as { response_format: { type: string } }).response_format.type).toBe(
-				"json_schema",
-			);
+			const format = (call.input as {
+				response_format: { type: string; json_schema: Record<string, any> };
+			}).response_format;
+			expect(format.type).toBe("json_schema");
+			expectDirectSchema(format.json_schema);
 		}
 	});
 
