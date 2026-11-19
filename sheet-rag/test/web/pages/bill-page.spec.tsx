@@ -275,7 +275,7 @@ describe("BillPage (TASK-37)", () => {
 
 		const summary = footHtml.slice(footHtml.indexOf(`<div class="bill-summary"`));
 		expect(summary).toContain(`<span class="summary-label">${en.bill.grandTotal}</span>`);
-		expect(summary).toContain(`<span class="summary-total" data-bill-summary>`);
+		expect(summary).toContain(`<span class="summary-total" data-bill-summary="true">`);
 
 		const bottomHtml = html.slice(bottom, config);
 		const notesAt = bottomHtml.indexOf(`<div class="bill-notes"`);

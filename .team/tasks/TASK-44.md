@@ -63,6 +63,13 @@ Shared files: none with TASK-43 (it owns `bill.css` and `bill-css.spec.ts`). Mus
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red first: 10 new tests failed for the right reasons before the source edits. Green: full suite `env -u CLOUDFLARE_API_TOKEN npm test -- --run` gives Test Files 45 passed (45), Tests 326 passed (326).
+- Hono renders the bare hook `data-bill-summary` as `data-bill-summary="true"`; the footer test expects that string. Markup unchanged.
+- `node scripts/build-client.mjs` builds `public/bill.js` (23550 bytes), exit 0.
+- `scriptJson` escape set in Bill.tsx is byte-identical to HEAD (no diff noise there).
+- Hard-coded changed copy outside the file list (not edited): `.team/testcases/TC-40.md` line 25 (vi header list uses "Pricing"; now "Đơn giá (VND)"), `.team/testcases/TC-41.md` line 21 (en column list uses "Pricing"; now "Price (VND)"; title "Hotel bill" is unchanged). Prose "Pricing" only (column name, still valid as a concept, check when pm reviews): `.team/testcases/TC-47.md`, `TC-48.md`, `TC-50.md`, `TC-59.md`, `TC-62.md`. Also `TC-49.md` mentions the marker (behaviour changed: marker now sits in the note block, not the price cell).
+- Status discrepancy: TASK-43.md still reads `in-progress` although the coordinator says its bill.css is done. This task depends on it; left as is.
+- Config build line is still a placeholder-like `npx wrangler deploy --dry-run`; the build run above used `node scripts/build-client.mjs` as the user asked.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework
