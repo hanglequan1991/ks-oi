@@ -3,7 +3,8 @@
 - id: TASK-42
 - story: [STORY-16](../stories/STORY-16.md)
 - type: backend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-14, TASK-25, TASK-38, TASK-36, TASK-34 (all done)
 - size: fits a 100k-token context (4 new files, one small edit to package.json)
