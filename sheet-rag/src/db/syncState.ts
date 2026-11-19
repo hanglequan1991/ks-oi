@@ -15,6 +15,10 @@ export interface SyncStateRow {
 	last_error: string | null;
 	updated_at: string | null;
 	last_checked_at: string | null;
+	/** Drive modified text at the last successful check or apply; NULL without a check row or meta. */
+	file_modified: string | null;
+	/** PARSER_VERSION at the last successful check or apply; NULL without a check row or meta. */
+	parser_version: string | null;
 }
 
 export interface TabKey {
@@ -22,14 +26,22 @@ export interface TabKey {
 	gid: string;
 }
 
+/** Stored with a successful check or apply (TASK-72): the file modified text and the parser version. */
+export interface TabCheckMeta {
+	fileModified: string | null;
+	parserVersion: string;
+}
+
 // D1 batch chunk size for markTabsSeenBatch.
 const SEEN_BATCH_CHUNK = 50;
 
-// last_checked_at comes from sync_tab_checks (NULL when the tab has no check row).
+// last_checked_at and the meta come from sync_tab_checks (NULL when the tab has no check row).
 const SELECT_ALL_SQL = `
 	SELECT s.source_file_id, s.source_gid, s.hotel_id, s.tab_name, s.hash, s.last_seen_at,
 		s.missing_since, s.hidden_by_sync, s.prior_status, s.last_error, s.updated_at,
-		c.last_checked_at AS last_checked_at
+		c.last_checked_at AS last_checked_at,
+		c.file_modified AS file_modified,
+		c.parser_version AS parser_version
 	FROM sync_state s
 	LEFT JOIN sync_tab_checks c ON c.tab_key = s.source_file_id || ':' || s.source_gid`;
 
@@ -43,12 +55,24 @@ const MARK_SEEN_SQL = `
 		updated_at = excluded.updated_at`;
 
 // Upserts the check time of one tab. Only tabs that have a sync_state row get a check row.
-// Bind order: tab_key, now, fileId, gid. Used by recordTabSuccess, markTabsChecked and syncHotel.
+// Bind order: tab_key, now, fileId, gid. Without meta: only last_checked_at is set, so the stored
+// file_modified and parser_version stay as they are (a failed attempt must not move them).
 const TAB_CHECK_SQL = `
 	INSERT INTO sync_tab_checks (tab_key, last_checked_at)
 	SELECT ?, ? WHERE EXISTS (
 		SELECT 1 FROM sync_state WHERE source_file_id = ? AND source_gid = ?)
 	ON CONFLICT (tab_key) DO UPDATE SET last_checked_at = excluded.last_checked_at`;
+
+// Same as TAB_CHECK_SQL, and also stores the meta. Bind order: tab_key, now, file_modified,
+// parser_version, fileId, gid. Only a success (recordTabSuccess, markTabsChecked with meta, syncHotel) uses it.
+const TAB_CHECK_META_SQL = `
+	INSERT INTO sync_tab_checks (tab_key, last_checked_at, file_modified, parser_version)
+	SELECT ?, ?, ?, ? WHERE EXISTS (
+		SELECT 1 FROM sync_state WHERE source_file_id = ? AND source_gid = ?)
+	ON CONFLICT (tab_key) DO UPDATE SET
+		last_checked_at = excluded.last_checked_at,
+		file_modified = excluded.file_modified,
+		parser_version = excluded.parser_version`;
 
 // A successful apply stores the hash, clears the error and the missing flag (last_checked_at is in sync_tab_checks).
 const RECORD_SUCCESS_SQL = `
@@ -104,26 +128,38 @@ export async function markTabSeen(
 
 /**
  * The statement that sets the check time of one tab in sync_tab_checks to `now`.
- * It writes nothing when the tab has no sync_state row. Shared by recordTabSuccess, markTabsChecked
- * and syncHotel, so all of them use the same SQL.
+ * With `meta`, it also stores file_modified and parser_version; without it, those two columns keep
+ * their stored values. It writes nothing when the tab has no sync_state row. Shared by recordTabSuccess,
+ * markTabsChecked and syncHotel, so all of them use the same SQL.
  */
-export function tabCheckStatement(db: D1Database, key: TabKey, now: string): D1PreparedStatement {
+export function tabCheckStatement(
+	db: D1Database,
+	key: TabKey,
+	now: string,
+	meta?: TabCheckMeta,
+): D1PreparedStatement {
+	if (meta === undefined) {
+		return db
+			.prepare(TAB_CHECK_SQL)
+			.bind(keyOf(key.fileId, key.gid), now, key.fileId, key.gid);
+	}
 	return db
-		.prepare(TAB_CHECK_SQL)
-		.bind(keyOf(key.fileId, key.gid), now, key.fileId, key.gid);
+		.prepare(TAB_CHECK_META_SQL)
+		.bind(keyOf(key.fileId, key.gid), now, meta.fileModified, meta.parserVersion, key.fileId, key.gid);
 }
 
 /**
  * Marks the tabs as checked at `now` (sync_tab_checks.last_checked_at), in one batch.
+ * A key with `meta` also stores it; a key without meta leaves the stored meta alone.
  * Tabs without a sync_state row are ignored. Empty input makes no D1 call.
  */
 export async function markTabsChecked(
 	db: D1Database,
-	keys: TabKey[],
+	keys: Array<TabKey & { meta?: TabCheckMeta }>,
 	now: string,
 ): Promise<void> {
 	if (keys.length === 0) return;
-	const statements = keys.map((key) => tabCheckStatement(db, key, now));
+	const statements = keys.map((key) => tabCheckStatement(db, key, now, key.meta));
 	await db.batch(statements);
 }
 
@@ -152,12 +188,25 @@ export async function markTabsSeenBatch(
  */
 export async function recordTabSuccess(
 	db: D1Database,
-	args: TabKey & { hotelId: string; tabName: string; hash: string; now: string },
+	args: TabKey & {
+		hotelId: string;
+		tabName: string;
+		hash: string;
+		now: string;
+		/** Drive modified text of the file; stored only when parserVersion is given. */
+		fileModified?: string | null;
+		/** PARSER_VERSION; when given, the meta is stored with the check time. */
+		parserVersion?: string;
+	},
 ): Promise<void> {
 	const success = db
 		.prepare(RECORD_SUCCESS_SQL)
 		.bind(args.fileId, args.gid, args.hotelId, args.tabName, args.hash, args.now, args.now);
-	await db.batch([success, tabCheckStatement(db, args, args.now)]);
+	const meta =
+		args.parserVersion === undefined
+			? undefined
+			: { fileModified: args.fileModified ?? null, parserVersion: args.parserVersion };
+	await db.batch([success, tabCheckStatement(db, args, args.now, meta)]);
 }
 
 /**

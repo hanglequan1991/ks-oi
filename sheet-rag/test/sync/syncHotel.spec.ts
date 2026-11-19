@@ -44,7 +44,15 @@ const asDb = (d: FakeD1): Db => d as unknown as Db;
 
 async function run(
 	record: ParsedHotel,
-	opts: { hash?: string; now?: string; autoPublish?: boolean; target?: Db; theTab?: SheetTab } = {},
+	opts: {
+		hash?: string;
+		now?: string;
+		autoPublish?: boolean;
+		target?: Db;
+		theTab?: SheetTab;
+		fileModified?: string | null;
+		parserVersion?: string;
+	} = {},
 ) {
 	return syncHotel(opts.target ?? asDb(db), {
 		tab: opts.theTab ?? tab,
@@ -52,6 +60,8 @@ async function run(
 		hash: opts.hash ?? HASH_1,
 		now: opts.now ?? NOW,
 		autoPublish: opts.autoPublish ?? true,
+		fileModified: opts.fileModified,
+		parserVersion: opts.parserVersion,
 	});
 }
 
@@ -373,7 +383,12 @@ describe("syncHotel", () => {
 		const dbA = await seed(createFakeD1());
 		const dbB = await seed(createFakeD1());
 
-		const result = await run(hotel(), { target: asDb(dbA), now: LATER });
+		const result = await run(hotel(), {
+			target: asDb(dbA),
+			now: LATER,
+			fileModified: "mod-2",
+			parserVersion: "7",
+		});
 		expect(result.outcome).toBe("created");
 
 		await recordTabSuccess(asDb(dbB), {
@@ -383,6 +398,8 @@ describe("syncHotel", () => {
 			tabName: tab.tabName,
 			hash: HASH_1,
 			now: LATER,
+			fileModified: "mod-2",
+			parserVersion: "7",
 		});
 
 		const stateOf = async (d: FakeD1) =>
@@ -401,12 +418,19 @@ describe("syncHotel", () => {
 		// The check upsert in the batch matches the one recordTabSuccess writes.
 		const checkOf = async (d: FakeD1) =>
 			(await (asDb(d))
-				.prepare("SELECT tab_key, last_checked_at FROM sync_tab_checks WHERE tab_key = ?")
+				.prepare(
+					"SELECT tab_key, last_checked_at, file_modified, parser_version FROM sync_tab_checks WHERE tab_key = ?",
+				)
 				.bind(`${tab.fileId}:${tab.gid}`)
 				.first<Record<string, unknown>>()) as Record<string, unknown>;
 		const checkFromBatch = await checkOf(dbA);
 		expect(checkFromBatch).toEqual(await checkOf(dbB));
-		expect(checkFromBatch).toEqual({ tab_key: `${tab.fileId}:${tab.gid}`, last_checked_at: LATER });
+		expect(checkFromBatch).toEqual({
+			tab_key: `${tab.fileId}:${tab.gid}`,
+			last_checked_at: LATER,
+			file_modified: "mod-2",
+			parser_version: "7",
+		});
 	});
 
 	it("syncHotel success batch writes sync_tab_checks, invalid record does not", async () => {
@@ -432,6 +456,42 @@ describe("syncHotel", () => {
 			"SELECT last_checked_at FROM sync_tab_checks WHERE tab_key = ?",
 			checkKey,
 		)).toEqual({ last_checked_at: LATER });
+	});
+
+	it("syncHotel stores fileModified and parserVersion with the success batch; failed apply stores none", async () => {
+		const checkKey = `${tab.fileId}:${tab.gid}`;
+		const checkRow = () =>
+			one<{ last_checked_at: string; file_modified: string | null; parser_version: string | null }>(
+				"SELECT last_checked_at, file_modified, parser_version FROM sync_tab_checks WHERE tab_key = ?",
+				checkKey,
+			);
+
+		// A failed apply (the batch fails mid way) writes no check row and no meta.
+		const failing = {
+			prepare: (sql: string) => db.prepare(sql),
+			batch: (statements: Parameters<FakeD1["batch"]>[0]) =>
+				db.batch(
+					statements.map((s, i) =>
+						i === 2 ? { all: async () => { throw new Error("disk I/O boom"); } } : s,
+					) as unknown as Parameters<FakeD1["batch"]>[0],
+				),
+		} as unknown as Db;
+		const failed = await run(hotel(), { target: failing, fileModified: "mod-1", parserVersion: "7" });
+		expect(failed.outcome).toBe("error");
+		expect(await checkRow()).toBeNull();
+
+		// A successful apply stores both values in the same batch.
+		const ok = await run(hotel(), { now: NOW, fileModified: "mod-1", parserVersion: "7" });
+		expect(ok.outcome).toBe("created");
+		expect(await checkRow()).toEqual({ last_checked_at: NOW, file_modified: "mod-1", parser_version: "7" });
+
+		// A later apply without meta moves the check time and keeps the stored meta.
+		await run(hotel(), { hash: HASH_2, now: LATER });
+		expect(await checkRow()).toEqual({ last_checked_at: LATER, file_modified: "mod-1", parser_version: "7" });
+
+		// A null fileModified is stored as NULL.
+		await run(hotel(), { hash: HASH_2, now: LATER, fileModified: null, parserVersion: "8" });
+		expect(await checkRow()).toEqual({ last_checked_at: LATER, file_modified: null, parser_version: "8" });
 	});
 
 	it("second identical run is updated with identical rows", async () => {

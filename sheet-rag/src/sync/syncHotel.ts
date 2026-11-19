@@ -7,7 +7,7 @@
 // visible or none of it is.
 
 import { foldText } from "../domain/fold";
-import { recordTabError, tabCheckStatement } from "../db/syncState";
+import { recordTabError, tabCheckStatement, type TabCheckMeta } from "../db/syncState";
 import { hotelIdFor } from "./hash";
 import { buildHotelStatements, unmappedFacilities, type HotelWriteContext } from "./writeHotel";
 import { buildRoomStatements } from "./writeRooms";
@@ -25,6 +25,10 @@ export type SyncHotelInput = {
 	now: string;
 	/** Status of a new hotel: published when true, review when false. */
 	autoPublish: boolean;
+	/** Drive modified text of the file, stored with the success row (TASK-72). */
+	fileModified?: string | null;
+	/** PARSER_VERSION; when given, the meta is stored in the success batch. */
+	parserVersion?: string;
 };
 
 export type SyncHotelResult = {
@@ -118,7 +122,9 @@ function recordSuccessStatement(
 }
 
 export async function syncHotel(db: D1Database, input: SyncHotelInput): Promise<SyncHotelResult> {
-	const { tab, record, hash, now, autoPublish } = input;
+	const { tab, record, hash, now, autoPublish, fileModified, parserVersion } = input;
+	const meta: TabCheckMeta | undefined =
+		parserVersion === undefined ? undefined : { fileModified: fileModified ?? null, parserVersion };
 	const hotelId = await hotelIdFor(tab.fileId, tab.gid);
 
 	const validation = validateHotel(record);
@@ -159,7 +165,7 @@ export async function syncHotel(db: D1Database, input: SyncHotelInput): Promise<
 			buildDataVersionStatement(db),
 			recordSuccessStatement(db, tab, hotelId, hash, now),
 			// Same check upsert as recordTabSuccess (the success row above is already in the batch).
-			tabCheckStatement(db, tab, now),
+			tabCheckStatement(db, tab, now, meta),
 		];
 		await db.batch(statements);
 

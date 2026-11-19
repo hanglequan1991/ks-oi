@@ -52,6 +52,8 @@ Design:
 
 ## Dev notes
 <!-- Written by dev. -->
+- Red: 8 new or extended tests failed for the missing columns and meta support. Green: migration 0004 columns added in place (no ALTER); syncState.ts gained TAB_CHECK_META_SQL, `meta` on tabCheckStatement/markTabsChecked, optional fileModified/parserVersion on recordTabSuccess; syncHotel.ts passes meta in the success batch.
+- `npm test -- --run`: 69 files, 557 tests passed. Playwright chromium: 32 passed.
 
 ## Review
 <!-- Written by lead. -->

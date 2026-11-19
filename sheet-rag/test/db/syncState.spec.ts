@@ -8,6 +8,7 @@ import {
 	pickOldestFirst,
 	recordTabError,
 	recordTabSuccess,
+	tabCheckStatement,
 	type SyncStateRow,
 } from "../../src/db/syncState";
 import { applyMigrations } from "../fakes/migrations";
@@ -136,6 +137,157 @@ describe("syncState db helpers", () => {
 			now: "t2",
 		});
 		expect((await getSyncState(d1)).get("f1:new")?.last_checked_at).toBe("t2");
+	});
+
+	it("getSyncState exposes file_modified and parser_version (null without a check row)", async () => {
+		const db = await migratedDb();
+		const d1 = asD1(db);
+		await markTabSeen(d1, { fileId: "f1", gid: "0", tabName: "A", now: "t1" });
+		await recordTabSuccess(d1, {
+			fileId: "f1",
+			gid: "0",
+			hotelId: "hotel-a",
+			tabName: "A",
+			hash: "h1",
+			now: "t2",
+		});
+		// Written without meta (no parserVersion), so the two columns stay null.
+		let row = (await getSyncState(d1)).get("f1:0");
+		expect(row?.file_modified).toBeNull();
+		expect(row?.parser_version).toBeNull();
+
+		// A tab with no check row at all: both are null.
+		await markTabSeen(d1, { fileId: "f1", gid: "1", tabName: "B", now: "t1" });
+		row = (await getSyncState(d1)).get("f1:1");
+		expect(row?.file_modified).toBeNull();
+		expect(row?.parser_version).toBeNull();
+
+		// With meta: both come back.
+		await recordTabSuccess(d1, {
+			fileId: "f1",
+			gid: "0",
+			hotelId: "hotel-a",
+			tabName: "A",
+			hash: "h1",
+			now: "t3",
+			fileModified: "m1",
+			parserVersion: "2",
+		});
+		row = (await getSyncState(d1)).get("f1:0");
+		expect(row).toMatchObject({ file_modified: "m1", parser_version: "2" });
+	});
+
+	it("tabCheckStatement with meta stores columns; without meta keeps them; null round-trips", async () => {
+		const db = await migratedDb();
+		const d1 = asD1(db);
+		await markTabSeen(d1, { fileId: "f1", gid: "0", tabName: "A", now: "t1" });
+
+		await db.batch([
+			tabCheckStatement(d1, { fileId: "f1", gid: "0" }, "t2", { fileModified: "m1", parserVersion: "2" }),
+		]);
+		expect((await getSyncState(d1)).get("f1:0")).toMatchObject({
+			last_checked_at: "t2",
+			file_modified: "m1",
+			parser_version: "2",
+		});
+
+		// Without meta: last_checked_at moves, both columns keep their values.
+		await db.batch([tabCheckStatement(d1, { fileId: "f1", gid: "0" }, "t3")]);
+		expect((await getSyncState(d1)).get("f1:0")).toMatchObject({
+			last_checked_at: "t3",
+			file_modified: "m1",
+			parser_version: "2",
+		});
+
+		// A null fileModified is stored as NULL.
+		await db.batch([
+			tabCheckStatement(d1, { fileId: "f1", gid: "0" }, "t4", { fileModified: null, parserVersion: "2" }),
+		]);
+		expect((await getSyncState(d1)).get("f1:0")).toMatchObject({
+			last_checked_at: "t4",
+			file_modified: null,
+			parser_version: "2",
+		});
+	});
+
+	it("markTabsChecked writes meta per key, leaves columns without meta, one batch", async () => {
+		const db = await migratedDb();
+		const d1 = asD1(db);
+		await markTabSeen(d1, { fileId: "f1", gid: "0", tabName: "A", now: "t1" });
+		await markTabSeen(d1, { fileId: "f1", gid: "1", tabName: "B", now: "t1" });
+		await markTabSeen(d1, { fileId: "f9", gid: "9", tabName: "Z", now: "t1" });
+		// f1:1 already has meta from an earlier successful check.
+		await db.batch([
+			tabCheckStatement(d1, { fileId: "f1", gid: "1" }, "t2", { fileModified: "old", parserVersion: "1" }),
+		]);
+
+		const batch = vi.spyOn(db, "batch");
+		await markTabsChecked(d1, [
+			{ fileId: "f1", gid: "0", meta: { fileModified: "m5", parserVersion: "2" } },
+			{ fileId: "f1", gid: "1" }, // no meta: the old meta stays
+			{ fileId: "f9", gid: "7", meta: { fileModified: "x", parserVersion: "2" } }, // no row: ignored
+		], "t5");
+		expect(batch).toHaveBeenCalledTimes(1);
+
+		const state = await getSyncState(d1);
+		expect(state.get("f1:0")).toMatchObject({
+			last_checked_at: "t5",
+			file_modified: "m5",
+			parser_version: "2",
+		});
+		expect(state.get("f1:1")).toMatchObject({
+			last_checked_at: "t5",
+			file_modified: "old",
+			parser_version: "1",
+		});
+		expect(state.has("f9:7")).toBe(false);
+
+		batch.mockClear();
+		await markTabsChecked(d1, [], "t6");
+		expect(batch).not.toHaveBeenCalled();
+	});
+
+	it("recordTabSuccess stores fileModified and parserVersion when given, keeps them otherwise", async () => {
+		const db = await migratedDb();
+		const d1 = asD1(db);
+
+		await recordTabSuccess(d1, {
+			fileId: "f1",
+			gid: "0",
+			hotelId: "hotel-a",
+			tabName: "A",
+			hash: "h1",
+			now: "t1",
+			fileModified: "m1",
+			parserVersion: "2",
+		});
+		expect((await getSyncState(d1)).get("f1:0")).toMatchObject({
+			file_modified: "m1",
+			parser_version: "2",
+			last_checked_at: "t1",
+		});
+
+		// No meta given: the check time moves, the stored meta stays.
+		await recordTabSuccess(d1, {
+			fileId: "f1",
+			gid: "0",
+			hotelId: "hotel-a",
+			tabName: "A",
+			hash: "h2",
+			now: "t2",
+		});
+		expect((await getSyncState(d1)).get("f1:0")).toMatchObject({
+			file_modified: "m1",
+			parser_version: "2",
+			last_checked_at: "t2",
+		});
+
+		// A failed attempt never moves the stored meta.
+		await recordTabError(d1, { fileId: "f1", gid: "0", tabName: "A", error: "boom", now: "t3" });
+		expect((await getSyncState(d1)).get("f1:0")).toMatchObject({
+			file_modified: "m1",
+			parser_version: "2",
+		});
 	});
 
 	it("markTabsChecked updates only the given tabs in one batch", async () => {

@@ -5,9 +5,15 @@
 -- Time of the last successful check of each tab (set by recordTabSuccess, syncHotel and markTabsChecked).
 -- tab_key = keyOf(fileId, gid), i.e. `fileId:gid`. A tab with no row was never checked successfully.
 -- A failed tab keeps its old row (unlike last_seen_at).
+-- file_modified and parser_version (TASK-72) are set only by a successful check or apply, together
+-- with last_checked_at, so a failed attempt never moves them. runSync skips reading a tab whose
+-- file_modified and parser_version are unchanged. NULL means no meta was recorded for the tab.
+-- This table was amended in place (0004 was never applied remotely), so the file stays re-runnable.
 CREATE TABLE IF NOT EXISTS sync_tab_checks (
   tab_key TEXT PRIMARY KEY,                -- `fileId:gid`
-  last_checked_at TEXT NOT NULL
+  last_checked_at TEXT NOT NULL,
+  file_modified TEXT,                      -- Drive modifiedTime of the file at the last success
+  parser_version TEXT                      -- PARSER_VERSION in force at the last success
 );
 
 -- Per-file listing cache: skips listTabs for files whose modified time did not change.

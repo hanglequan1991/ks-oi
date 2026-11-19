@@ -59,9 +59,11 @@ describe("0004_sync_budget.sql", () => {
 			.run();
 		await migrate(db);
 
-		// sync_tab_checks: keyed by the tab key, with a required check time.
+		// sync_tab_checks: keyed by the tab key, with a required check time and two nullable meta columns.
 		const checks = await columns(db, "sync_tab_checks");
-		expect(Object.keys(checks).sort()).toEqual(["last_checked_at", "tab_key"]);
+		expect(Object.keys(checks).sort()).toEqual(
+			["file_modified", "last_checked_at", "parser_version", "tab_key"],
+		);
 		expect(checks.tab_key.pk).toBe(1);
 		expect(checks.tab_key.type).toBe("TEXT");
 		expect(checks.last_checked_at.type).toBe("TEXT");
@@ -90,6 +92,32 @@ describe("0004_sync_budget.sql", () => {
 		// The migration does not alter sync_state (the check time lives in sync_tab_checks).
 		const state = await columns(db, "sync_state");
 		expect(state.last_checked_at).toBeUndefined();
+	});
+
+	it("0004 defines file_modified and parser_version and stays re-runnable", async () => {
+		const db = createFakeD1();
+		await migrate(db);
+
+		// Both meta columns are nullable TEXT, and a row without them is legal.
+		const checks = await columns(db, "sync_tab_checks");
+		expect(checks.file_modified.type).toBe("TEXT");
+		expect(checks.file_modified.notnull).toBe(0);
+		expect(checks.parser_version.type).toBe("TEXT");
+		expect(checks.parser_version.notnull).toBe(0);
+
+		// A row with meta survives a second application of the whole chain.
+		await db
+			.prepare(
+				"INSERT INTO sync_tab_checks (tab_key, last_checked_at, file_modified, parser_version) VALUES (?, ?, ?, ?)",
+			)
+			.bind("f1:0", "t1", "2026-11-01T00:00:00Z", "3")
+			.run();
+		await migrate(db);
+		const row = await db
+			.prepare("SELECT file_modified, parser_version FROM sync_tab_checks WHERE tab_key = ?")
+			.bind("f1:0")
+			.first<{ file_modified: string; parser_version: string }>();
+		expect(row).toEqual({ file_modified: "2026-11-01T00:00:00Z", parser_version: "3" });
 	});
 
 	it("0004 contains no ALTER statement, so it is re-runnable", () => {
