@@ -3,7 +3,7 @@
 - id: TASK-47
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 0
 - depends on: none
@@ -30,7 +30,11 @@
 - `sheet-rag/test/sync/hash.spec.ts`
 
 ## Dev notes
+- Wrote `sheet-rag/test/sync/csv.spec.ts` and `sheet-rag/test/sync/hash.spec.ts` (red phase, not yet run green).
+- `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/sync` reports "No test files found". The vitest include list in `sheet-rag/vitest.unit.config.mts` covers only `test/db`, `test/domain`, `test/migrations`, `test/fakes`, `test/web`, `test/client`. `test/sync/**` is not in it.
+- Source files `src/sync/csv.ts` and `src/sync/hash.ts` not written yet (blocked before green).
 
 ## Review
 
 ## Questions
+- Q1 (technical, for lead): The unit test include glob in `sheet-rag/vitest.unit.config.mts` does not match `test/sync/**/*.spec.ts`, so the new tests cannot run. Should `test/sync/**/*.spec.ts` be added to that config? That file is not in this task's file list. Once it is added (or the owner says otherwise), dev can continue with the green phase.

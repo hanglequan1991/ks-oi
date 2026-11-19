@@ -26,6 +26,8 @@
 - `sheet-rag/test/migrations/0003_sync.spec.ts`
 
 ## Dev notes
+- Red: `0003_sync.spec.ts` failed with ENOENT on `migrations/0003_sync.sql`. Green after adding the migration: `test/migrations` 3 files, 18 tests pass (0001 and 0002 specs unchanged).
+- Tests: columns checked via `PRAGMA table_info`; sync_auto_publish seeded true, owner-set false kept on re-run; 0001-0003 applied twice.
 
 ## Review
 
