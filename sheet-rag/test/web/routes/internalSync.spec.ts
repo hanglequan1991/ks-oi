@@ -43,15 +43,30 @@ function post(app: Hono<WebEnv>, path: string, headers: Record<string, string> =
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 describe("POST /internal/sync", () => {
-	it("404 when token unset or empty", async () => {
-		const unknown = await makeApp().app.request("/internal/nope", { method: "POST" });
-		const unknownBody = await unknown.text();
+	it("404 when token unset or empty, identical to an unknown route for every method", async () => {
+		const methods = ["POST", "GET", "PUT", "PATCH", "DELETE"];
+		// Full header set as sorted "name: value" lines, so any extra header shows up.
+		const headerLines = (res: Response) =>
+			[...res.headers.entries()].map(([k, v]) => `${k}: ${v}`).sort();
 
 		for (const getToken of [() => undefined, () => ""]) {
 			const { app, runSync } = makeApp({ getToken });
-			const res = await post(app, "/internal/sync", auth(""));
-			expect(res.status).toBe(404);
-			expect(await res.text()).toBe(unknownBody);
+			for (const method of methods) {
+				const unknown = await app.request("/internal/nope", {
+					method,
+					headers: { "CF-Connecting-IP": "203.0.113.9", ...auth("") },
+				});
+				const res = await app.request("/internal/sync", {
+					method,
+					headers: { "CF-Connecting-IP": "203.0.113.9", ...auth("") },
+				});
+				expect(res.status, method).toBe(404);
+				expect(res.status, method).toBe(unknown.status);
+				expect(await res.text(), method).toBe(await unknown.text());
+				expect(headerLines(res), method).toEqual(headerLines(unknown));
+				expect(res.headers.get("Cache-Control"), method).toBeNull();
+				expect(res.headers.get("X-Robots-Tag"), method).toContain("noindex");
+			}
 			expect(runSync).not.toHaveBeenCalled();
 		}
 	});

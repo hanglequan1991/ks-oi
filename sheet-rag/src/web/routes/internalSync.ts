@@ -3,14 +3,14 @@
 // route) when the secret is unset or empty; then the rate limit (per client IP,
 // before the token check, so guessing is throttled); then the bearer token,
 // compared in constant time. Only the Authorization header is read; a token in
-// the query string is ignored. The route is hidden: noindex and no-store on
-// every response, and no links, sitemap entries or pages point to it.
+// the query string is ignored. The route is hidden: noindex on every response
+// (global), no-store on every response that reaches the token gate (not on the
+// secret-unset 404), and no links, sitemap entries or pages point to it.
 // The sync itself is injected as runSync, so this file has no Cloudflare binding.
 
 import type { Context, Hono, MiddlewareHandler } from "hono";
 import type { WebEnv } from "../app";
 import { createMemoryLimiter, rateLimit, type RateLimiter } from "../middleware/rateLimit";
-import { noindex } from "../middleware/security";
 
 export interface InternalSyncDeps {
 	/** Production: `() => env.SYNC_TOKEN`. Unset or empty disables the route (404). */
@@ -58,10 +58,10 @@ export function registerInternalSyncRoute(app: Hono<WebEnv>, deps: InternalSyncD
 	const path = "/internal/sync";
 	const limiter = deps.limiter ?? createMemoryLimiter(SYNC_RATE_LIMIT);
 
-	app.use(path, noindex(), noStore);
-
 	// Secret gate: with no secret the route does not exist. c.notFound() returns
-	// the same response as an unknown route.
+	// the same response as an unknown route. noStore is placed after this gate
+	// so the 404 carries exactly the headers an unknown route gets. noindex is
+	// already set on every response by the global middleware in createApp.
 	const secretGate: MiddlewareHandler<WebEnv> = async (c, next) => {
 		const secret = deps.getToken();
 		if (!secret) return c.notFound();
@@ -83,5 +83,5 @@ export function registerInternalSyncRoute(app: Hono<WebEnv>, deps: InternalSyncD
 		}
 	};
 
-	app.post(path, secretGate, rateLimit({ limiter, keyPrefix: "sync" }), tokenCheck);
+	app.post(path, secretGate, noStore, rateLimit({ limiter, keyPrefix: "sync" }), tokenCheck);
 }
