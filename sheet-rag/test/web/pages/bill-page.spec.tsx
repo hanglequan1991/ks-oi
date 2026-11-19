@@ -118,9 +118,13 @@ describe("BillPage (TASK-37)", () => {
 			expect(billAnchors[0]).toContain(`href="${toggleTarget}"`);
 			expect(billAnchors[0]).toContain(`data-lang="${other}"`);
 
-			// No bill link inside the page content.
+			// The only bill link inside main is the page's own language toggle (.lang-link).
 			const main = between(html, `<main`, `</main>`);
-			expect(main, `${lang}: main`).not.toMatch(/<a\b[^>]*\shref="\/(en\/)?bill/);
+			const mainBillLinks = [...main.matchAll(/<a\b([^>]*)>/g)]
+				.map((m) => m[1])
+				.filter((attrs) => /\shref="\/(en\/)?bill/.test(attrs));
+			expect(mainBillLinks, `${lang}: main bill links`).toHaveLength(1);
+			expect(mainBillLinks[0]).toContain(`class="lang-link"`);
 
 			// Every href/src that mentions bill is one of the allowed targets.
 			const allowedAbsolute = new Set([`${ORIGIN}/bill`, `${ORIGIN}/en/bill`]);
@@ -191,6 +195,98 @@ describe("BillPage (TASK-37)", () => {
 		expect(notes).toContain(en.bill.privacyNote);
 		const noPrintBlocks = [...html.matchAll(/<[^>]*no-print[^>]*>/g)].map((m) => m[0]);
 		expect(noPrintBlocks.some((t) => t.includes("bill-notes"))).toBe(false);
+	});
+
+	it("header holds title, intro, status and language toggle in order", async () => {
+		const html = await render("en");
+		const start = html.indexOf(`<div class="bill-header"`);
+		const end = html.indexOf(`<div class="bill-print-head"`);
+		expect(start).toBeGreaterThan(-1);
+		expect(end).toBeGreaterThan(start);
+		const header = html.slice(start, end);
+
+		const at = (needle: string) => {
+			const i = header.indexOf(needle);
+			expect(i, `header has ${needle}`).toBeGreaterThan(-1);
+			return i;
+		};
+		const positions = [
+			at(`<h1>${en.bill.title}</h1>`),
+			at(`<p class="bill-intro">${en.bill.intro}</p>`),
+			at(`<div class="bill-tools no-print"`),
+			at(`data-bill-status`),
+			at(`class="lang-toggle"`),
+		];
+		expect(positions).toEqual([...positions].sort((a, b) => a - b));
+
+		const statusTag = header.match(/<p[^>]*data-bill-status[^>]*>/)![0];
+		expect(statusTag).toContain(`role="status"`);
+		expect(statusTag).toContain("no-print");
+		expect(header.indexOf(`<div class="bill-titlebox"`)).toBeLessThan(positions[2]);
+	});
+
+	it("one language link with data-lang and a current-language span in both languages", async () => {
+		const cases = [
+			{ lang: "vi" as const, current: "VI", other: "EN", otherLang: "en", target: "/en/bill", aria: viDict.common.switchToEn },
+			{ lang: "en" as const, current: "EN", other: "VI", otherLang: "vi", target: "/bill", aria: en.common.switchToVi },
+		];
+		for (const c of cases) {
+			const html = await render(c.lang);
+			const links = [...html.matchAll(/<a\b([^>]*)>/g)]
+				.map((m) => m[1])
+				.filter((attrs) => /\sdata-lang="/.test(attrs));
+			expect(links, `${c.lang}: data-lang links`).toHaveLength(1);
+			expect(links[0]).toContain(`class="lang-link"`);
+			expect(links[0]).toContain(`href="${c.target}"`);
+			expect(links[0]).toContain(`data-lang="${c.otherLang}"`);
+			expect(links[0]).toContain(`hreflang="${c.otherLang}"`);
+			expect(links[0]).toContain(`aria-label="${c.aria}"`);
+
+			const currents = [...html.matchAll(/<span class="lang-current" aria-current="true">([^<]*)<\/span>/g)];
+			expect(currents.map((m) => m[1]), `${c.lang}: current`).toEqual([c.current]);
+
+			// Order is always VI then EN.
+			const viIndex = c.lang === "vi" ? html.indexOf(`>VI</span>`) : html.indexOf(`>VI</a>`);
+			const enIndex = c.lang === "vi" ? html.indexOf(`>EN</a>`) : html.indexOf(`>EN</span>`);
+			expect(viIndex).toBeGreaterThan(-1);
+			expect(enIndex).toBeGreaterThan(viIndex);
+			expect(html.indexOf(`>${c.other}</`)).toBeGreaterThan(-1);
+		}
+	});
+
+	it("footer row, summary label and tools buttons", async () => {
+		const html = await render("en");
+		const card = html.indexOf(`<div class="bill-card"`);
+		const grid = html.indexOf(`<div id="bill-app" class="bill-grid"`);
+		const foot = html.indexOf(`<div class="bill-foot"`);
+		const bottom = html.indexOf(`<div class="bill-bottom"`);
+		const config = html.indexOf(`id="bill-config"`);
+		expect([card, grid, foot, bottom, config].every((i) => i > -1)).toBe(true);
+		expect(card).toBeLessThan(grid);
+		expect(grid).toBeLessThan(foot);
+		expect(foot).toBeLessThan(bottom);
+		expect(bottom).toBeLessThan(config);
+
+		const footHtml = html.slice(foot, bottom);
+		const addTag = footHtml.match(/<button[^>]*data-action="add"[^>]*>/)![0];
+		expect(addTag).toContain(`class="btn btn-outline no-print"`);
+		const clearTag = footHtml.match(/<button[^>]*data-action="clear"[^>]*>/)![0];
+		expect(clearTag).toContain(`class="btn no-print"`);
+
+		const summary = footHtml.slice(footHtml.indexOf(`<div class="bill-summary"`));
+		expect(summary).toContain(`<span class="summary-label">${en.bill.grandTotal}</span>`);
+		expect(summary).toContain(`<span class="summary-total" data-bill-summary>`);
+
+		const bottomHtml = html.slice(bottom, config);
+		const notesAt = bottomHtml.indexOf(`<div class="bill-notes"`);
+		const toolsAt = bottomHtml.indexOf(`<div class="bill-tools-actions no-print"`);
+		expect(notesAt).toBeGreaterThan(-1);
+		expect(toolsAt).toBeGreaterThan(notesAt);
+		const tools = bottomHtml.slice(toolsAt);
+		const printTag = tools.match(/<button[^>]*data-action="print"[^>]*>/)![0];
+		expect(printTag).toContain(`class="btn btn-primary no-print"`);
+		const draftTag = tools.match(/<button[^>]*data-action="clear-draft"[^>]*>/)![0];
+		expect(draftTag).toContain(`class="btn no-print"`);
 	});
 
 	it("page has no form", async () => {

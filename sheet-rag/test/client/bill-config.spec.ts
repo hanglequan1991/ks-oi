@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { MAX_ROWS, MAX_NIGHTS, MAX_NOTE } from "../../src/domain/money";
-import { parseBillConfig } from "../../src/client/bill/config";
+import { LABEL_KEYS, parseBillConfig } from "../../src/client/bill/config";
 
 function json(v: unknown): string {
 	return JSON.stringify(v);
@@ -88,5 +88,13 @@ describe("parseBillConfig", () => {
 		expect(cfg).not.toBeNull();
 		expect(({} as Record<string, unknown>).polluted).toBeUndefined();
 		expect(Object.getPrototypeOf(cfg!.labels)).toBe(Object.prototype);
+	});
+
+	it("LABEL_KEYS contains rowLabel and comboHint and missing keys fall back to their name", () => {
+		expect(LABEL_KEYS).toContain("rowLabel");
+		expect(LABEL_KEYS).toContain("comboHint");
+		const cfg = parseBillConfig(json({ lang: "vi", labels: { rowLabel: "Dòng {n}" } }));
+		expect(cfg?.labels.rowLabel).toBe("Dòng {n}");
+		expect(cfg?.labels.comboHint).toBe("comboHint");
 	});
 });

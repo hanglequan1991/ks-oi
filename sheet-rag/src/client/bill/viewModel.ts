@@ -28,6 +28,12 @@ export interface RowView {
 	priceText: string;
 	/** Em dash when the row has no price. */
 	totalText: string;
+	/** "Dòng {n}" style title, shown on mobile cards. */
+	rowTitle: string;
+	/** Formatted default price, "" when the row has none. */
+	defaultPriceText: string;
+	/** Reset button text: label, plus the default price when there is one. */
+	resetText: string;
 	edited: boolean;
 	showReset: boolean;
 	noteText: string;
@@ -54,6 +60,8 @@ export interface BillView {
 function rowView(row: BillRow, index: number, canRemove: boolean, labels: Labels, lang: Lang): RowView {
 	const n = { n: index };
 	const edited = row.priceEdited && row.defaultPrice !== null;
+	const defaultPriceText = priceLabel(row.defaultPrice, lang);
+	const useDefault = labels.useDefault ?? "";
 	return {
 		id: row.id,
 		index,
@@ -63,6 +71,9 @@ function rowView(row: BillRow, index: number, canRemove: boolean, labels: Labels
 		nightsText: String(row.nights),
 		priceText: priceLabel(row.priceEdited ? row.price : row.defaultPrice, lang),
 		totalText: totalLabel(rowTotal(row), lang),
+		rowTitle: fillTemplate(labels.rowLabel ?? "", n),
+		defaultPriceText,
+		resetText: defaultPriceText === "" ? useDefault : `${useDefault} ${defaultPriceText}`,
 		edited,
 		showReset: edited,
 		noteText: row.note,

@@ -9,6 +9,8 @@ type Props = {
 	title: string;
 	settings: SiteSettings;
 	showsPrice: boolean;
+	/** The bill page supplies its own language toggle, so the header link is left out. */
+	hideLangNav?: boolean;
 	children?: unknown;
 };
 
@@ -16,7 +18,16 @@ type Props = {
 // language alternates and noindex, loads /lang.js synchronously (no defer, no
 // inline script) and prints the disclaimer once when the page shows a price.
 // The language toggle is a plain link so it works without JavaScript.
-export function Layout({ lang, path, origin, title, settings, showsPrice, children }: Props) {
+export function Layout({
+	lang,
+	path,
+	origin,
+	title,
+	settings,
+	showsPrice,
+	hideLangNav = false,
+	children,
+}: Props) {
 	const other: Lang = lang === "vi" ? "en" : "vi";
 	const toggleText = other === "en" ? t(lang, "common.switchToEn") : t(lang, "common.switchToVi");
 	const canonical = origin + pathForLang(path, lang);
@@ -36,13 +47,15 @@ export function Layout({ lang, path, origin, title, settings, showsPrice, childr
 				<script src="/lang.js"></script>
 			</head>
 			<body>
-				<header>
-					<nav>
-						<a href={pathForLang(path, other)} data-lang={other} hreflang={other}>
-							{toggleText}
-						</a>
-					</nav>
-				</header>
+				{!hideLangNav && (
+					<header>
+						<nav>
+							<a href={pathForLang(path, other)} data-lang={other} hreflang={other}>
+								{toggleText}
+							</a>
+						</nav>
+					</header>
+				)}
 				<main id="main">{children}</main>
 				<footer>{showsPrice && <Disclaimer lang={lang} settings={settings} />}</footer>
 			</body>

@@ -22,6 +22,7 @@ export const LABEL_KEYS: readonly string[] = [
 	"colNight",
 	"colPricing",
 	"colTotal",
+	"rowLabel",
 	"hotelPlaceholder",
 	"roomPlaceholder",
 	"pricePlaceholder",
@@ -43,6 +44,7 @@ export const LABEL_KEYS: readonly string[] = [
 	"draftSaved",
 	"clearConfirm",
 	"grandTotal",
+	"comboHint",
 ];
 
 const MAX_CONFIG_CHARS = 65536;

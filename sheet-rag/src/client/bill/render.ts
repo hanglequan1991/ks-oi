@@ -36,6 +36,9 @@ const C = {
 	combo: "combo",
 	comboList: "combo-list",
 	comboOption: "combo-option",
+	isEdited: "is-edited",
+	noteMarkers: "note-markers",
+	rowTitle: "row-title",
 	badgeEdited: "badge-edited",
 	btnReset: "btn-reset",
 	printOnly: "print-only",
@@ -98,31 +101,42 @@ function makeInput(
 }
 
 /** Input, its mirror and the (empty) listbox, inside a .combo wrapper. */
-function makeCombo(doc: Document, cell: HTMLElement, input: HTMLInputElement, listLabel: string): void {
+function makeCombo(
+	doc: Document,
+	cell: HTMLElement,
+	input: HTMLInputElement,
+	listLabel: string,
+	hint?: string,
+): void {
 	const combo = doc.createElement("div");
 	combo.classList.add(C.combo);
 	const list = doc.createElement("ul");
 	list.classList.add(C.comboList);
 	list.setAttribute("role", "listbox");
 	list.setAttribute("aria-label", listLabel);
+	if (hint) list.setAttribute("data-hint", hint);
 	combo.appendChild(input);
 	combo.appendChild(makeMirror(doc, input.value));
 	combo.appendChild(list);
 	cell.appendChild(combo);
 }
 
-function appendMarkers(doc: Document, priceCell: HTMLElement, rowId: string, info: Bound): void {
+/** Edited badge and reset button, filled into the note block's markers (empty unless showReset). */
+function fillMarkers(doc: Document, markers: HTMLElement, row: RowView, info: Bound): void {
+	markers.replaceChildren();
+	if (!row.showReset) return;
+
 	const badge = doc.createElement("span");
 	badge.classList.add(C.badgeEdited);
 	badge.textContent = text(info.labels, "edited");
-	priceCell.appendChild(badge);
+	markers.appendChild(badge);
 
 	const reset = doc.createElement("button");
 	reset.type = "button";
 	reset.classList.add(C.btnReset);
-	reset.textContent = text(info.labels, "useDefault");
-	reset.addEventListener("click", (e) => info.handlers.onReset(rowId, e));
-	priceCell.appendChild(reset);
+	reset.textContent = row.resetText;
+	reset.addEventListener("click", (e) => info.handlers.onReset(row.id, e));
+	markers.appendChild(reset);
 }
 
 function buildNote(doc: Document, view: RowView, labels: Labels, h: RowHandlers): HTMLElement {
@@ -143,6 +157,11 @@ function buildNote(doc: Document, view: RowView, labels: Labels, h: RowHandlers)
 	field.addEventListener("input", (e) => h.onNote(view.id, e));
 	note.appendChild(field);
 	note.appendChild(makeMirror(doc, view.noteText));
+
+	const markers = doc.createElement("div");
+	markers.classList.add(C.noteMarkers);
+	fillMarkers(doc, markers, view, { handlers: h, labels });
+	note.appendChild(markers);
 	return note;
 }
 
@@ -158,6 +177,9 @@ function buildRow(doc: Document, view: RowView, labels: Labels, h: RowHandlers):
 
 	const index = makeCell(doc, C.index, text(labels, "colIndex"));
 	index.appendChild(makeValue(doc, "index", view.indexText));
+	const rowTitle = makeValue(doc, "rowTitle", view.rowTitle);
+	rowTitle.classList.add(C.rowTitle);
+	index.appendChild(rowTitle);
 	row.appendChild(index);
 
 	const hotel = makeCell(doc, C.hotel, text(labels, "colHotel"));
@@ -165,7 +187,7 @@ function buildRow(doc: Document, view: RowView, labels: Labels, h: RowHandlers):
 	hotelInput.addEventListener("input", (e) => h.onHotelInput(id, e));
 	hotelInput.addEventListener("keydown", (e) => h.onHotelKey(id, e));
 	hotelInput.addEventListener("focus", (e) => h.onHotelFocus(id, e));
-	makeCombo(doc, hotel, hotelInput, text(labels, "listboxHotel"));
+	makeCombo(doc, hotel, hotelInput, text(labels, "listboxHotel"), text(labels, "comboHint"));
 	row.appendChild(hotel);
 
 	const room = makeCell(doc, C.room, text(labels, "colRoom"));
@@ -194,7 +216,6 @@ function buildRow(doc: Document, view: RowView, labels: Labels, h: RowHandlers):
 	priceInput.addEventListener("input", (e) => h.onPrice(id, e));
 	price.appendChild(priceInput);
 	price.appendChild(makeMirror(doc, view.priceText));
-	if (view.showReset) appendMarkers(doc, price, id, { handlers: h, labels });
 	row.appendChild(price);
 
 	const total = makeCell(doc, C.total, text(labels, "colTotal"));
@@ -217,6 +238,7 @@ function buildRow(doc: Document, view: RowView, labels: Labels, h: RowHandlers):
 
 /** Classes and attributes that depend on the view, applied on build and patch. */
 function applyRowState(item: HTMLElement, view: RowView): void {
+	item.classList.toggle(C.isEdited, view.showReset);
 	item.querySelector<HTMLElement>(`.${C.note}`)?.classList.toggle(C.isEmpty, view.noteEmpty);
 	item
 		.querySelector<HTMLElement>(`.${C.room}`)
@@ -266,21 +288,15 @@ export function patchRow(doc: Document, rowEl: HTMLElement, row: RowView): void 
 	patchControl(C.price, row.priceText, row.priceAria);
 	patchControl(C.note, row.noteText, row.noteAria);
 
-	const priceCell = rowEl.querySelector<HTMLElement>(`.${C.price}`);
-	if (priceCell && info) {
-		const hasMarkers = priceCell.querySelector(`.${C.btnReset}`) !== null;
-		if (row.showReset && !hasMarkers) {
-			appendMarkers(doc, priceCell, row.id, info);
-		} else if (!row.showReset && hasMarkers) {
-			priceCell.querySelector(`.${C.badgeEdited}`)?.remove();
-			priceCell.querySelector(`.${C.btnReset}`)?.remove();
-		}
-	}
+	const markers = rowEl.querySelector<HTMLElement>(`.${C.noteMarkers}`);
+	if (markers && info) fillMarkers(doc, markers, row, info);
 
 	const total = rowEl.querySelector<HTMLElement>('[data-field="total"]');
 	if (total) total.textContent = row.totalText;
 	const index = rowEl.querySelector<HTMLElement>('[data-field="index"]');
 	if (index) index.textContent = row.indexText;
+	const rowTitle = rowEl.querySelector<HTMLElement>('[data-field="rowTitle"]');
+	if (rowTitle) rowTitle.textContent = row.rowTitle;
 
 	applyRowState(rowEl, row);
 }

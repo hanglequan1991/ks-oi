@@ -45,6 +45,7 @@ const BILL_KEYS = [
 	"loadFailed",
 	"listboxHotel",
 	"listboxRoom",
+	"comboHint",
 ] as const;
 
 type Dict = Record<string, unknown>;
@@ -94,6 +95,27 @@ describe("bill dictionary group (TASK-27)", () => {
 					expect(text, `bill.${key} matches ${re}`).not.toMatch(re);
 				}
 			}
+		}
+	});
+
+	it("comboHint exists in both languages and updated labels are non-empty", () => {
+		expect(billValue(vi, "comboHint")).toBe("Không có trong danh sách? Cứ nhập tên khách sạn.");
+		expect(billValue(en, "comboHint")).toBe("Not in the list? Just type the hotel name.");
+
+		expect(billValue(vi, "title")).toBe("Bảng tính chi phí lưu trú");
+		expect(billValue(vi, "printTitle")).toBe("Bảng tính chi phí lưu trú");
+		expect(billValue(vi, "intro")).toBe("Chọn khách sạn và phòng, nhập số đêm, giá được điền sẵn và có thể sửa.");
+		expect(billValue(en, "intro")).toBe("Choose a hotel and room, enter the nights; the price is filled in and can be edited.");
+		expect(billValue(vi, "colPricing")).toBe("Đơn giá (VND)");
+		expect(billValue(en, "colPricing")).toBe("Price (VND)");
+		expect(billValue(vi, "edited")).toBe("Đã sửa giá");
+		expect(billValue(en, "edited")).toBe("Price edited");
+		expect(billValue(vi, "draftSaved")).toBe("Đã lưu bản nháp trên trình duyệt này");
+		expect(billValue(en, "draftSaved")).toBe("Draft saved in this browser");
+
+		for (const key of ["title", "intro", "colPricing", "edited", "draftSaved", "printTitle", "comboHint"]) {
+			expect(billValue(vi, key)?.trim(), `vi ${key}`).not.toBe("");
+			expect(billValue(en, key)?.trim(), `en ${key}`).not.toBe("");
 		}
 	});
 

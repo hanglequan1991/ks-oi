@@ -19,6 +19,8 @@ const LABELS: Record<string, string> = {
 	priceAria: "Price, row {n}",
 	removeRowAria: "Remove row {n}",
 	addRowLimit: "Maximum {max} rows",
+	rowLabel: "Row {n}",
+	useDefault: "Use default price",
 };
 
 const VIEW_SRC = fileURLToPath(new URL("../../src/client/bill/viewModel.ts", import.meta.url));
@@ -172,6 +174,57 @@ describe("bill view model (TASK-35)", () => {
 		const row = buildView(s, LABELS, "en").rows[0];
 		expect(row.noteEmpty).toBe(false);
 		expect(row.noteText).toBe("Breakfast incl.");
+	});
+
+	it("rowTitle, defaultPriceText and resetText", () => {
+		let s = createInitialState("a");
+		s = reduce(s, { type: "pickRoom", rowId: "a", roomId: "r1", name: "Deluxe", price: 1430000 });
+		s = reduce(s, { type: "addRow", id: "b" });
+		const en = buildView(s, LABELS, "en").rows[0];
+		expect(en.rowTitle).toBe("Row 1");
+		expect(en.defaultPriceText).toBe("1,430,000");
+		expect(en.resetText).toBe("Use default price 1,430,000");
+		expect(buildView(s, LABELS, "en").rows[1].rowTitle).toBe("Row 2");
+
+		const viLabels = { ...LABELS, rowLabel: "Dòng {n}", useDefault: "Dùng giá mặc định" };
+		const vi = buildView(s, viLabels, "vi").rows[0];
+		expect(vi.rowTitle).toBe("Dòng 1");
+		expect(vi.defaultPriceText).toBe("1.430.000");
+		expect(vi.resetText).toBe("Dùng giá mặc định 1.430.000");
+
+		// No default price: empty default text, reset is just the label.
+		const bare = buildView(createInitialState("z"), viLabels, "vi").rows[0];
+		expect(bare.defaultPriceText).toBe("");
+		expect(bare.resetText).toBe("Dùng giá mặc định");
+		const bareEn = buildView(createInitialState("z"), LABELS, "en").rows[0];
+		expect(bareEn.defaultPriceText).toBe("");
+		expect(bareEn.resetText).toBe("Use default price");
+	});
+
+	it("render.ts places markers in note-markers, toggles is-edited, sets data-hint and row-title", () => {
+		const src = readFileSync(RENDER_SRC, "utf8");
+
+		// Markers live in the note block, never in the price cell.
+		expect(src).toMatch(/noteMarkers:\s*"note-markers"/);
+		expect(src).toMatch(/note\.appendChild\(markers\)/);
+		expect(src).not.toMatch(/priceCell\.appendChild\((badge|reset)\)|price\.appendChild\((badge|reset)\)/);
+		expect(src).toMatch(/markers\.replaceChildren\(\)/);
+		expect(src).toMatch(/reset\.textContent = row\.resetText/);
+		expect(src).toMatch(/reset\.addEventListener\("click", \(e\) => info\.handlers\.onReset\(/);
+
+		// Row state: is-edited on the item, from showReset.
+		expect(src).toMatch(/item\.classList\.toggle\(C\.isEdited, view\.showReset\)/);
+
+		// Row title in the index cell, kept current by patchRow.
+		expect(src).toMatch(/makeValue\(doc, "rowTitle", view\.rowTitle\)/);
+		expect(src).toMatch(/index\.appendChild\(rowTitle\)/);
+		expect(src).toMatch(/rowTitle\.classList\.add\(C\.rowTitle\)/);
+		expect(src).toMatch(/\[data-field="rowTitle"\][\s\S]*rowTitle\.textContent = row\.rowTitle/);
+
+		// Hint on the hotel listbox only.
+		expect(src).toMatch(/setAttribute\(\s*"data-hint"/);
+		expect(src).toMatch(/makeCombo\(doc, hotel, hotelInput, text\(labels, "listboxHotel"\), text\(labels, "comboHint"\)\)/);
+		expect(src).toMatch(/makeCombo\(doc, room, roomInput, text\(labels, "listboxRoom"\)\)/);
 	});
 
 	it("render.ts uses only classes defined in bill.css", () => {

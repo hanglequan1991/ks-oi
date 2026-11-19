@@ -38,6 +38,7 @@ function appFor(opts: {
 	showsPrice?: boolean;
 	amount?: number | null;
 	s?: SiteSettings;
+	hideLangNav?: boolean;
 }) {
 	const app = new Hono();
 	app.get("*", (c) =>
@@ -50,6 +51,7 @@ function appFor(opts: {
 				title="Test page"
 				settings={opts.s ?? settings}
 				showsPrice={opts.showsPrice ?? false}
+				hideLangNav={opts.hideLangNav}
 			>
 				<p>Body</p>
 				{opts.amount !== undefined && (
@@ -229,6 +231,19 @@ describe("Layout and renderPage (TASK-9)", () => {
 		// The billing page and any admin area are not linked from the layout.
 		expect(html).not.toMatch(/href="[^"]*\/bill/);
 		expect(html).not.toMatch(/href="[^"]*\/admin/);
+	});
+
+	it("hideLangNav removes the header link and default keeps it", async () => {
+		const hidden = await htmlOf(appFor({ lang: "vi", path: "/bill", hideLangNav: true }), "/bill");
+		expect(hidden).not.toContain("<header");
+		expect(tags(hidden, "a").filter((a) => a["data-lang"] !== undefined)).toEqual([]);
+		expect(hidden).toContain("<main");
+
+		const shown = await htmlOf(appFor({ lang: "vi", path: "/bill" }), "/bill");
+		expect(shown).toContain("<header>");
+		expect(tags(shown, "a").filter((a) => a["data-lang"] !== undefined)).toEqual([
+			{ href: "/en/bill", "data-lang": "en", hreflang: "en" },
+		]);
 	});
 
 	it("no inline style attributes or inline scripts", async () => {
