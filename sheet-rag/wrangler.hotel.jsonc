@@ -27,7 +27,7 @@
 		{
 			"binding": "DB",
 			"database_name": "hotel-dictionary",
-			"database_id": "REPLACE_WITH_D1_ID",
+			"database_id": "c0adf755-e105-40e9-ab03-5cee6216d971",
 			"migrations_dir": "migrations"
 		}
 	],
@@ -69,7 +69,7 @@
 	 * "ai": { "binding": "AI" }
 	 */
 	"vars": {
-		"DRIVE_FOLDER_ID": "REPLACE_WITH_DRIVE_FOLDER_ID",
+		"DRIVE_FOLDER_ID": "1DnRvtjrOSN35DWYlZMyPxhVsswvX98vM",
 		"SKIP_TABS": "[]",
 		"MAX_TABS_PER_RUN": "25",
 		"SUBREQUEST_BUDGET": "40"
