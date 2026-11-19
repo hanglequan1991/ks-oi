@@ -61,20 +61,24 @@ async function newSlugFor(db: D1Database, tab: SheetTab, hotelId: string): Promi
 
 /**
  * Restores a hotel that sync hid because its tab went missing. Only a row with
- * hidden_by_sync = 1 is touched; an owner-hidden hotel stays hidden. Must run before the
- * overrides, so an override of the status still wins. The status is read from sync_state
- * before the flag is cleared (the order of the two statements matters).
+ * hidden_by_sync = 1 is touched; an owner-hidden hotel stays hidden. The status becomes
+ * prior_status when it is review or published, and review otherwise (NULL, invalid or
+ * 'hidden'), so a restored hotel is never left hidden and never auto-published from an
+ * unknown state. Must run before the overrides, so an override of the status still wins.
+ * The status is read from sync_state before the flag is cleared (the order of the two
+ * statements matters).
  */
 function restoreStatements(db: D1Database, tab: SheetTab, hotelId: string, now: string): D1PreparedStatement[] {
 	return [
 		db
 			.prepare(
-				`UPDATE hotels SET status = (SELECT prior_status FROM sync_state
+				`UPDATE hotels SET status = (SELECT CASE WHEN prior_status IN ('review', 'published')
+				                                         THEN prior_status ELSE 'review' END
+				                             FROM sync_state
 				                             WHERE source_file_id = ?1 AND source_gid = ?2)
 				 WHERE id = ?3 AND EXISTS (
 				   SELECT 1 FROM sync_state
-				   WHERE source_file_id = ?1 AND source_gid = ?2 AND hidden_by_sync = 1
-				     AND prior_status IN ('review', 'published', 'hidden'))`,
+				   WHERE source_file_id = ?1 AND source_gid = ?2 AND hidden_by_sync = 1)`,
 			)
 			.bind(tab.fileId, tab.gid, hotelId),
 		db

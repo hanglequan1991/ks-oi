@@ -106,7 +106,7 @@ function buildRequest({ text, kind }: ExtractInput): unknown {
 		],
 		response_format: {
 			type: "json_schema",
-			json_schema: { name: "hotel_extraction", schema: REPLY_SCHEMA },
+			json_schema: REPLY_SCHEMA,
 		},
 	};
 }

@@ -37,7 +37,9 @@
 - The sync_state success row is an inline statement in the hotel batch (same SQL as recordTabSuccess in src/db/syncState.ts), because recordTabSuccess runs its own query and cannot join the batch. AC3 requires it in the batch. The SQL is duplicated; if RECORD_SUCCESS_SQL changes, change this copy too.
 - The restore of a hidden hotel is two statements in the batch, after the sheet writes and before the overrides: status = prior_status (only when hidden_by_sync = 1 and prior_status is a valid status), then hidden_by_sync = 0 and prior_status = NULL. An owner-hidden hotel (hidden_by_sync = 0) is not touched.
 - data_version is bumped on every successful apply, so a second identical run changes settings.data_version. The identical-rows test compares hotels, images, facilities, rooms, rules and sync_state, and leaves out synced_at and the settings row.
-- Open point: if hidden_by_sync = 1 and prior_status is NULL, the status stays 'hidden' and only the flag is cleared. Not covered by the task; lead to decide.
+- Rework 1 (done): restore sets status to prior_status when it is review or published, else 'review' (NULL, invalid or 'hidden'), when hidden_by_sync = 1. Clears the flag and prior_status as before. Tests added: prior_status NULL (-> review), prior_status 'review' (-> review). Existing published case kept.
+- Rework 1 (done): test pins the inline sync_state success row against recordTabSuccess. Two fake DBs from the same seeded state (old hash, missing_since, last_error); after one syncHotel and one recordTabSuccess the whole sync_state row is equal, with last_error and missing_since NULL in both.
+- Full unit suite after rework: 60 files, 436 tests pass. No change to chunking or data_version.
 - Failure test uses a wrapper whose batch fails the third statement; the fake batch rolls back, so test/fakes/d1.ts is unchanged.
 
 ## Review

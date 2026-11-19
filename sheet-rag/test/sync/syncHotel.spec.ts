@@ -308,6 +308,97 @@ describe("syncHotel", () => {
 		});
 	});
 
+	it("restore of a hidden hotel with NULL prior_status sets review, never hidden", async () => {
+		await run(hotel());
+		const id = await hotelId();
+
+		await exec("UPDATE hotels SET status = 'hidden' WHERE id = ?", id);
+		await exec(
+			"UPDATE sync_state SET hidden_by_sync = 1, prior_status = NULL, missing_since = ? WHERE source_gid = ?",
+			NOW,
+			tab.gid,
+		);
+
+		const result = await run(hotel(), { hash: HASH_2, now: LATER });
+		expect(result.outcome).toBe("updated");
+		expect(await one<{ status: string }>("SELECT status FROM hotels WHERE id = ?", id)).toEqual({
+			status: "review",
+		});
+		expect(
+			await one<{ hidden_by_sync: number; prior_status: string | null }>(
+				"SELECT hidden_by_sync, prior_status FROM sync_state WHERE source_gid = ?",
+				tab.gid,
+			),
+		).toEqual({ hidden_by_sync: 0, prior_status: null });
+	});
+
+	it("restore of a hidden hotel with prior_status review sets review", async () => {
+		await run(hotel());
+		const id = await hotelId();
+
+		await exec("UPDATE hotels SET status = 'hidden' WHERE id = ?", id);
+		await exec(
+			"UPDATE sync_state SET hidden_by_sync = 1, prior_status = 'review', missing_since = ? WHERE source_gid = ?",
+			NOW,
+			tab.gid,
+		);
+
+		const result = await run(hotel(), { hash: HASH_2, now: LATER });
+		expect(result.outcome).toBe("updated");
+		expect(await one<{ status: string }>("SELECT status FROM hotels WHERE id = ?", id)).toEqual({
+			status: "review",
+		});
+		expect(
+			await one<{ hidden_by_sync: number; prior_status: string | null }>(
+				"SELECT hidden_by_sync, prior_status FROM sync_state WHERE source_gid = ?",
+				tab.gid,
+			),
+		).toEqual({ hidden_by_sync: 0, prior_status: null });
+	});
+
+	it("inline success row in the batch matches recordTabSuccess on every column", async () => {
+		// Two fake DBs from the same starting state: a tab with an old hash, a missing_since and
+		// a last_error. One is applied by syncHotel, the other gets recordTabSuccess.
+		const seed = async (d: FakeD1) => {
+			await applyMigrations(d);
+			await (asDb(d))
+				.prepare(
+					`INSERT INTO sync_state (source_file_id, source_gid, tab_name, hash, last_seen_at, missing_since, last_error, updated_at)
+					 VALUES (?, ?, ?, 'old-hash', ?, ?, 'old error', ?)`,
+				)
+				.bind(tab.fileId, tab.gid, "Tên cũ", NOW, NOW, NOW)
+				.run();
+			return d;
+		};
+		const dbA = await seed(createFakeD1());
+		const dbB = await seed(createFakeD1());
+
+		const result = await run(hotel(), { target: asDb(dbA), now: LATER });
+		expect(result.outcome).toBe("created");
+
+		await recordTabSuccess(asDb(dbB), {
+			fileId: tab.fileId,
+			gid: tab.gid,
+			hotelId: result.hotelId,
+			tabName: tab.tabName,
+			hash: HASH_1,
+			now: LATER,
+		});
+
+		const stateOf = async (d: FakeD1) =>
+			(await (asDb(d))
+				.prepare("SELECT * FROM sync_state WHERE source_file_id = ? AND source_gid = ?")
+				.bind(tab.fileId, tab.gid)
+				.first<Record<string, unknown>>()) as Record<string, unknown>;
+
+		const fromBatch = await stateOf(dbA);
+		const fromHelper = await stateOf(dbB);
+		expect(fromBatch).toEqual(fromHelper);
+		expect(fromBatch.hash).toBe(HASH_1);
+		expect(fromBatch.last_error).toBeNull();
+		expect(fromBatch.missing_since).toBeNull();
+	});
+
 	it("second identical run is updated with identical rows", async () => {
 		const first = await run(hotel(), { now: NOW });
 		const afterFirst = await snapshot();
