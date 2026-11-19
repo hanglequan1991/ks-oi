@@ -70,7 +70,7 @@ const HTML_PAGE_RE = /^\s*(<!DOCTYPE|<html)/i;
 
 export type PublicGoogleSourceOptions = {
 	folderId: string;
-	/** Entries of the form "File name/Tab name" (file name without .xlsx). */
+	/** SKIP_TABS entries: "File name/Tab name" or a tab name alone (see buildSkipMatcher). */
 	skipTabs?: string[];
 	fetchFn?: typeof fetch;
 	/** Waits between tries; tests inject a fake so they run instantly. */
@@ -84,7 +84,7 @@ export function createPublicGoogleSource(opts: PublicGoogleSourceOptions): Sheet
 	if (folderId === "") {
 		throw new SheetConfigError("folder id is missing");
 	}
-	const skip = new Set(opts.skipTabs ?? []);
+	const skip = buildSkipMatcher(opts.skipTabs ?? []);
 	const fetchFn: typeof fetch = opts.fetchFn ?? fetch;
 	const sleep = opts.sleep ?? realSleep;
 
@@ -142,7 +142,7 @@ export function createPublicGoogleSource(opts: PublicGoogleSourceOptions): Sheet
 				throw new SheetReadError("tab_list_parse_empty");
 			}
 			return parsed
-				.filter((t) => !skip.has(`${file.fileName}/${t.tabName}`))
+				.filter((t) => !skip(file.fileName, t.tabName))
 				.map((t) => ({ fileId: file.fileId, fileName: file.fileName, gid: t.gid, tabName: t.tabName }));
 		},
 
@@ -159,6 +159,30 @@ export function createPublicGoogleSource(opts: PublicGoogleSourceOptions): Sheet
 			}
 			return text;
 		},
+	};
+}
+
+/** Comparison key: NFC-normalised, trimmed, lower-cased. */
+function skipKey(text: string): string {
+	return text.normalize("NFC").trim().toLowerCase();
+}
+
+/**
+ * Builds the SKIP_TABS test. An entry is either "File name/Tab name" or a tab
+ * name alone. A tab is skipped when its normalised entry equals either
+ * "<fileName>/<tabName>" or "<tabName>" (both compared as whole strings, so a
+ * tab name containing "/" still matches its own whole-name entry). Matching is
+ * case-insensitive and NFC-normalised. Blank entries match nothing.
+ */
+export function buildSkipMatcher(entries: string[]): (fileName: string, tabName: string) => boolean {
+	const keys = new Set<string>();
+	for (const entry of entries) {
+		const key = skipKey(entry);
+		if (key !== "") keys.add(key);
+	}
+	return (fileName: string, tabName: string): boolean => {
+		if (keys.size === 0) return false;
+		return keys.has(skipKey(`${fileName}/${tabName}`)) || keys.has(skipKey(tabName));
 	};
 }
 

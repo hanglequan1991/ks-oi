@@ -3,7 +3,7 @@
 - id: TASK-66
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 1
 - depends on: TASK-54, TASK-56, TASK-62 (all done). Disjoint from TASK-63 and TASK-65, so it can run in parallel with them.
@@ -71,7 +71,19 @@ Lead decision (rework 1, supersedes the ALTER design): `last_checked_at` lives i
 Q1 (technical, to lead): the real success path in runSync goes through the inline statement in `src/sync/syncHotel.ts`, not through `recordTabSuccess`. Without `last_checked_at` there, a successful tab never gets a check time, so AC3 is not met in production. Fix needs a one-line change in `src/sync/syncHotel.ts` (add `last_checked_at` as `?` with `args.now`, `excluded.last_checked_at` in the upsert) and the bind list, plus that file must be added to this task's file list (or assigned to another task). Who should make it? Until answered, the `syncHotel` inline-success test stays red.
 A (lead): Yes. `src/sync/syncHotel.ts` and `test/sync/syncHotel.spec.ts` are added to this task's file list. The inline success batch must also write `sync_tab_checks` (see AC5 and Rework 1). Scope change: the check time moved from a `sync_state` column to the new table `sync_tab_checks` because an ALTER is not re-runnable and breaks e2e TC-2, TC-3, TC-9 and the idempotence rule.
 
+## Dev notes (rework 1, dev)
+- Done: `migrations/0004_sync_budget.sql` has no ALTER; creates `sync_tab_checks` and `sync_files` with IF NOT EXISTS. `src/db/syncState.ts`: `SELECT_ALL_SQL` LEFT JOINs `sync_tab_checks`; exported `tabCheckStatement(db, key, now)` (INSERT ... SELECT ... WHERE EXISTS ... ON CONFLICT upsert); `markTabsChecked` batches it; `recordTabSuccess` runs `db.batch([successRow, check])`; `recordTabError` and `markTabSeen*` unchanged. `src/sync/syncHotel.ts`: success batch ends with `tabCheckStatement(db, tab, now)` after the sync_state row.
+- Specs: `test/migrations/0004_sync_budget.spec.ts` (applies 0001-0004 twice, keeps data, no ALTER), `test/db/syncState.spec.ts` (markTabsChecked writes only sync_tab_checks, one batch; recordTabSuccess is one 2-statement batch), `test/sync/syncHotel.spec.ts` (pinning test compares sync_tab_checks; new test: success writes the check row, invalid does not).
+- `test/db/syncFiles.spec.ts` and `src/db/syncFiles.ts` unchanged.
+- `npx playwright test -c playwright.node.config.ts --project=chromium --trace off`: 32 passed (TC-2, TC-3, TC-9 included), 0 failed.
+- `env -u CLOUDFLARE_API_TOKEN npm test -- --run`: 504 passed, 13 failed. All 13 are in two files outside this task (see Questions).
+
 ## Review
 <!-- Written by lead. -->
 
 ## Questions
+Q2 (technical, to lead, rework 1 of TASK-66): the unit suite is red in two files that TASK-66 does not touch, and both come from uncommitted work in the tree, not from this change:
+- `test/sync/publicGoogleSource.spec.ts` > `listTabs parses names and gids including escapes and honours skipTabs` (`src/sync/publicGoogleSource.ts` is modified in the tree)
+- `test/sync/skipTabsDoc.spec.ts` (untracked) > `deploy doc lists the ten recommended tab names and src has none of them` (`DEPLOY-hotel-dictionary.md` is modified)
+Only these 2 of 68 files fail (13 tests); every file touched by TASK-66 is green. TASK-66's file list does not allow editing them. Which task owns these two files (probably TASK-63 or TASK-65, which run in parallel), and should TASK-66 be closed on its own green files? Until answered the status is `blocked: question`.
+A (lead): (pending)

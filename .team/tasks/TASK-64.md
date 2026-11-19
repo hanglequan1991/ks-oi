@@ -44,6 +44,12 @@ Semantics (fixed by lead): an entry is trimmed and compared case-insensitively a
 
 ## Dev notes
 <!-- Written by dev. -->
+- Red: 16 new tests failed before the change (buildSkipMatcher missing, doc not updated).
+- Green: `buildSkipMatcher` added and used by `listTabs`; `parseSkipTabs` unchanged; no tab names in code.
+- Existing test "leaves out tabs in skipTabs" changed its expectation to `["Café Lotus"]`: its entry `hanoi/Hotel "Sunrise" Villa` is now matched case-insensitively (AC2), so the old expectation encoded the case-sensitive behaviour.
+- Doc: SKIP_TABS forms, recommended default JSON block (owner to confirm) with the ten names, and the removed/hidden note (AC8).
+- For TASK-71 (owns wrangler.hotel.jsonc): the comment on line 53 still describes only the "File name/Tab name" form.
+- Unit run (`env -u CLOUDFLARE_API_TOKEN npm test -- --run`): 521 passed, 2 failed, both in test/db/syncRuns.spec.ts (abandonRun), TASK-68 area. My specs: 50/50 pass.
 
 ## Review
 <!-- Written by lead. -->

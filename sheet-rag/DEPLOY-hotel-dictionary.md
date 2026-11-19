@@ -77,7 +77,30 @@ The Worker syncs hotel data from a public Google Drive folder. It reads the same
 
 1. Share the Drive folder and every sheet in it as "Anyone with the link can view". Without this, the sync cannot read them.
 2. Set the folder id in `vars` in `wrangler.hotel.jsonc`: replace `REPLACE_WITH_DRIVE_FOLDER_ID` with the public folder id. It is not a secret. Until you do, the scheduled run is skipped and logged.
-3. Optional: set `SKIP_TABS` in `vars` to a JSON array of `"File name/Tab name"` strings to leave out. The default `"[]"` skips nothing.
+3. Optional: set `SKIP_TABS` in `vars` to a JSON array of strings to leave out. The default `"[]"` skips nothing. Each entry is one of two forms:
+   - `"File name/Tab name"` skips that tab in that one file (the file name has no `.xlsx`).
+   - `"Tab name"` alone skips every tab with that exact name, in every file.
+
+   Matching is case-insensitive and Unicode-normalised (NFC), so a decomposed Vietnamese name matches the composed one. Surrounding spaces in an entry are trimmed. Empty or blank entries match nothing. A tab name that contains `/` is matched by a tab-only entry equal to the whole name. The list is read at each run; the code has no built-in list of tabs to skip.
+
+   Recommended default, owner to confirm. These ten tab names are non-hotel tabs found in the live folder. They repeat across city files, so one tab-name entry skips them everywhere. Confirm the list before you use it, then paste it into `SKIP_TABS` in `wrangler.hotel.jsonc`:
+
+   ```json
+   [
+     "DS KS TOÀN QUỐC",
+     "QUY TRÌNH BOOK KS",
+     "Trang tính1",
+     "Trang tính4",
+     "Weekday Pricelist",
+     "Weekend Pricelist",
+     "Landtour Đà Nẵng",
+     "Khách Sạn Và Vé",
+     "Đầu Mối Khách Sạn",
+     "DU THUYỀN ELITE OF SAIGON"
+   ]
+   ```
+
+   A tab that becomes skipped is treated as removed by the next run. If its hotel had been synced before, that hotel is hidden from the site on that run.
 4. Set the secret that guards the manual trigger (not stored in the file):
    ```sh
    npx wrangler secret put SYNC_TOKEN -c wrangler.hotel.jsonc

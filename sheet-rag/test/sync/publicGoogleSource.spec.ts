@@ -105,6 +105,108 @@ describe("parseSkipTabs reads valid json, returns empty for unset, rejects bad j
 	});
 });
 
+describe("buildSkipMatcher matches File/Tab exactly", () => {
+	it("skips the File/Tab pair named by an entry and nothing else", () => {
+		const skip = buildSkipMatcher(["Hanoi/Mong Hotel"]);
+		expect(skip("Hanoi", "Mong Hotel")).toBe(true);
+		expect(skip("Hanoi", "Lotus")).toBe(false);
+		expect(skip("Nha Trang", "Mong Hotel")).toBe(false);
+	});
+
+	it("returns false for everything when there are no entries", () => {
+		const skip = buildSkipMatcher([]);
+		expect(skip("Hanoi", "Mong Hotel")).toBe(false);
+	});
+});
+
+describe("buildSkipMatcher is case-insensitive for both forms", () => {
+	it("matches File/Tab with a different case in the file or the tab", () => {
+		const skip = buildSkipMatcher(["HANOI/mong hotel"]);
+		expect(skip("Hanoi", "Mong Hotel")).toBe(true);
+	});
+
+	it("matches a tab-only entry with a different case", () => {
+		const skip = buildSkipMatcher(["WEEKDAY pricelist"]);
+		expect(skip("Hanoi", "Weekday Pricelist")).toBe(true);
+	});
+});
+
+describe("buildSkipMatcher tab-only entry skips the tab in every file", () => {
+	it("skips a tab-name-only entry in every file and keeps other tabs", () => {
+		const skip = buildSkipMatcher(["Weekday Pricelist"]);
+		expect(skip("Hanoi", "Weekday Pricelist")).toBe(true);
+		expect(skip("Da Nang & Hoi An", "Weekday Pricelist")).toBe(true);
+		expect(skip("Nha Trang", "Weekday Pricelist")).toBe(true);
+		expect(skip("Nha Trang", "Mong Hotel")).toBe(false);
+	});
+});
+
+describe("buildSkipMatcher treats decomposed and composed Vietnamese as equal", () => {
+	const composed = "DU THUYỀN ELITE OF SAIGON".normalize("NFC");
+	const decomposed = "DU THUYỀN ELITE OF SAIGON".normalize("NFD");
+
+	it("the fixture strings really differ before normalisation", () => {
+		expect(decomposed).not.toBe(composed);
+	});
+
+	it("a decomposed entry matches a composed sheet tab name", () => {
+		const skip = buildSkipMatcher([decomposed]);
+		expect(skip("Hanoi", composed)).toBe(true);
+	});
+
+	it("a composed entry matches a decomposed sheet tab name", () => {
+		const skip = buildSkipMatcher([composed]);
+		expect(skip("Hanoi", decomposed)).toBe(true);
+	});
+
+	it("a File/Tab entry in decomposed form matches composed file and tab names", () => {
+		const nfdEntry = "Đà Nẵng/Khách Sạn Và Vé".normalize("NFD");
+		const skip = buildSkipMatcher([nfdEntry]);
+		expect(skip("Đà Nẵng".normalize("NFC"), "Khách Sạn Và Vé".normalize("NFC"))).toBe(true);
+	});
+
+	it("trims whitespace around an entry", () => {
+		const skip = buildSkipMatcher(["  Mong Hotel  "]);
+		expect(skip("Hanoi", "Mong Hotel")).toBe(true);
+	});
+});
+
+describe("buildSkipMatcher matches a tab name that contains a slash", () => {
+	it("a tab-only entry equal to the whole name matches the tab with the slash", () => {
+		const skip = buildSkipMatcher(["Phòng 1/2 Deluxe"]);
+		expect(skip("Hanoi", "Phòng 1/2 Deluxe")).toBe(true);
+		expect(skip("Hanoi", "Phòng 1")).toBe(false);
+	});
+
+	it("a File/Tab entry matches a tab whose name contains a slash", () => {
+		const skip = buildSkipMatcher(["Hanoi/Phòng 1/2 Deluxe"]);
+		expect(skip("Hanoi", "Phòng 1/2 Deluxe")).toBe(true);
+	});
+});
+
+describe("buildSkipMatcher ignores empty entries", () => {
+	it("empty and whitespace-only entries match nothing", () => {
+		const skip = buildSkipMatcher(["", "   ", "\t\n"]);
+		expect(skip("Hanoi", "Mong Hotel")).toBe(false);
+		expect(skip("", "")).toBe(false);
+		expect(skip("Hanoi", "")).toBe(false);
+	});
+});
+
+describe("listTabs drops tabs matched by the matcher and keeps the rest", () => {
+	it("uses the tab-only and File/Tab forms together on the htmlview fixture", async () => {
+		const HTMLVIEW = "https://docs.google.com/spreadsheets/d/FILE1/htmlview";
+		const { fetchFn } = fakeFetch({ [HTMLVIEW]: () => new Response(fixture("htmlview.html"), { status: 200 }) });
+		const source = createPublicGoogleSource({
+			folderId: "FOLDER123",
+			fetchFn,
+			skipTabs: ["Café Lotus", "hanoi/MONG HOTEL"],
+		});
+		const tabs = await source.listTabs({ fileId: "FILE1", fileName: "Hanoi" });
+		expect(tabs.map((t) => t.tabName)).toEqual(['Hotel "Sunrise" Villa']);
+	});
+});
+
 describe("listFiles parses ids and names, strips .xlsx, decodes entities, calls the embeddedfolderview url", () => {
 	it("returns the three files from folder.html", async () => {
 		const { fetchFn, calls } = fakeFetch({ [FOLDER_URL]: () => new Response(fixture("folder.html"), { status: 200 }) });
@@ -216,7 +318,8 @@ describe("listTabs parses names and gids including escapes and honours skipTabs"
 			skipTabs: ["Hanoi/Mong Hotel", "Other/Café Lotus", "hanoi/Hotel \"Sunrise\" Villa"],
 		});
 		const tabs = await source.listTabs(file);
-		expect(tabs.map((t) => t.tabName)).toEqual(['Hotel "Sunrise" Villa', "Café Lotus"]);
+		// Matching is case-insensitive now (AC2), so "hanoi/Hotel \"Sunrise\" Villa" skips Sunrise too.
+		expect(tabs.map((t) => t.tabName)).toEqual(["Café Lotus"]);
 	});
 
 	it("allows skipping every tab by configuration and returns []", async () => {

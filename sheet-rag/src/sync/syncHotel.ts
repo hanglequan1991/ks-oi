@@ -3,11 +3,11 @@
 // An invalid record writes nothing: it only records the error (the hash is kept, so the
 // next run retries). A valid record is applied with one db.batch(): city, hotel, images,
 // facilities, rooms and rules, then the restore of a hidden hotel, then the overrides,
-// then the data_version bump, then the sync_state success row. Either all of it is
+// then the data_version bump, then the sync_state success row and the sync_tab_checks row. Either all of it is
 // visible or none of it is.
 
 import { foldText } from "../domain/fold";
-import { recordTabError } from "../db/syncState";
+import { recordTabError, tabCheckStatement } from "../db/syncState";
 import { hotelIdFor } from "./hash";
 import { buildHotelStatements, unmappedFacilities, type HotelWriteContext } from "./writeHotel";
 import { buildRoomStatements } from "./writeRooms";
@@ -158,6 +158,8 @@ export async function syncHotel(db: D1Database, input: SyncHotelInput): Promise<
 			...buildOverrideStatements(db, hotelId),
 			buildDataVersionStatement(db),
 			recordSuccessStatement(db, tab, hotelId, hash, now),
+			// Same check upsert as recordTabSuccess (the success row above is already in the batch).
+			tabCheckStatement(db, tab, now),
 		];
 		await db.batch(statements);
 

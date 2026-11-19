@@ -1,6 +1,6 @@
 -- migrations/0004_sync_budget.sql
 -- Sync budget support (STORY-14, TASK-66): last successful check per tab, and a per-file listing cache.
--- Fully re-runnable: every statement is CREATE TABLE IF NOT EXISTS (no ALTER), so applying it twice is safe.
+-- Fully re-runnable: every statement is CREATE TABLE IF NOT EXISTS, so applying it twice is safe.
 
 -- Time of the last successful check of each tab (set by recordTabSuccess, syncHotel and markTabsChecked).
 -- tab_key = keyOf(fileId, gid), i.e. `fileId:gid`. A tab with no row was never checked successfully.

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+	abandonRun,
 	finishRun,
 	getLatestRun,
 	getUnfinishedRuns,
@@ -85,5 +86,31 @@ describe("sync run log (sync_runs)", () => {
 
 		const unfinished = await getUnfinishedRuns(asDb(db));
 		expect(unfinished).toEqual([{ id: open, started_at: LATER }]);
+	});
+
+	it("abandonRun marks an unfinished run finished with an abandoned note and keeps its counts", async () => {
+		const id = await startRun(asDb(db), "scheduled", NOW);
+		await abandonRun(asDb(db), id, LATER);
+
+		const row = await db.prepare("SELECT * FROM sync_runs WHERE id = ?").bind(id).first<Record<string, unknown>>();
+		expect(row).toMatchObject({ finished_at: LATER, failed: 0, created: 0 });
+		expect(JSON.parse(row!.notes as string)).toEqual({
+			items: [{ kind: "error", reason: "abandoned" }],
+			truncated: false,
+		});
+		expect(await getUnfinishedRuns(asDb(db))).toEqual([]);
+	});
+
+	it("abandonRun does not overwrite a finished row", async () => {
+		const id = await startRun(asDb(db), "manual", NOW);
+		const items = [{ kind: "failure", tab: "Hotel A", reason: "stars_range" }];
+		await finishRun(asDb(db), id, { created: 1, updated: 0, failed: 1, hidden: 0, unchanged: 0 }, items, LATER);
+		const before = await db.prepare("SELECT * FROM sync_runs WHERE id = ?").bind(id).first<Record<string, unknown>>();
+
+		await abandonRun(asDb(db), id, "2026-11-19T12:00:00Z");
+
+		const after = await db.prepare("SELECT * FROM sync_runs WHERE id = ?").bind(id).first<Record<string, unknown>>();
+		expect(after).toEqual(before);
+		expect(after).toMatchObject({ finished_at: LATER, failed: 1 });
 	});
 });

@@ -7,6 +7,7 @@ import { startRun, getLatestRun } from "../../src/db/syncRuns";
 import { hotelIdFor } from "../../src/sync/hash";
 import { SheetReadError, type SheetFile, type SheetSource, type SheetTab } from "../../src/sync/sheetSource";
 import type { ParsedHotel } from "../../src/sync/record";
+import type { NetworkCause } from "../../src/sync/fetchErrors";
 
 const NOW = "2026-11-19T10:00:00Z";
 const LATER = "2026-11-19T11:00:00Z";
@@ -427,5 +428,197 @@ describe("runSync: removed tab hide is atomic", () => {
 			prior_status: "published",
 			missing_since: "2026-11-19T12:00:00Z",
 		});
+	});
+});
+
+// ---- TASK-68: stale-run abandon, wall-clock stop, circuit breaker ----
+
+const MIN = 60_000;
+
+async function runRow(id: string): Promise<Record<string, unknown>> {
+	const [row] = await rows("SELECT * FROM sync_runs WHERE id = ?", id);
+	return row;
+}
+
+/** Eight tabs of file-1, gids 1..8, each with a valid CSV. */
+function eightTabs(): SheetTab[] {
+	source.tabs.length = 0;
+	for (let i = 1; i <= 8; i++) {
+		source.tabs.push({ fileId: "file-1", fileName: "Đà Nẵng", gid: String(i), tabName: `Tab ${i}` });
+		source.csv[`file-1:${i}`] = csvOk(String(1000000 + i));
+	}
+	return [...source.tabs];
+}
+
+/** A source whose readCsv records each read gid and throws the error `fault` returns, if any. */
+function faultySource(fault: (tab: SheetTab) => SheetReadError | undefined, reads: string[]): SheetSource {
+	return {
+		...source,
+		readCsv: async (tab: SheetTab) => {
+			reads.push(tab.gid);
+			const error = fault(tab);
+			if (error) throw error;
+			return source.readCsv(tab);
+		},
+	};
+}
+
+const netError = (cause: NetworkCause) => new SheetReadError(`csv_network_${cause}`, cause);
+
+describe("runSync: stale runs are abandoned", () => {
+	it("abandons a stale unfinished run older than 15 minutes and proceeds", async () => {
+		const staleId = await startRun(asDb(db), "scheduled", "2026-11-19T09:30:00Z");
+
+		const result = await runSync(deps());
+
+		expect(result.skipped).toBeUndefined();
+		expect(result).toMatchObject({ created: 2, failed: 0 });
+		expect(await runRow(staleId)).toMatchObject({ finished_at: NOW, failed: 0 });
+		expect(JSON.parse((await runRow(staleId)).notes as string)).toEqual({
+			items: [{ kind: "error", reason: "abandoned" }],
+			truncated: false,
+		});
+	});
+
+	it("abandons several stale runs", async () => {
+		const first = await startRun(asDb(db), "scheduled", "2026-11-19T08:00:00Z");
+		const second = await startRun(asDb(db), "manual", "2026-11-19T09:30:00Z");
+
+		const result = await runSync(deps());
+
+		expect(result.skipped).toBeUndefined();
+		for (const id of [first, second]) {
+			expect(await runRow(id)).toMatchObject({ finished_at: NOW });
+			expect(JSON.parse((await runRow(id)).notes as string).items).toEqual([{ kind: "error", reason: "abandoned" }]);
+		}
+		expect(await rows("SELECT id FROM sync_runs WHERE finished_at IS NULL")).toHaveLength(0);
+	});
+
+	it("recent unfinished run still skips with already_running", async () => {
+		// Started 14 minutes before NOW: still inside the 15-minute window.
+		const recentId = await startRun(asDb(db), "scheduled", "2026-11-19T09:46:00Z");
+
+		const result = await runSync(deps());
+
+		expect(result).toMatchObject({ skipped: "already_running", created: 0 });
+		expect(await rows("SELECT id FROM sync_runs")).toHaveLength(1);
+		expect(await runRow(recentId)).toMatchObject({ finished_at: null });
+	});
+});
+
+describe("runSync: wall-clock deadline", () => {
+	it("stops starting tabs after the soft or hard deadline and finishes the row", async () => {
+		for (const elapsed of [9 * MIN, 11 * MIN]) {
+			db = createFakeD1();
+			await applyMigrations(db);
+			eightTabs();
+			let clock = 0;
+			const reads: string[] = [];
+			const slow = faultySource((tab) => {
+				if (tab.gid === "1") clock = elapsed; // the first read takes the whole budget
+				return undefined;
+			}, reads);
+
+			const result = await runSync(deps({ source: slow, nowMs: () => clock }));
+
+			expect(reads).toEqual(["1"]);
+			expect(result).toMatchObject({ aborted: "deadline", created: 1, failed: 0, hidden: 0 });
+			const latest = await getLatestRun(asDb(db));
+			expect(latest).toMatchObject({ finished_at: NOW });
+			expect(JSON.parse(latest!.notes as string).items).toContainEqual({ kind: "abort", reason: "deadline" });
+		}
+	});
+});
+
+describe("runSync: circuit breaker", () => {
+	it("five consecutive same-cause network failures trip the breaker", async () => {
+		eightTabs();
+		const reads: string[] = [];
+		const failing = faultySource(() => netError("timeout"), reads);
+
+		const result = await runSync(deps({ source: failing }));
+
+		expect(reads).toEqual(["1", "2", "3", "4", "5"]);
+		expect(result).toMatchObject({ aborted: "circuit_breaker", failed: 5, created: 0 });
+		expect(result.failures).toHaveLength(5);
+		const latest = await getLatestRun(asDb(db));
+		expect(latest).toMatchObject({ finished_at: NOW, failed: 5 });
+		expect(JSON.parse(latest!.notes as string).items).toContainEqual({ kind: "abort", reason: "aborted_circuit_breaker" });
+	});
+
+	it("streak resets on success, http failure and different cause", async () => {
+		const scenarios: Array<(tab: SheetTab) => SheetReadError | undefined> = [
+			(tab) => (tab.gid === "5" ? undefined : netError("timeout")), // success in the middle
+			(tab) => (tab.gid === "5" ? new SheetReadError("csv_http_500") : netError("timeout")), // HTTP failure
+			(tab) => (tab.gid === "5" ? netError("network_other") : netError("timeout")), // different cause
+		];
+		for (const fault of scenarios) {
+			db = createFakeD1();
+			await applyMigrations(db);
+			source.tabs.length = 0;
+			for (let i = 1; i <= 9; i++) {
+				source.tabs.push({ fileId: "file-1", fileName: "Đà Nẵng", gid: String(i), tabName: `Tab ${i}` });
+				source.csv[`file-1:${i}`] = csvOk();
+			}
+			const reads: string[] = [];
+
+			const result = await runSync(deps({ source: faultySource(fault, reads) }));
+
+			expect(reads).toHaveLength(9);
+			expect(result.aborted).toBeUndefined();
+		}
+	});
+
+	it("subrequest_limit and illegal_invocation trip the breaker on the first failure", async () => {
+		for (const cause of ["subrequest_limit", "illegal_invocation"] as const) {
+			db = createFakeD1();
+			await applyMigrations(db);
+			eightTabs();
+			const reads: string[] = [];
+
+			const result = await runSync(deps({ source: faultySource(() => netError(cause), reads) }));
+
+			expect(reads).toEqual(["1"]);
+			expect(result).toMatchObject({ aborted: "circuit_breaker", failed: 1 });
+		}
+	});
+
+	it("early abort hides nothing and does not apply removed tabs", async () => {
+		eightTabs();
+		await runSync(deps());
+
+		// Tab 1 disappears from the listing, and tabs 2..6 fail with the same cause.
+		source.tabs.splice(0, 1);
+		const reads: string[] = [];
+		const failing = faultySource((tab) => (Number(tab.gid) >= 2 && Number(tab.gid) <= 6 ? netError("timeout") : undefined), reads);
+
+		const result = await runSync(deps({ source: failing, now: () => LATER }));
+
+		expect(result).toMatchObject({ aborted: "circuit_breaker", hidden: 0, failed: 5 });
+		expect(reads).toEqual(["2", "3", "4", "5", "6"]);
+		expect(await hotelStatus(TAB_A)).toBe("published");
+		expect(await stateOf(TAB_A)).toMatchObject({ missing_since: null, hidden_by_sync: 0 });
+		expect(await rows("SELECT id FROM hotels WHERE status = 'hidden'")).toHaveLength(0);
+	});
+
+	it("summary and notes contain only codes after an abort", async () => {
+		eightTabs();
+		const hostile = faultySource(
+			() => new SheetReadError(`${SHEET_URL} ${SECRET_TOKEN}`, "timeout"),
+			[],
+		);
+
+		const result = await runSync(deps({ source: hostile }));
+		const notes = (await getLatestRun(asDb(db)))!.notes as string;
+		const serialized = JSON.stringify(result);
+
+		expect(result.aborted).toBe("circuit_breaker");
+		expect(serialized).not.toContain("http");
+		expect(serialized).not.toContain("://");
+		expect(serialized).not.toContain(SECRET_TOKEN);
+		expect(notes).not.toContain("http");
+		expect(notes).not.toContain("://");
+		expect(notes).not.toContain(SECRET_TOKEN);
+		expect(result.failures.every((f) => f.reason === "unexpected_error")).toBe(true);
 	});
 });
