@@ -1,10 +1,10 @@
 # STORY-14: Sync hotels, rooms, prices and booking rules from the Excel sheets into the database
 
 - id: STORY-14
-- status: blocked        <!-- todo | in-progress | review | rework | done | blocked | blocked: question -->
+- status: in-progress        <!-- todo | in-progress | review | rework | done | blocked | blocked: question -->
 - owner: product
 
-Blocked: waiting for sample sheet rows from the owner (about 20 redacted rows from two tabs in different cities, plus how room-level booking rules and prices look).
+Decision 2026-11-19: the sync is built standalone inside the `hotel-dictionary` worker (writes to its own D1), not in the old sheet-rag worker. The infrastructure tasks (TASK-45 to TASK-57) can proceed now. Only the row parser (TASK-58, AC2 to AC4 exact reading of rooms, prices, rules, images) stays blocked until the owner provides about 20 redacted rows from two tabs in different cities, plus how room-level booking rules and prices look (Q1).
 
 ## User need
 As the project owner, I want the hotel data in my Excel sheets copied automatically into the database every hour, with prices and booking rules exact, so that the website and billing page always show what the sheets say without manual re-entry.
@@ -45,7 +45,7 @@ Decisions: .team/decision.md (2026-11-18, rows on data sources, booking rules an
 13. AC13: Given the sync failed to read the sheet folder, when it stops, then nothing is removed or hidden.
 
 ## Linked files
-- Tasks: TASK-
+- Tasks: [TASK-45](../tasks/TASK-45.md) migration 0003, [TASK-46](../tasks/TASK-46.md) SheetSource, [TASK-47](../tasks/TASK-47.md) CSV and hash, [TASK-48](../tasks/TASK-48.md) record and validation, [TASK-49](../tasks/TASK-49.md) change detection, [TASK-50](../tasks/TASK-50.md) hotel writer, [TASK-51](../tasks/TASK-51.md) rooms and rules writer, [TASK-52](../tasks/TASK-52.md) overrides and data_version, [TASK-53](../tasks/TASK-53.md) syncHotel, [TASK-54](../tasks/TASK-54.md) runSync and run log, [TASK-55](../tasks/TASK-55.md) /internal/sync route, [TASK-56](../tasks/TASK-56.md) wiring, [TASK-57](../tasks/TASK-57.md) extractor, [TASK-58](../tasks/TASK-58.md) rowParser (blocked: question)
 - Test cases: TC-
 
 ## Questions
