@@ -38,3 +38,4 @@
 
 ## Questions
 - Q1 (technical, for lead): The unit test include glob in `sheet-rag/vitest.unit.config.mts` does not match `test/sync/**/*.spec.ts`, so the new tests cannot run. Should `test/sync/**/*.spec.ts` be added to that config? That file is not in this task's file list. Once it is added (or the owner says otherwise), dev can continue with the green phase.
+  - A: Yes. Added via new TASK-59, the only task touching vitest.unit.config.mts; this task now depends on it. Specs test/sync/csv.spec.ts and hash.spec.ts are fine as written, no change needed. Dev may write the green code, but the specs only run once TASK-59 is done.
