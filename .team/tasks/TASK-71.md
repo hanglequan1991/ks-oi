@@ -3,9 +3,9 @@
 - id: TASK-71
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: rework
+- status: blocked
 - assignee: dev
-- rework count: 0
+- rework count: 2
 - depends on: TASK-64 (doc), TASK-65, TASK-69, TASK-70, TASK-72, TASK-73 (and transitively 63, 66, 67, 68)
 - size: fits a 100k-token context (few files, one behaviour)
 
@@ -66,5 +66,19 @@ Rework notes (DEPLOY-hotel-dictionary.md only):
 3. Migration-order note (step 3) is vague ("only from the final version of the code") and the deploy order is not stated. Replace with the exact order for the next deploy: (1) `git pull`, (2) `npx wrangler d1 migrations apply hotel-dictionary --remote -c wrangler.hotel.jsonc` (applies 0004 for the first time; safe to re-run, only CREATE TABLE IF NOT EXISTS), (3) set `DRIVE_FOLDER_ID` in `wrangler.hotel.jsonc` vars (Sheet sync step 2 currently comes after the deploy steps; point to it), (4) `npm run build:client` if needed, then deploy. Note that deploying code before the migration would make the sync fail on the missing tables.
 4. Update `test/web/site-config.spec.ts` doc assertions only if you add headings; no new heading is required.
 
+
+### Re-review after rework 1
+Verified: npm test re-run, 71 files / 606 passed. Rework notes 1 (plan-limit warning Free 50 / Paid 1000, line 199), 2 (`csv_subrequest_limit` row, line 222) and 3 (exact "Deploy order" section: git pull, migrations apply, DRIVE_FOLDER_ID, SYNC_TOKEN, build and deploy; migrations before deploy and folder id before deploy stated) are resolved and match the code.
+
+Computed from runSync.ts (budget 40/1000; TAB_RESERVE 8, FINISH_RESERVE 2, so a tab starts only when remaining >= 10; idle fixed cost at 450 tabs = 1 fetch + 7 + ceil(450/50)=9 D1 = 17; a changed tab costs 1 fetch + 5 apply calls = 6):
+- Free (budget 40, cap 25): 40-17 = 23 left. Tab 1 starts at 23, tab 2 at 17, tab 3 at 11, tab 4 at 5 (< 10, stops, `budget_exhausted`). So 3 tabs per run, not 25. First full pass of 450 changed tabs = 150 hourly runs (about 6 days), not 18. Best case, tabs that are only read and found unchanged (1 fetch each) get about 14 per run. Uncached file listings on the very first runs cost extra fetches, so the first pass is a little slower still.
+- Paid (budget 1000, cap 200): 1000-17 = 983 left; tab n starts while 983 - 6(n-1) >= 10, so n = 163. About 163 tabs per run (cap 200 not reached). First pass = 3 runs (163 + 163 + 124), about 3 hours.
+
+Why the doc still needs rework: the doc says "about 18 hourly runs (about 18 hours)" for the Free defaults, hedged only by "if the budget does not stop a run earlier". On the shipped defaults the budget always stops the run earlier, by a factor of about 8, so the headline figure would mislead the owner about when the site is fully filled.
+
+Verdict: rework (second round, doc only; `DEPLOY-hotel-dictionary.md` "Limits" only):
+1. Replace the "about 18 hourly runs" paragraph (line 205) with honest numbers: on the Free defaults (25 tabs, budget 40) a run processes about 3 changed tabs (the budget, not the cap, is the limit), so a 450-tab folder needs about 150 hourly runs (about 6 days) for the first pass; unchanged tabs go faster (about 14 reads per run). On Paid with budget 1000 and `MAX_TABS_PER_RUN` 200 a run processes about 163 tabs, so the first pass takes 3 runs. Keep it labelled as an estimate (assumes about 450 changed tabs, listings already cached, 5 D1 calls per applied tab).
+2. Say plainly that 18 runs (25 tabs per run) is reachable only if the budget is at least 25 x 8 + 8 = 208; on the Free plan (50 subrequests) the cap of 25 tabs cannot be reached, so the owner who wants a faster first pass needs the Paid plan. Fix the same wording in the TASK-71 AC6 sentence is not needed; leave the AC as is.
+3. No other change; no test change needed (the doc test asserts headings and codes only).
 
 ## Questions
