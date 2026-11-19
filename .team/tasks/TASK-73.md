@@ -3,7 +3,7 @@
 - id: TASK-73
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: blocked: question
+- status: in-progress
 - assignee: dev
 - rework count: 0
 - depends on: TASK-72 (columns and helpers), TASK-70 (listing cache; both edit runSync.ts, TASK-70 first), TASK-69 (done)
@@ -31,6 +31,12 @@ Design (lead):
 8. AC8: Convergence: a cold 450-tab fixture with cap 25 and a stable folder reaches an idle run (zero readCsv) after enough runs (simulate with fake time) and a changed file afterwards re-reads only that file's tabs.
 9. AC9: Existing runSync specs stay green (fakes without `modified` never skip, so TASK-69 rotation tests are unaffected); any assumption updated deliberately.
 
+10. AC10: Update the two TASK-70 tests in `runSyncListing.spec.ts` deliberately (lead decision, answer A). They keep their original purpose and add the read-skip assertion:
+    - `unchanged modified skips listTabs and plans identically`: keep `second.listTabs` equal `[]`, `second.listFiles` 1 and the result `toMatchObject({created:0, updated:0, failed:0, hidden:0, unchanged:2})`. Replace `expect(second.readCsv).toEqual(first.readCsv)` with `expect(second.readCsv).toEqual([])` (the fixture has `modified` and `skipSignature`, `LATER` is within SKIP_MAX_AGE_MS of `NOW`). Keep "plans identically" by also asserting the hotel rows/state (e.g. the `hotels` ids and statuses) equal before and after the second run.
+    - `idle run makes zero listTabs fetches and one listing fetch`: small fixture: keep listTabs `[]` and listFiles 1, change `readCsv` `toHaveLength(2)` to `toEqual([])`. Big (450 tabs, cap 25) block: stays valid (the cold run reads only 25 of 450, so the next run still reads 1..25); keep it, add a comment saying why reads remain.
+    - Add one new test in the same file, `idle run still reads when modified is missing`: fixture with `delete file.modified` on every file; cold run, then second run: assert `listFiles` 1 and `readCsv` has length 2 (read-skip does not apply without `modified`). Optionally a second variant with `force: true` if `runSync` deps/opts expose it in this spec's `deps()` helper; if not, skip it (AC2 already covers force in the read-skip spec).
+    - No other test in that file may change. Full suite must be green (0 failures).
+
 ## Unit tests to write
 - [ ] `skips readCsv for an unchanged clean tab and counts it unchanged`: covers AC1
 - [ ] `reads when modified changed, missing, no stored value, parser version differs, error, missing_since, no hash, stale age or force`: covers AC2
@@ -41,10 +47,12 @@ Design (lead):
 - [ ] `idle run with at most 50 tabs costs one fetch and at most 8 D1 calls`: covers AC7(a)
 - [ ] `idle run with 450 tabs costs one fetch and at most 7 + ceil(tabs / 50) D1 calls`: covers AC7(b)
 - [ ] `cold folder converges to an idle run; a changed file re-reads only its tabs`: covers AC8
+- [ ] (in runSyncListing.spec.ts) updated `unchanged modified skips listTabs and plans identically`, updated `idle run makes zero listTabs fetches and one listing fetch`, new `idle run still reads when modified is missing`: covers AC10
 
 ## Files this task may touch
 - `sheet-rag/src/sync/runSync.ts`
 - `sheet-rag/test/sync/runSync.spec.ts` (only to keep existing tests green)
+- `sheet-rag/test/sync/runSyncListing.spec.ts` (TASK-70 spec; ONLY the two tests named in AC10, no other test or helper change except an added test)
 - `sheet-rag/test/sync/runSyncReadSkip.spec.ts` (new)
 - Shared: `runSync.ts` with TASK-68, 69, 70 (all before). Reads `syncState.ts`, `syncHotel.ts` (TASK-72).
 
@@ -61,3 +69,4 @@ Design (lead):
 
 ## Questions
 - Business/technical question for lead: TASK-70 tests in `sheet-rag/test/sync/runSyncListing.spec.ts` (`unchanged modified skips listTabs and plans identically`, line ~125 `expect(second.readCsv).toEqual(first.readCsv)`; `idle run makes zero listTabs fetches and one listing fetch`, line ~243 `expect(idleSmall.readCsv).toHaveLength(2)`) assert that idle runs still read tabs. TASK-73 deliberately makes those reads zero. Those assertions must change, but `runSyncListing.spec.ts` is not in TASK-73's file list. Please confirm whether to (a) add that file to TASK-73 and update those two assertions to expect zero readCsv on idle runs, or (b) have another task update them. Until answered, the full suite has 2 failing tests (596 passed).
+- A (lead): Option (a). `runSyncListing.spec.ts` is added to this task's file list and AC10 added. Update only the two named tests as specified in AC10 (zero readCsv when read-skip applies, original purposes kept) and add the variant `idle run still reads when modified is missing`. Scope change: one extra file, test-only, no source change.
