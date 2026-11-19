@@ -4,6 +4,8 @@
 - status: in-progress        <!-- todo | in-progress | review | rework | done | blocked | blocked: question -->
 - owner: product
 
+Decisions 2026-11-19 (after reading the deployed sheet-rag code, which has no structured extraction and keeps sheets as free-text chunks; city = Drive file name minus .xlsx, hotel = tab name): (A) the sheets are already synced on sheet-rag and the Drive folder is public, so the hotel-dictionary sync reads the same public Google pages itself with no credentials (folder listing, tab list, CSV export), configured by the plain var `DRIVE_FOLDER_ID` and optional var `SKIP_TABS`; an empty parse of the folder or of a tab list is an error, never a deletion; the real page format must be verified by the owner on the first run. (B) synced hotels are published automatically: `sync_auto_publish` defaults to 'true' and stays a setting the owner can flip; an existing hotel keeps its status and an owner-hidden hotel is never un-hidden. (C) cron stays hourly. (D) the row parser (TASK-58) is written from scratch and must fail safe: a tab it cannot parse is reported and never half-written.
+
 Decision 2026-11-19: the sync is built standalone inside the `hotel-dictionary` worker (writes to its own D1), not in the old sheet-rag worker. The infrastructure tasks (TASK-45 to TASK-57) can proceed now. Only the row parser (TASK-58, AC2 to AC4 exact reading of rooms, prices, rules, images) stays blocked until the owner provides about 20 redacted rows from two tabs in different cities, plus how room-level booking rules and prices look (Q1).
 
 ## User need
@@ -27,6 +29,7 @@ Decisions: .team/decision.md (2026-11-18, rows on data sources, booking rules an
   - Editing prices or rules in the database by hand.
   - Any change to the chat or search behaviour.
 - Depends on STORY-12 and STORY-13.
+- Sheet access: public Google pages, folder and sheets must be link-shared; no credentials.
 - Blocked until the owner provides real sample rows; the validation rules and the layout of rooms, prices and room-level rules depend on them.
 
 ## Acceptance criteria
@@ -45,7 +48,7 @@ Decisions: .team/decision.md (2026-11-18, rows on data sources, booking rules an
 13. AC13: Given the sync failed to read the sheet folder, when it stops, then nothing is removed or hidden.
 
 ## Linked files
-- Tasks: [TASK-45](../tasks/TASK-45.md) migration 0003, [TASK-46](../tasks/TASK-46.md) SheetSource, [TASK-47](../tasks/TASK-47.md) CSV and hash, [TASK-48](../tasks/TASK-48.md) record and validation, [TASK-49](../tasks/TASK-49.md) change detection, [TASK-50](../tasks/TASK-50.md) hotel writer, [TASK-51](../tasks/TASK-51.md) rooms and rules writer, [TASK-52](../tasks/TASK-52.md) overrides and data_version, [TASK-53](../tasks/TASK-53.md) syncHotel, [TASK-54](../tasks/TASK-54.md) runSync and run log, [TASK-55](../tasks/TASK-55.md) /internal/sync route, [TASK-56](../tasks/TASK-56.md) wiring, [TASK-57](../tasks/TASK-57.md) extractor, [TASK-58](../tasks/TASK-58.md) rowParser (blocked: question)
+- Tasks: [TASK-45](../tasks/TASK-45.md) migration 0003, [TASK-46](../tasks/TASK-46.md) SheetSource and PublicGoogleSource, [TASK-47](../tasks/TASK-47.md) CSV and hash, [TASK-48](../tasks/TASK-48.md) record and validation, [TASK-49](../tasks/TASK-49.md) change detection, [TASK-50](../tasks/TASK-50.md) hotel writer, [TASK-51](../tasks/TASK-51.md) rooms and rules writer, [TASK-52](../tasks/TASK-52.md) overrides and data_version, [TASK-53](../tasks/TASK-53.md) syncHotel, [TASK-54](../tasks/TASK-54.md) runSync and run log, [TASK-55](../tasks/TASK-55.md) /internal/sync route, [TASK-56](../tasks/TASK-56.md) wiring, [TASK-57](../tasks/TASK-57.md) extractor, [TASK-58](../tasks/TASK-58.md) rowParser (blocked: question)
 - Test cases: TC-
 
 ## Questions
