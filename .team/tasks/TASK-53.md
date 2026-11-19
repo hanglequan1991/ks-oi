@@ -33,6 +33,12 @@
 - `sheet-rag/test/sync/syncHotel.spec.ts`
 
 ## Dev notes
+- Red: spec failed on the missing module. Green: 8/8 in test/sync/syncHotel.spec.ts; full unit suite 60 files, 433 tests pass.
+- The sync_state success row is an inline statement in the hotel batch (same SQL as recordTabSuccess in src/db/syncState.ts), because recordTabSuccess runs its own query and cannot join the batch. AC3 requires it in the batch. The SQL is duplicated; if RECORD_SUCCESS_SQL changes, change this copy too.
+- The restore of a hidden hotel is two statements in the batch, after the sheet writes and before the overrides: status = prior_status (only when hidden_by_sync = 1 and prior_status is a valid status), then hidden_by_sync = 0 and prior_status = NULL. An owner-hidden hotel (hidden_by_sync = 0) is not touched.
+- data_version is bumped on every successful apply, so a second identical run changes settings.data_version. The identical-rows test compares hotels, images, facilities, rooms, rules and sync_state, and leaves out synced_at and the settings row.
+- Open point: if hidden_by_sync = 1 and prior_status is NULL, the status stays 'hidden' and only the flag is cleared. Not covered by the task; lead to decide.
+- Failure test uses a wrapper whose batch fails the third statement; the fake batch rolls back, so test/fakes/d1.ts is unchanged.
 
 ## Review
 

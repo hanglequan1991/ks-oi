@@ -117,7 +117,8 @@ describe("syncHotel", () => {
 		expect(result.outcome).toBe("created");
 		expect(result.hotelId).toBe(await hotelId());
 		expect(result.issues).toBeUndefined();
-		expect(result.unmappedFacilities).toEqual([]);
+		// The facility catalog is empty in this test, so both labels are reported and not stored.
+		expect(result.unmappedFacilities).toEqual(["Hồ bơi", "Bãi đỗ xe"]);
 
 		const h = await one<{ slug: string; status: string; name: string; city_slug: string }>(
 			"SELECT slug, status, name, city_slug FROM hotels WHERE id = ?",
