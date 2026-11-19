@@ -3,7 +3,7 @@
 - id: TASK-73
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-72 (columns and helpers), TASK-70 (listing cache; both edit runSync.ts, TASK-70 first), TASK-69 (done)
@@ -72,6 +72,11 @@ Design (lead):
 
 ## Review
 <!-- Written by lead. -->
+Verdict: approve.
+- Re-run: `npm test -- --run` = 71 files / 599 passed; playwright node config = 32 passed.
+- Skip rule in `isSkippable` has every required condition (force, modified non-empty, hash, last_error, missing_since, file_modified equal, parser_version equal, last_checked_at under 7 days). Skippable tabs are removed before `pickOldestFirst` (no cap slot), make no D1 write and no markTabsChecked entry, stay in `tabs` for seen/removal planning. Unchanged reads and applied tabs pass `fileModified` and `parserVersion`; failure paths pass no meta. `modified` comes from the listing taken before any read. Only the listed files changed.
+- Tests: 32 in runSyncReadSkip.spec.ts cover AC1 to AC8 (table per skip condition incl. parser_version differs/null, four failure kinds, idle bounds 7 and 15 D1 calls with 1 fetch, convergence 18 reading + 1 idle runs, changed file re-reads only its 150 tabs). A PARSER_VERSION bump is covered by the "stored parser_version differs" case (stored '0' vs current); no test changes the constant itself, acceptable. The two TASK-70 listing tests keep their purpose (readCsv now `[]`, state snapshot equal, 450-tab block commented), plus the new missing-modified test.
+- Deferred question: confirmed. A tab whose file `modified` changed and which the cap defers gets no write, so its stored `file_modified` stays old, it is not skippable, remains a candidate every run and is picked oldest-first until read. The convergence test shows this (changed file's 150 tabs all re-read over several capped runs, then idle).
 
 ## Questions
 - Business/technical question for lead: TASK-70 tests in `sheet-rag/test/sync/runSyncListing.spec.ts` (`unchanged modified skips listTabs and plans identically`, line ~125 `expect(second.readCsv).toEqual(first.readCsv)`; `idle run makes zero listTabs fetches and one listing fetch`, line ~243 `expect(idleSmall.readCsv).toHaveLength(2)`) assert that idle runs still read tabs. TASK-73 deliberately makes those reads zero. Those assertions must change, but `runSyncListing.spec.ts` is not in TASK-73's file list. Please confirm whether to (a) add that file to TASK-73 and update those two assertions to expect zero readCsv on idle runs, or (b) have another task update them. Until answered, the full suite has 2 failing tests (596 passed).
