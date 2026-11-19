@@ -36,6 +36,12 @@ The folder page (`embeddedfolderview`) carries each file's last-modified text. T
 
 ## Dev notes
 <!-- Written by dev. -->
+- Red first: 5 new or changed tests failed for the right reason, then green. Full suite: 69 files, 538 tests pass.
+- `FOLDER_ENTRY_RE` is unchanged. `modified` is read by a second regex (`MODIFIED_RE`) inside each entry's slice: after its title, before the next link or title.
+- Blank or missing modified gives `undefined` (the key is not set). Entity decoding and trim are applied.
+- skipSignature: NFC/trim/lower-cased, non-blank entries, de-duplicated, sorted, JSON-stringified, FNV-1a 32-bit. JSON is used instead of `|` join so that an entry containing `|` cannot collide with two entries. Empty list gives `s741638a5`.
+- Fixture folder.html: entry 0 modified "Nov 19, 2026", entry 1 "Nov 18, 2026", entry 2 has none.
+- Not touched: runSync.ts, fakes (optional fields need no change).
 
 ## Review
 <!-- Written by lead. -->

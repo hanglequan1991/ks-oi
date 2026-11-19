@@ -105,6 +105,26 @@ describe("parseSkipTabs reads valid json, returns empty for unset, rejects bad j
 	});
 });
 
+describe("skipSignature changes when the SKIP_TABS list changes", () => {
+	const sig = (skipTabs?: string[]) => createPublicGoogleSource({ folderId: "FOLDER123", skipTabs }).skipSignature;
+
+	it("skipSignature is stable across order and duplicates and differs for different lists", () => {
+		const a = sig(["Hanoi/Mong Hotel", "Nha Trang/Lotus"]);
+		expect(a).toMatch(/^s[0-9a-f]{8}$/);
+		expect(sig(["Nha Trang/Lotus", "Hanoi/Mong Hotel"])).toBe(a);
+		expect(sig(["Nha Trang/Lotus", "Hanoi/Mong Hotel", "hanoi/MONG HOTEL", " Nha Trang/Lotus "])).toBe(a);
+		expect(sig(["Hanoi/Mong Hotel"])).not.toBe(a);
+		expect(sig(["Hanoi/Mong Hotel", "Nha Trang/Lotus", "Da Nang/Lotus"])).not.toBe(a);
+	});
+
+	it("skipSignature of an empty list is a fixed value", () => {
+		const empty = sig([]);
+		expect(empty).toBe(sig(undefined));
+		expect(empty).toBe(sig(["", "   "]));
+		expect(empty).toBe("s741638a5");
+	});
+});
+
 describe("buildSkipMatcher matches File/Tab exactly", () => {
 	it("skips the File/Tab pair named by an entry and nothing else", () => {
 		const skip = buildSkipMatcher(["Hanoi/Mong Hotel"]);
@@ -214,13 +234,50 @@ describe("listFiles parses ids and names, strips .xlsx, decodes entities, calls 
 		const files = await source.listFiles();
 		expect(calls).toEqual([FOLDER_URL]);
 		expect(files).toEqual([
-			{ fileId: "1HanoiSheetFileId0000000001", fileName: "Hanoi" },
-			{ fileId: "1DaNangHoiAnSheetFileId0002", fileName: "Da Nang & Hoi An" },
+			{ fileId: "1HanoiSheetFileId0000000001", fileName: "Hanoi", modified: "Nov 19, 2026" },
+			{ fileId: "1DaNangHoiAnSheetFileId0002", fileName: "Da Nang & Hoi An", modified: "Nov 18, 2026" },
 			{ fileId: "1NhaTrangSheetFileId00003", fileName: "Nha Trang" },
 		]);
 	});
 
-	it("drops duplicate ids, keeping the first", async () => {
+	it("ids and names are unchanged for the existing fixture", async () => {
+			const { fetchFn } = fakeFetch({ [FOLDER_URL]: () => new Response(fixture("folder.html"), { status: 200 }) });
+			const files = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn }).listFiles();
+			expect(files.map((f) => [f.fileId, f.fileName])).toEqual([
+				["1HanoiSheetFileId0000000001", "Hanoi"],
+				["1DaNangHoiAnSheetFileId0002", "Da Nang & Hoi An"],
+				["1NhaTrangSheetFileId00003", "Nha Trang"],
+			]);
+		});
+
+		it("listFiles returns modified for entries that have it and undefined for others", async () => {
+			const { fetchFn } = fakeFetch({ [FOLDER_URL]: () => new Response(fixture("folder.html"), { status: 200 }) });
+			const files = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn }).listFiles();
+			expect(files.map((f) => f.modified)).toEqual(["Nov 19, 2026", "Nov 18, 2026", undefined]);
+		});
+
+		it("listFiles decodes entities in modified and trims it", async () => {
+			const html = `
+<a href="https://docs.google.com/spreadsheets/d/MODTRIM0000000000001/edit"></a>
+<div class="flip-entry-title">Nha Trang.xlsx</div>
+<div class="flip-entry-last-modified"><div>  Nov 19, 2026 &amp; later  </div></div>`;
+			const { fetchFn } = fakeFetch({ [FOLDER_URL]: () => new Response(html, { status: 200 }) });
+			const files = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn }).listFiles();
+			expect(files).toEqual([{ fileId: "MODTRIM0000000000001", fileName: "Nha Trang", modified: "Nov 19, 2026 & later" }]);
+		});
+
+		it("a modified text of only spaces is treated as absent", async () => {
+			const html = `
+<a href="https://docs.google.com/spreadsheets/d/BLANKMOD000000000001/edit"></a>
+<div class="flip-entry-title">Hanoi.xlsx</div>
+<div class="flip-entry-last-modified"><div>   </div></div>`;
+			const { fetchFn } = fakeFetch({ [FOLDER_URL]: () => new Response(html, { status: 200 }) });
+			const files = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn }).listFiles();
+			expect(files).toEqual([{ fileId: "BLANKMOD000000000001", fileName: "Hanoi" }]);
+			expect(files[0].modified).toBeUndefined();
+		});
+
+		it("drops duplicate ids, keeping the first", async () => {
 		const html = `
 <a href="https://docs.google.com/spreadsheets/d/DUPID0000000000001/edit"></a>
 <div class="flip-entry-title">Hanoi.xlsx</div>

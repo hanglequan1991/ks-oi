@@ -4,6 +4,11 @@
  * The Drive folder and its sheets are link-shared, so the sync reads the same
  * public pages with no credentials:
  *   - folder listing:  embeddedfolderview?id=<folderId>
+ *       each entry gives fileId, fileName and `modified`: the entry's
+ *       last-modified text (`flip-entry-last-modified"><div>…`), trimmed and
+ *       entity-decoded. It is undefined when the page has none (never a failure).
+ *       `modified` is opaque text: compare it for equality only. A file whose
+ *       `modified` is unchanged cannot have changed its tab list.
  *   - tab list:        spreadsheets/d/<fileId>/htmlview
  *   - tab CSV:         spreadsheets/d/<fileId>/export?format=csv&gid=<gid>
  *
@@ -24,6 +29,13 @@ import { classifyFetchError, type NetworkCause } from "./fetchErrors";
 /** One entry of the folder page: a link carrying the file id, then the title. */
 const FOLDER_ENTRY_RE =
 	/href="https:\/\/[^"]*?(?:\/d\/|[?&]id=)([A-Za-z0-9_-]{10,})[^"]*"[\s\S]*?<div class="flip-entry-title">([^<]*)<\/div>/g;
+
+/**
+ * The last-modified text of a folder entry. Searched only inside the entry's
+ * slice (after its title, before the next entry), so it never reads another
+ * file's text. The text is captured raw (entities and spaces are handled later).
+ */
+const MODIFIED_RE = /flip-entry-last-modified"><div>([^<]*)</;
 
 /**
  * One tab entry of the htmlview page, real shape (verified on the live folder):
@@ -124,6 +136,8 @@ export function createPublicGoogleSource(opts: PublicGoogleSourceOptions): Sheet
 	}
 
 	return {
+		skipSignature: computeSkipSignature(opts.skipTabs ?? []),
+
 		async listFiles(): Promise<SheetFile[]> {
 			const url = `https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(folderId)}`;
 			const html = await getText(url, "folder_fetch");
@@ -186,6 +200,32 @@ export function buildSkipMatcher(entries: string[]): (fileName: string, tabName:
 	};
 }
 
+/**
+ * Fingerprint of the SKIP_TABS list: the normalised (skipKey) non-blank entries,
+ * de-duplicated and sorted, as a JSON array, hashed with FNV-1a 32-bit. Order,
+ * duplicates, case and surrounding spaces do not change it; a different set of
+ * entries does. The empty list gives a fixed value. Format: `s` + 8 hex digits.
+ */
+function computeSkipSignature(entries: string[]): string {
+	const keys = new Set<string>();
+	for (const entry of entries) {
+		const key = skipKey(entry);
+		if (key !== "") keys.add(key);
+	}
+	const canonical = JSON.stringify([...keys].sort());
+	return `s${fnv1a32(canonical).toString(16).padStart(8, "0")}`;
+}
+
+/** Pure 32-bit FNV-1a hash of the UTF-16 code units of a string (unsigned result). */
+function fnv1a32(text: string): number {
+	let hash = 0x811c9dc5;
+	for (let i = 0; i < text.length; i++) {
+		hash ^= text.charCodeAt(i);
+		hash = Math.imul(hash, 0x01000193);
+	}
+	return hash >>> 0;
+}
+
 /** Parses SKIP_TABS: unset or blank gives []; anything else must be a JSON array of strings. */
 export function parseSkipTabs(raw: string | undefined): string[] {
 	if (raw === undefined || raw.trim() === "") {
@@ -203,18 +243,39 @@ export function parseSkipTabs(raw: string | undefined): string[] {
 	return value as string[];
 }
 
-/** Unique files (first id wins) with the .xlsx suffix removed and entities decoded. */
+/**
+ * Unique files (first id wins) with the .xlsx suffix removed and entities decoded.
+ * `modified` comes from the entry's own slice: after its title and before the next
+ * entry's link or title. An entry without a non-blank modified text has none.
+ */
 function parseFolderFiles(html: string): SheetFile[] {
 	const seen = new Set<string>();
 	const files: SheetFile[] = [];
-	for (const m of html.matchAll(FOLDER_ENTRY_RE)) {
+	const entries = [...html.matchAll(FOLDER_ENTRY_RE)];
+	for (let i = 0; i < entries.length; i++) {
+		const m = entries[i];
 		const fileId = m[1];
 		if (seen.has(fileId)) continue;
 		seen.add(fileId);
 		const fileName = decodeHtml(m[2]).replace(XLSX_SUFFIX_RE, "").trim();
-		files.push({ fileId, fileName });
+		const file: SheetFile = { fileId, fileName };
+		const modified = modifiedOfEntry(html, m, entries[i + 1]);
+		if (modified !== undefined) file.modified = modified;
+		files.push(file);
 	}
 	return files;
+}
+
+/** The trimmed, decoded modified text of one entry, or undefined when absent or blank. */
+function modifiedOfEntry(html: string, entry: RegExpMatchArray, next: RegExpMatchArray | undefined): string | undefined {
+	const start = (entry.index ?? 0) + entry[0].length;
+	let end = next?.index ?? html.length;
+	const nextTitle = html.indexOf("flip-entry-title", start);
+	if (nextTitle !== -1 && nextTitle < end) end = nextTitle;
+	const found = MODIFIED_RE.exec(html.slice(start, end));
+	if (!found) return undefined;
+	const text = decodeHtml(found[1]).trim();
+	return text === "" ? undefined : text;
 }
 
 function parseTabs(html: string): Array<{ tabName: string; gid: string }> {

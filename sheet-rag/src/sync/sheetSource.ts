@@ -11,7 +11,12 @@
  */
 import type { NetworkCause } from "./fetchErrors";
 
-export type SheetFile = { fileId: string; fileName: string };
+export type SheetFile = {
+	fileId: string;
+	fileName: string;
+	/** The folder page's last-modified text, trimmed and entity-decoded. Undefined when the page has none. */
+	modified?: string;
+};
 
 export type SheetTab = {
 	fileId: string;
@@ -24,6 +29,11 @@ export interface SheetSource {
 	listFiles(): Promise<SheetFile[]>;
 	listTabs(file: SheetFile): Promise<SheetTab[]>;
 	readCsv(tab: SheetTab): Promise<string>;
+	/**
+	 * Fingerprint of the tab-skip configuration. It changes when SKIP_TABS changes,
+	 * so a cached tab list built under another list can be invalidated.
+	 */
+	skipSignature?: string;
 }
 
 /**
