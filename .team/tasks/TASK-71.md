@@ -3,7 +3,7 @@
 - id: TASK-71
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: blocked
+- status: in-progress
 - assignee: dev
 - rework count: 2
 - depends on: TASK-64 (doc), TASK-65, TASK-69, TASK-70, TASK-72, TASK-73 (and transitively 63, 66, 67, 68)

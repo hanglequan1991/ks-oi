@@ -202,7 +202,13 @@ Keep `MAX_TABS_PER_RUN` in line with the budget. A tab starts only when 8 subreq
 
 An idle run (no tab changed) costs 1 fetch and at most 8 D1 calls for a folder of up to 50 tabs. Above 50 tabs it costs at most 7 plus one D1 call per 50 tabs (16 D1 calls at 450 tabs).
 
-A folder of about 450 tabs converges over several hourly runs. At 25 tabs per run that is about 18 hourly runs (about 18 hours) for the first full pass, if the budget does not stop a run earlier (see above). Later runs only read changed tabs in the same batches. `?force=1` re-applies only the next batch of tabs, not the whole folder, so it does not speed up the first pass.
+**Estimates, not measurements.** The figures below assume: about 450 tabs, all changed on the first pass; file listings already cached; one fetch and 5 D1 calls per applied tab; the shipped constants `TAB_RESERVE` 8, `FINISH_RESERVE` 2 and `LIST_RESERVE` 6 (`src/sync/runSync.ts`); and an idle fixed cost of about 17 calls at 450 tabs (1 fetch, 7 D1 calls and 9 seen batches).
+
+- Free plan with the defaults (`MAX_TABS_PER_RUN` 25, `SUBREQUEST_BUDGET` 40), estimate: the budget, not the cap, stops the run. After the fixed cost about 23 calls are left. Tabs start with 23, 17 and 11 calls left; the next would start with 5 left (below 10), so the run stops with `budget_exhausted`. That is about 3 tabs per run, or about 150 hourly runs (roughly 6 days) for the first full pass. Tabs that are only read and found unchanged cost 1 call each, so about 14 per run.
+- The cap of 25 is unreachable on Free: 25 tabs need a budget of at least 25 × 8 + 8 = 208, and the Free plan allows 50.
+- Paid plan example (`MAX_TABS_PER_RUN` 200, `SUBREQUEST_BUDGET` 1000), estimate: about 163 tabs per run (983 calls are left after the fixed cost; tab n starts while 983 − 6 × (n − 1) ≥ 10, which gives n = 163). The first pass takes 3 runs (163 + 163 + 124), about 3 hours. On Paid, raise both values as shown, keeping the budget at or below the plan limit of 1000. After the first pass, an idle run costs about 17 calls.
+
+`?force=1` re-applies only the next batch of tabs, not the whole folder, so it does not speed up the first pass.
 
 ## Pause the sync
 
