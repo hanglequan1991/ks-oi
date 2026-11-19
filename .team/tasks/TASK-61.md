@@ -35,6 +35,10 @@ No other file may change (the fake at `sheet-rag/test/fakes/extractor.ts` is rea
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: 4 new tests failed as expected (model constant, version, json_schema request, retry request). The object-response test passed already because parseReply already accepts objects; kept as a guard.
+- Green: `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/sync`: extract.spec.ts all green (14 tests in file). Full sync run: 74 tests passed; test/sync/syncHotel.spec.ts fails at import (another dev's concurrent file, ignored).
+- Could not verify the Workers AI JSON mode docs: developers.cloudflare.com is blocked by the sandbox proxy. Implemented the `json_schema: { name, schema }` shape exactly as AC2 specifies. Reviewer/pm should confirm against the live docs before deploy (the json_schema field shape is the one thing not checked).
+- Grep: no `extract-v1` or `llama-3.1-8b` strings remain under sheet-rag/src or sheet-rag/test, so no other file asserts the old version.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework

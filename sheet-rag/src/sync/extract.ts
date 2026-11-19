@@ -88,12 +88,26 @@ const SYSTEM_PROMPT = [
 	"Do not mention room prices, booking rules or image links.",
 ].join("\n");
 
+// JSON mode: Workers AI constrains the reply to this schema.
+const REPLY_SCHEMA = {
+	type: "object",
+	properties: {
+		descriptionVi: { type: ["string", "null"] },
+		facilities: { type: "array", items: { type: "string" } },
+	},
+	additionalProperties: false,
+};
+
 function buildRequest({ text, kind }: ExtractInput): unknown {
 	return {
 		messages: [
 			{ role: "system", content: SYSTEM_PROMPT },
 			{ role: "user", content: `Kind: ${kind}\nText:\n${text}` },
 		],
+		response_format: {
+			type: "json_schema",
+			json_schema: { name: "hotel_extraction", schema: REPLY_SCHEMA },
+		},
 	};
 }
 
