@@ -23,7 +23,7 @@ Run every command in `sheet-rag/`. Run the steps in this order.
    npx wrangler d1 migrations apply hotel-dictionary --remote -c wrangler.hotel.jsonc
    ```
 
-   Migration order: apply migration `0004` only from the final version of the code. Run this step (the owner runs `wrangler d1 migrations apply`) before you deploy the Worker code in step 5, so the database and the Worker agree.
+   Run this step before the Worker deploy in step 5, so the database and the Worker agree. Migration `0004` is applied here for the first time; it is safe to re-run. For every later deploy, follow "Deploy order" below.
 
 4. Build the browser bundle (`public/bill.js`):
 
@@ -38,6 +38,33 @@ Run every command in `sheet-rag/`. Run the steps in this order.
    ```
 
    or `npm run deploy:hotel`.
+
+## Deploy order (every deploy)
+
+Run these five steps in this order. Step 3 must be done before the deploy, because the sync needs the folder id and the new tables.
+
+1. `git pull` to get the final code.
+2. Apply the migrations to the remote database:
+
+   ```sh
+   npx wrangler d1 migrations apply hotel-dictionary --remote -c wrangler.hotel.jsonc
+   ```
+
+   On the first deploy of this release this applies migration `0004` for the first time. It is safe to re-run, because `0004` only uses `CREATE TABLE IF NOT EXISTS`. Deploying the code before this step makes the sync fail on the missing tables.
+3. Set `DRIVE_FOLDER_ID` in `vars` in `wrangler.hotel.jsonc` (see "Sheet sync (folder import)", step 2). It is not a secret.
+4. If `SYNC_TOKEN` is not set yet, set it (see "Sheet sync (folder import)", step 4):
+
+   ```sh
+   npx wrangler secret put SYNC_TOKEN -c wrangler.hotel.jsonc
+   ```
+5. Build and deploy:
+
+   ```sh
+   npm run build:client
+   npx wrangler deploy -c wrangler.hotel.jsonc
+   ```
+
+   or `npm run deploy:hotel` for the deploy.
 
 ## Smoke check
 
@@ -78,7 +105,7 @@ or `npm run dry-run:hotel`. The output lists the `DB` and `ASSETS` bindings.
 The Worker syncs hotel data from a public Google Drive folder. It reads the same public Google pages as sheet-rag (no Google credentials).
 
 1. Share the Drive folder and every sheet in it as "Anyone with the link can view". Without this, the sync cannot read them.
-2. Set the folder id in `vars` in `wrangler.hotel.jsonc`: replace `REPLACE_WITH_DRIVE_FOLDER_ID` with the public folder id. It is not a secret. Until you do, the scheduled run is skipped and logged.
+2. Set the folder id in `vars` in `wrangler.hotel.jsonc`: replace `REPLACE_WITH_DRIVE_FOLDER_ID` with the public folder id. It is not a secret. Until you do, the scheduled run is skipped and logged. Do this before the deploy (item 3 of "Deploy order").
 3. Optional: set `SKIP_TABS` in `vars` to a JSON array of strings to leave out. The default `"[]"` skips nothing. Each entry is one of two forms:
    - `"File name/Tab name"` skips that tab in that one file (the file name has no `.xlsx`).
    - `"Tab name"` alone skips every tab with that exact name, in every file.
@@ -169,7 +196,13 @@ Each run has two limits, set as plain `vars` in `wrangler.hotel.jsonc`:
 
 The values are strings. Blank or invalid values fall back to the defaults. The defaults fit the Free plan, which allows 50 subrequests per invocation. On the Paid plan (1000 subrequests) the owner may raise them, for example `"1000"` for `SUBREQUEST_BUDGET` and `"200"` for `MAX_TABS_PER_RUN`. Change the values, then redeploy.
 
-A folder of about 450 tabs converges over several hourly runs. At 25 tabs per run that is about 18 hourly runs (about 18 hours) for the first full pass. Later runs only read changed tabs in the same batches. `?force=1` re-applies only the next batch, not the whole folder, so it does not speed up the first pass.
+Do not set `SUBREQUEST_BUDGET` above the plan limit of your account (Free 50, Paid 1000 per invocation). The code caps the value at 1000, but the platform limit applies first. A run that goes past the platform limit does not stop cleanly: it fails with the platform error "Too many subrequests", recorded as `csv_subrequest_limit`. Keep the budget at or below the plan limit.
+
+Keep `MAX_TABS_PER_RUN` in line with the budget. A tab starts only when 8 subrequests are free (its worst case: 3 fetch tries plus 5 D1 calls), and 8 more are kept for the listing and the end of the run. So every tab the cap allows can start when `MAX_TABS_PER_RUN` × 8 + 8 is at most `SUBREQUEST_BUDGET`. With the defaults (25 tabs, budget 40) the budget is the real limit: a run may stop with `budget_exhausted` before it reaches 25 tabs, and the rest waits for later runs. The Paid example (200 tabs, budget 1000) does not meet this rule in the worst case either. The budget then stops the run earlier, which is safe, but the cap is not reached.
+
+An idle run (no tab changed) costs 1 fetch and at most 8 D1 calls for a folder of up to 50 tabs. Above 50 tabs it costs at most 7 plus one D1 call per 50 tabs (16 D1 calls at 450 tabs).
+
+A folder of about 450 tabs converges over several hourly runs. At 25 tabs per run that is about 18 hourly runs (about 18 hours) for the first full pass, if the budget does not stop a run earlier (see above). Later runs only read changed tabs in the same batches. `?force=1` re-applies only the next batch of tabs, not the whole folder, so it does not speed up the first pass.
 
 ## Pause the sync
 
@@ -186,12 +219,12 @@ Each run writes a `notes` value in `sync_runs` (see "Read the sync run log"). No
 
 | Code | Meaning | Action |
 |---|---|---|
-| `csv_subrequest_limit` | Google returned a limit error for one tab (too many requests in one invocation). | Lower `MAX_TABS_PER_RUN` or `SUBREQUEST_BUDGET`, or raise the plan limit. The tab is retried next run. |
+| `csv_subrequest_limit` | The Workers runtime refused a fetch with "Too many subrequests": this invocation hit the platform limit (50 on Free, 1000 on Paid). It is not a Google response. | Lower `SUBREQUEST_BUDGET` to the plan limit or below, and keep `MAX_TABS_PER_RUN` in line with it (see "Limits"). The run stops at once and the tab is retried next run. |
 | `csv_illegal_invocation` | The fetch call was made with the wrong receiver. A code bug, not a Google problem. | Stop the sync (see "Pause the sync") and report it to the developer. |
 | `csv_timeout` | Google did not answer in time for one tab. | Usually transient. If it repeats, check the Drive sharing and try again later. |
 | `csv_redirect_error` | Google redirected the tab in a way the sync does not follow. | Check that the file is shared as "Anyone with the link can view". |
 | `csv_network_other` | Another network error for one tab. | Usually transient. If it repeats, report it to the developer. |
-| `aborted_circuit_breaker` | The run stopped after repeated network errors (the breaker opened). | Wait for the next run. If it repeats, pause the sync and check the cause codes above. |
+| `aborted_circuit_breaker` | The run stopped because the circuit breaker opened: five read failures in a row with the same cause, or one `csv_subrequest_limit` or `csv_illegal_invocation`. | Wait for the next run. If it repeats, pause the sync and check the cause codes above. |
 | `budget_exhausted` | The run used all of `SUBREQUEST_BUDGET`. | Normal during the first pass. Raise the budget on the Paid plan, or wait for later runs. |
 | `deadline` | The run reached the time limit (soft 8 minutes, hard 10 minutes) and stopped. | Normal for large folders. The rest is picked up next run. |
 | `abandoned` | An earlier run never finished and was closed by a later run. | Normal after a crash. Repeated cases: pause the sync and report it. |

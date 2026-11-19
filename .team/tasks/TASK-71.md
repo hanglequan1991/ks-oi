@@ -50,6 +50,9 @@ Everything built so far is injectable; this task connects it to the real Worker 
 - Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` 71 files, 606 tests passed. Playwright node chromium 32 passed. Dry-run OK (bindings DB, ASSETS, DRIVE_FOLDER_ID, SKIP_TABS, MAX_TABS_PER_RUN, SUBREQUEST_BUDGET).
 - Not touched (out of file list): `src/db/syncState.ts` (comment near TAB_CHECK_META_SQL), `migrations/0004_sync_budget.sql`.
 - Note: the `listing_incomplete` row in the doc describes it as info only; that is from runSync.ts (`kind: "info"`).
+- Rework 1 (doc only, `DEPLOY-hotel-dictionary.md`): (1) Limits: plan-limit warning for SUBREQUEST_BUDGET (Free 50, Paid 1000; platform "Too many subrequests" = `csv_subrequest_limit`) and MAX_TABS_PER_RUN rule from TAB_RESERVE 8 (3 fetch tries + 5 D1 calls) plus LIST_RESERVE 6 + FINISH_RESERVE 2 = 8. Idle cost from the TASK-73 idle-run tests in `test/sync/runSyncReadSkip.spec.ts`: 1 fetch, at most 8 D1 calls up to 50 tabs, 7 + ceil(tabs/50) above. (2) `csv_subrequest_limit` row now describes the runtime error (fetchErrors.ts `subrequest_limit`); `aborted_circuit_breaker` row lists the immediate causes (IMMEDIATE_CAUSES in runSync.ts). Other rows re-checked against fetchErrors.ts: unchanged. (3) New "## Deploy order (every deploy)" section, five steps as listed; placed after the first-time Steps so the existing order test still holds; Sheet sync step 2 points to it.
+- Open point for lead: by the TAB_RESERVE rule the Free defaults (25 tabs, budget 40) and the Paid example (200 tabs, budget 1000) are budget-bound, so the "about 18 runs" figure is a cap-only estimate. The doc now says so; the example values from AC5/AC6 are kept.
+- Tests after rework: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` 71 files, 606 tests passed.
 
 ## Review
 <!-- Written by lead. -->
