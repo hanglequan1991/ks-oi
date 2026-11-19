@@ -2,12 +2,27 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createFakeD1, type FakeD1 } from "../fakes/d1";
 import { applyMigrations } from "../fakes/migrations";
 import { createFakeSheetSource, type FakeSheetSource } from "../fakes/sheetSource";
-import { runSync, type ParseResult, type SyncDeps } from "../../src/sync/runSync";
+import {
+	runSync,
+	TAB_APPLY_CALLS,
+	TAB_FETCH_TRIES,
+	TAB_RESERVE,
+	type ParseResult,
+	type SyncDeps,
+} from "../../src/sync/runSync";
 import { startRun, getLatestRun } from "../../src/db/syncRuns";
 import { hotelIdFor } from "../../src/sync/hash";
 import { SheetReadError, type SheetFile, type SheetSource, type SheetTab } from "../../src/sync/sheetSource";
 import type { ParsedHotel } from "../../src/sync/record";
 import type { NetworkCause } from "../../src/sync/fetchErrors";
+import { countingDb } from "../../src/sync/countingDb";
+import {
+	createSubrequestBudget,
+	DEFAULT_MAX_TABS_PER_RUN,
+	DEFAULT_SUBREQUEST_BUDGET,
+	type SubrequestBudget,
+} from "../../src/sync/budget";
+import { syncHotel, type SyncHotelInput } from "../../src/sync/syncHotel";
 
 const NOW = "2026-11-19T10:00:00Z";
 const LATER = "2026-11-19T11:00:00Z";
@@ -348,7 +363,7 @@ describe("runSync: run log, concurrency and output", () => {
 		expect(serialized).not.toContain("file-1");
 		expect(serialized).not.toContain(FACILITY_LABEL);
 		expect(Object.keys(result).sort()).toEqual(
-			["created", "failed", "failures", "hidden", "unchanged", "updated"].sort(),
+			["created", "deferred", "failed", "failures", "hidden", "unchanged", "updated"].sort(),
 		);
 		for (const failure of result.failures) {
 			expect(Object.keys(failure).sort()).toEqual(["reason", "tab"]);
@@ -620,5 +635,332 @@ describe("runSync: circuit breaker", () => {
 		expect(notes).not.toContain("://");
 		expect(notes).not.toContain(SECRET_TOKEN);
 		expect(result.failures.every((f) => f.reason === "unexpected_error")).toBe(true);
+	});
+});
+
+// ---- TASK-69: per-run tab cap, oldest-first order, subrequest budget, batched seen marks ----
+
+const tabOf = (gid: number): SheetTab => ({
+	fileId: "file-1",
+	fileName: "Đà Nẵng",
+	gid: String(gid),
+	tabName: `Tab ${gid}`,
+});
+
+/** Replaces the source tabs with gids 1..n, each with a valid CSV. */
+function fillTabs(n: number): void {
+	source.tabs.length = 0;
+	for (let i = 1; i <= n; i++) {
+		source.tabs.push(tabOf(i));
+		source.csv[`file-1:${i}`] = csvOk(String(1000000 + i));
+	}
+}
+
+const sixtyTabs = (): void => fillTabs(60);
+
+const range = (from: number, to: number): string[] =>
+	Array.from({ length: to - from + 1 }, (_, i) => String(from + i));
+
+/** Charges one subrequest per listing call and per read, like the real fetch wrapper does. */
+function countingSource(src: SheetSource, budget: SubrequestBudget): SheetSource {
+	return {
+		...src,
+		listFiles: async () => {
+			budget.spend(1);
+			return src.listFiles();
+		},
+		listTabs: async (file) => {
+			budget.spend(1);
+			return src.listTabs(file);
+		},
+		readCsv: async (tab) => {
+			budget.spend(1);
+			return src.readCsv(tab);
+		},
+	};
+}
+
+type SpyCall = { op: "run"; sql: string } | { op: "batch"; sql: string[] };
+
+/** Records each statement run and each batch (by SQL text) on top of `base`. Results are unchanged. */
+function spyDb(base: Db): { db: Db; calls: SpyCall[] } {
+	const calls: SpyCall[] = [];
+	const sqlOf = new WeakMap<object, string>();
+	const innerOf = new WeakMap<object, D1PreparedStatement>();
+	const wrap = (statement: D1PreparedStatement, sql: string): D1PreparedStatement => {
+		const proxy = new Proxy(statement, {
+			get(target, prop) {
+				if (prop === "bind") {
+					return (...values: unknown[]) => wrap(target.bind(...values), sql);
+				}
+				if (prop === "run" || prop === "all" || prop === "first" || prop === "raw") {
+					return (...args: unknown[]) => {
+						calls.push({ op: "run", sql });
+						return (target[prop] as (...a: unknown[]) => unknown)(...args);
+					};
+				}
+				const value = Reflect.get(target, prop, target);
+				return typeof value === "function" ? value.bind(target) : value;
+			},
+		});
+		sqlOf.set(proxy, sql);
+		innerOf.set(proxy, statement);
+		return proxy;
+	};
+	const spied = new Proxy(base, {
+		get(target, prop) {
+			if (prop === "prepare") return (sql: string) => wrap(target.prepare(sql), sql);
+			if (prop === "batch") {
+				return (statements: D1PreparedStatement[]) => {
+					calls.push({ op: "batch", sql: statements.map((s) => sqlOf.get(s) ?? "") });
+					return target.batch(statements.map((s) => innerOf.get(s) ?? s));
+				};
+			}
+			const value = Reflect.get(target, prop, target);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+	return { db: spied, calls };
+}
+
+const isSeenMark = (sql: string): boolean => sql.includes("last_seen_at, updated_at)");
+
+describe("runSync: per-run tab cap, oldest-first, budget (TASK-69)", () => {
+	it("reads only maxTabsPerRun tabs and reports deferred", async () => {
+		sixtyTabs();
+		const reads: string[] = [];
+
+		const result = await runSync(
+			deps({
+				source: faultySource(() => undefined, reads),
+				limits: { subrequestBudget: DEFAULT_SUBREQUEST_BUDGET, maxTabsPerRun: 25 },
+			}),
+		);
+
+		expect(reads).toHaveLength(25);
+		expect(result).toMatchObject({ created: 25, failed: 0, hidden: 0, deferred: 35 });
+		expect(result.aborted).toBeUndefined();
+		expect(await rows("SELECT id FROM hotels WHERE status = 'hidden'")).toHaveLength(0);
+	});
+
+	it("three runs converge over 60 tabs oldest-first", async () => {
+		sixtyTabs();
+		const runTimes = [NOW, LATER, "2026-11-19T12:00:00Z"];
+		const runs: string[][] = [];
+
+		for (const at of runTimes) {
+			const reads: string[] = [];
+			await runSync(deps({ source: faultySource(() => undefined, reads), now: () => at }));
+			runs.push(reads);
+		}
+
+		expect(runs[0]).toEqual(range(1, 25));
+		expect(runs[1]).toEqual(range(26, 50));
+		// Run 3: the never-checked 51..60 first, then the oldest checked (gids 1..15, checked at NOW).
+		expect(runs[2]).toHaveLength(25);
+		expect(runs[2]).toEqual(expect.arrayContaining(range(51, 60)));
+		expect(runs[2].filter((gid) => Number(gid) <= 50)).toEqual(range(1, 15));
+		expect(new Set(runs.flat()).size).toBe(60);
+	});
+
+	it("marks listed tabs seen with batched calls only", async () => {
+		sixtyTabs();
+		const spy = spyDb(asDb(db));
+
+		await runSync(deps({ db: spy.db }));
+
+		const singleMarks = spy.calls.filter((c) => c.op === "run" && isSeenMark(c.sql));
+		const markBatches = spy.calls.filter((c) => c.op === "batch" && c.sql.some(isSeenMark));
+		const markedInBatches = markBatches.reduce(
+			(n, c) => n + (c.op === "batch" ? c.sql.filter(isSeenMark).length : 0),
+			0,
+		);
+		expect(singleMarks).toHaveLength(0);
+		expect(markBatches.length).toBeLessThanOrEqual(2);
+		expect(markedInBatches).toBe(60);
+	});
+
+	it("stops with budget_exhausted before exceeding the budget", async () => {
+		sixtyTabs();
+		const budget = createSubrequestBudget(DEFAULT_SUBREQUEST_BUDGET);
+
+		const result = await runSync(
+			deps({
+				db: countingDb(asDb(db), budget),
+				source: countingSource(source, budget),
+				budget,
+				limits: { subrequestBudget: DEFAULT_SUBREQUEST_BUDGET, maxTabsPerRun: 25 },
+			}),
+		);
+
+		expect(result.aborted).toBe("budget_exhausted");
+		expect(budget.used).toBeLessThanOrEqual(DEFAULT_SUBREQUEST_BUDGET);
+		expect(result.created).toBeLessThan(25);
+		expect(result.deferred).toBeGreaterThan(0);
+		expect(await rows("SELECT id FROM hotels WHERE status = 'hidden'")).toHaveLength(0);
+		const latest = await getLatestRun(asDb(db));
+		expect(latest).toMatchObject({ finished_at: NOW });
+		expect(JSON.parse(latest!.notes as string).items).toContainEqual({ kind: "abort", reason: "budget_exhausted" });
+	});
+
+	it("always finishes the run row on budget exhaustion", async () => {
+		// 3 is below the fixed start-up cost, 40 runs out in the middle of the tabs.
+		for (const limit of [3, DEFAULT_SUBREQUEST_BUDGET]) {
+			db = createFakeD1();
+			await applyMigrations(db);
+			sixtyTabs();
+			const budget = createSubrequestBudget(limit);
+
+			const result = await runSync(
+				deps({
+					db: countingDb(asDb(db), budget),
+					source: countingSource(source, budget),
+					budget,
+				}),
+			);
+
+			expect(result.aborted).toBe("budget_exhausted");
+			expect(await rows("SELECT id FROM sync_runs WHERE finished_at IS NULL")).toHaveLength(0);
+			const latest = await getLatestRun(asDb(db));
+			expect(latest).toMatchObject({ finished_at: NOW });
+			expect(JSON.parse(latest!.notes as string).items).toContainEqual({ kind: "abort", reason: "budget_exhausted" });
+		}
+	});
+
+	it("unchanged tabs refresh last_checked_at in one batch, unreadable tabs do not", async () => {
+		fillTabs(4);
+		await runSync(deps({ now: () => NOW }));
+		source.failRead.push("file-1:3");
+		const spy = spyDb(asDb(db));
+
+		const result = await runSync(deps({ db: spy.db, now: () => LATER }));
+
+		expect(result).toMatchObject({ unchanged: 3, failed: 1, created: 0, updated: 0 });
+		const checks = await rows<{ tab_key: string; last_checked_at: string }>(
+			"SELECT tab_key, last_checked_at FROM sync_tab_checks ORDER BY tab_key",
+		);
+		expect(checks).toEqual([
+			{ tab_key: "file-1:1", last_checked_at: LATER },
+			{ tab_key: "file-1:2", last_checked_at: LATER },
+			{ tab_key: "file-1:3", last_checked_at: NOW },
+			{ tab_key: "file-1:4", last_checked_at: LATER },
+		]);
+		const checkBatches = spy.calls.filter(
+			(c): c is { op: "batch"; sql: string[] } =>
+				c.op === "batch" && c.sql.length > 0 && c.sql.every((s) => s.includes("sync_tab_checks")),
+		);
+		expect(checkBatches).toHaveLength(1);
+		expect(checkBatches[0].sql).toHaveLength(3);
+	});
+
+	it("counts keep their meaning for processed tabs", async () => {
+		fillTabs(3);
+		source.csv["file-1:3"] = "status=broken";
+		expect(await runSync(deps())).toMatchObject({ created: 2, updated: 0, failed: 1, unchanged: 0, hidden: 0 });
+
+		source.csv["file-1:1"] = csvOk("1900000");
+		const second = await runSync(deps({ now: () => LATER }));
+
+		expect(second).toMatchObject({ created: 0, updated: 1, failed: 1, unchanged: 1, hidden: 0 });
+		expect(second.failures).toEqual([{ tab: "Tab 3", reason: "stub_parse_failed" }]);
+	});
+
+	it("summary carries deferred as a number and no text", async () => {
+		sixtyTabs();
+		const result = await runSync(deps());
+
+		for (const key of ["created", "updated", "failed", "hidden", "unchanged", "deferred"] as const) {
+			expect(typeof result[key]).toBe("number");
+		}
+		expect(result.deferred).toBe(35);
+		expect(JSON.stringify(result.deferred)).toMatch(/^\d+$/);
+
+		// Listing failure and already_running also report deferred as a number (0).
+		source.failList = true;
+		expect(await runSync(deps())).toMatchObject({ deferred: 0 });
+		source.failList = false;
+		await startRun(asDb(db), "scheduled", "2026-11-19T09:50:00Z");
+		expect(await runSync(deps())).toMatchObject({ skipped: "already_running", deferred: 0 });
+	});
+
+	it("defaults apply without limits or budget", async () => {
+		sixtyTabs();
+		expect(DEFAULT_MAX_TABS_PER_RUN).toBe(25);
+		const reads: string[] = [];
+
+		const result = await runSync(deps({ source: faultySource(() => undefined, reads) }));
+
+		expect(reads).toHaveLength(25);
+		expect(result).toMatchObject({ created: 25, deferred: 35 });
+		expect(result.aborted).toBeUndefined();
+	});
+
+	it("deferred tabs are never hidden, truly removed tabs are", async () => {
+		sixtyTabs();
+		await runSync(deps()); // gids 1..25 created
+		await runSync(deps({ now: () => LATER })); // gids 26..50 created, the rest deferred
+		expect(await hotelStatus(tabOf(1))).toBe("published");
+		expect(await hotelStatus(tabOf(40))).toBe("published");
+
+		// Tab gid 5 (index 4) really disappears from the sheet.
+		source.tabs.splice(4, 1);
+		const result = await runSync(deps({ now: () => "2026-11-19T12:00:00Z" }));
+
+		expect(result).toMatchObject({ hidden: 1, deferred: 34, failed: 0 });
+		expect(await hotelStatus(tabOf(5))).toBe("hidden");
+		for (const gid of [1, 2, 3, 4]) {
+			expect(await hotelStatus(tabOf(gid))).toBe("published");
+		}
+		expect(await rows("SELECT id FROM hotels WHERE status = 'hidden'")).toHaveLength(1);
+	});
+
+	it("TAB_RESERVE matches the measured worst case of one applied tab", async () => {
+		const recordOf = (price: string): ParsedHotel => {
+			const parsed = stubParse(csvOk(price));
+			if (!parsed.ok) throw new Error("fixture must parse");
+			return parsed.record;
+		};
+		const noSetup = async (): Promise<void> => {};
+		const createTabA = async (): Promise<void> => {
+			await syncHotel(asDb(db), { tab: TAB_A, record: recordOf("1500000"), hash: "h1", now: NOW, autoPublish: true });
+		};
+		const failingBatch = (d: Db): Db =>
+			new Proxy(d, {
+				get(target, prop) {
+					if (prop === "batch") return () => Promise.reject(new Error("batch failed"));
+					const value = Reflect.get(target, prop, target);
+					return typeof value === "function" ? value.bind(target) : value;
+				},
+			});
+
+		// Counts the D1 calls of one syncHotel call on a fresh database (setup is not counted).
+		async function applyCost(
+			setup: () => Promise<void>,
+			input: SyncHotelInput,
+			wrap: (d: Db) => Db = (d) => d,
+		): Promise<number> {
+			db = createFakeD1();
+			await applyMigrations(db);
+			await setup();
+			const budget = createSubrequestBudget(Infinity);
+			try {
+				await syncHotel(countingDb(wrap(asDb(db)), budget), input);
+			} catch {
+				// A thrown apply still counts the calls it made.
+			}
+			return budget.used;
+		}
+
+		const costs = [
+			await applyCost(noSetup, { tab: TAB_A, record: recordOf("1500000"), hash: "h1", now: NOW, autoPublish: true }),
+			await applyCost(createTabA, { tab: TAB_A, record: recordOf("1900000"), hash: "h2", now: LATER, autoPublish: true }),
+			await applyCost(createTabA, { tab: { ...TAB_A, gid: "9" }, record: recordOf("1500000"), hash: "h3", now: NOW, autoPublish: true }),
+			await applyCost(noSetup, { tab: TAB_A, record: recordOf("1500000"), hash: "h1", now: NOW, autoPublish: true }, failingBatch),
+		];
+
+		expect(costs.every((c) => c > 0)).toBe(true);
+		expect(TAB_FETCH_TRIES).toBe(3);
+		expect(TAB_APPLY_CALLS).toBe(Math.max(...costs));
+		expect(TAB_RESERVE).toBe(TAB_FETCH_TRIES + TAB_APPLY_CALLS);
 	});
 });
