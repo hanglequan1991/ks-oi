@@ -48,6 +48,12 @@ Migration `sheet-rag/migrations/0004_sync_budget.sql` (re-runnable like 0003, IF
 
 ## Dev notes
 <!-- Written by dev. -->
+- Done: migration `0004_sync_budget.sql` (ALTER with a header note that it is not re-runnable on its own, runner applies each file once; CREATE TABLE IF NOT EXISTS). `src/db/syncState.ts`: `last_checked_at` in the row type and select, `markTabsChecked`, `markTabsSeenBatch` (chunks of 50), `pickOldestFirst`, `recordTabSuccess` sets `last_checked_at`, `recordTabError` does not (comment added). `src/db/syncFiles.ts` new: `getSyncFiles`, `upsertSyncFile`, defensive `tabs_json` parse.
+- Specs: `test/migrations/0004_sync_budget.spec.ts`, `test/db/syncState.spec.ts` (6 new tests), `test/db/syncFiles.spec.ts`. All green. The 0003 spec and the "applied twice" test only run 0001-0003, so they are unchanged and green. No spec pins the migration count.
+- Full unit run: 500 passed, 1 failed: `test/sync/syncHotel.spec.ts > inline success row in the batch matches recordTabSuccess on every column`. Cause: `src/sync/syncHotel.ts` (lines ~106-117) has its own inline copy of the success upsert, which does not set `last_checked_at`, so it differs from `recordTabSuccess`. Not in this task's file list, so not edited.
+
+## Questions
+Q1 (technical, to lead): the real success path in runSync goes through the inline statement in `src/sync/syncHotel.ts`, not through `recordTabSuccess`. Without `last_checked_at` there, a successful tab never gets a check time, so AC3 is not met in production. Fix needs a one-line change in `src/sync/syncHotel.ts` (add `last_checked_at` as `?` with `args.now`, `excluded.last_checked_at` in the upsert) and the bind list, plus that file must be added to this task's file list (or assigned to another task). Who should make it? Until answered, the `syncHotel` inline-success test stays red.
 
 ## Review
 <!-- Written by lead. -->
