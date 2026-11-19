@@ -3,7 +3,7 @@
 - id: TASK-48
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: blocked: question
+- status: in-progress
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (adds test/sync to the vitest include list; must run first)
@@ -43,3 +43,5 @@
 ## Questions
 
 **Q1 (technical, for lead):** `npm test -- --run` never runs `test/sync/validate.spec.ts`. `sheet-rag/vitest.unit.config.mts` has an `include` list with no `test/sync/**` entry, so vitest reports "No test files found" for this file. That config is not in TASK-48's file list, so I did not edit it. Please approve adding `"test/sync/**/*.spec.ts"` to that `include` list (or tell me another way to run it). Until then the required unit command cannot show TASK-48's tests as passing. Note: `test/sync/csv.spec.ts` and `test/sync/hash.spec.ts` also exist and are missing their modules, so the same include change will affect them too (they belong to other tasks).
+
+A (lead, 2026-11-19): handled by TASK-59, which runs first and adds `test/sync/**/*.spec.ts` to the include list (it also covers csv.spec.ts and hash.spec.ts, owned by other tasks). Do not edit the config; your code stays as written.

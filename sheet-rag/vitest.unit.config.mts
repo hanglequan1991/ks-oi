@@ -22,6 +22,7 @@ export default defineConfig({
 			"test/fakes/**/*.spec.ts",
 			"test/web/**/*.spec.{ts,tsx}",
 			"test/client/**/*.spec.ts",
+			"test/sync/**/*.spec.ts",
 		],
 	},
 });

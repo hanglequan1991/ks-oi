@@ -3,7 +3,7 @@
 - id: TASK-46
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: blocked: question
+- status: in-progress
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (adds test/sync to the vitest include list; must run first)
@@ -14,7 +14,7 @@ Context (2026-11-19, from the deployed sheet-rag worker, decision A): the sheets
 ## Acceptance criteria
 1. AC1: `src/sync/sheetSource.ts` exports `SheetFile = { fileId: string; fileName: string }`, `SheetTab = { fileId: string; fileName: string; gid: string; tabName: string }` and `interface SheetSource { listFiles(): Promise<SheetFile[]>; listTabs(file: SheetFile): Promise<SheetTab[]>; readCsv(tab: SheetTab): Promise<string> }`. `fileName` is the city source (Drive file name minus `.xlsx`), `tabName` the hotel name source; `fileId`+`gid` are the stable identity (STORY-14 AC1). It also exports `class SheetReadError extends Error` and `listAllTabs(source): Promise<SheetTab[]>` (listFiles then listTabs of each file, in order; any throw propagates).
 2. AC2: `src/sync/publicGoogleSource.ts` exports `createPublicGoogleSource({ folderId, skipTabs?, fetchFn = fetch }): SheetSource` and `parseSkipTabs(raw: string | undefined): string[]` (the var `SKIP_TABS`, a JSON array of `"File name/Tab name"` strings; unset or empty gives `[]`; invalid JSON or a non-array of strings throws `SheetConfigError`, also exported from `sheetSource.ts`). A missing or blank `folderId` throws `SheetConfigError`.
-3. AC3: `listFiles` fetches `https://drive.google.com/embeddedfolderview?id=${folderId}` and extracts file ids and names by regex (pattern as in sheet-rag: the page has one entry per file with the file id in a `/d/<id>` or `id=<id>` link and the name in a title element). Names have a trailing `.xlsx` removed and HTML entities decoded. Duplicate ids are dropped. If the parse yields zero files the call throws `SheetReadError('folder_parse_empty')` (never returns `[]`: an empty parse is an error, not a deletion; STORY-14 AC13).
+3. AC3: `listFiles` fetches `https://drive.google.com/embeddedfolderview?id=${folderId}` and extracts file ids and names by regex (pattern as in sheet-rag: the page has one entry per file with the file id in a `/d/<id>` or `id=<id>` link and the name in a title element). Names have a trailing `.xlsx` removed and HTML entities decoded. Duplicate ids are dropped. A failed fetch throws `SheetReadError('folder_fetch_network')` or `SheetReadError('folder_fetch_http_<status>')`. If the parse yields zero files the call throws `SheetReadError('folder_parse_empty')` (never returns `[]`: an empty parse is an error, not a deletion; STORY-14 AC13).
 4. AC4: `listTabs(file)` fetches `https://docs.google.com/spreadsheets/d/${fileId}/htmlview` and parses the entries `items.push({name: "...", gid: "..."})` (name may contain escaped quotes and `\uXXXX` escapes, decoded). Tabs listed in `skipTabs` (matched as `<fileName>/<tabName>`, case-sensitive, after the `.xlsx` strip) are left out. If the page yields zero tabs before skipping the call throws `SheetReadError('tab_list_parse_empty')`; skipping all tabs by configuration is allowed and returns `[]`.
 5. AC5: `readCsv(tab)` fetches `https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv&gid=${gid}` and returns the text. A non-2xx status, a network error, an HTML response (body starts with `<!DOCTYPE` or `<html`, as when a sheet is not link-shared) or an empty body throws `SheetReadError` (never returns empty text). Error messages never contain the full URL beyond the host name.
 6. AC6: `test/fakes/sheetSource.ts` exports `createFakeSheetSource({ files, tabs, csv, failList?, failRead? })` implementing `SheetSource`, with mutable `files`, `tabs` and a `csv` map keyed `fileId:gid` so tests can edit, remove and fail (`failList` makes `listFiles` throw, `failRead` makes `readCsv` throw for given keys).
@@ -26,7 +26,7 @@ Context (2026-11-19, from the deployed sheet-rag worker, decision A): the sheets
 - [ ] `parseSkipTabs reads valid json, returns empty for unset, rejects bad json`: covers AC2
 - [ ] `createPublicGoogleSource rejects a blank folder id`: covers AC2
 - [ ] `listFiles parses ids and names, strips .xlsx, decodes entities, calls the embeddedfolderview url`: covers AC3
-- [ ] `listFiles throws folder_parse_empty on the empty page and on a fetch failure`: covers AC3
+- [ ] `listFiles throws folder_parse_empty on the empty page, and folder_fetch_network / folder_fetch_http_<status> on a fetch failure`: covers AC3
 - [ ] `listTabs parses names and gids including escapes and honours skipTabs`: covers AC4
 - [ ] `listTabs throws tab_list_parse_empty on the empty page`: covers AC4
 - [ ] `readCsv returns text and throws SheetReadError on 500, network error, html page and empty body`: covers AC5
@@ -50,4 +50,4 @@ Dev (2026-11-19): tests run and green via a scratch vitest config outside the pr
 ## Review
 
 ## Questions
-Q1 (technical, to lead): `sheet-rag/vitest.unit.config.mts` `test.include` lists only test/db, test/domain, test/migrations, test/fakes, test/web and test/client. `test/sync/**/*.spec.ts` is not included, so `npm test -- --run` silently skips `test/sync/publicGoogleSource.spec.ts` (and the other test/sync specs). Config is not in this task's file list, so I did not edit it. Proposed fix: add `"test/sync/**/*.spec.ts"` to that include array (owner of the config to approve). Until then the official command does not run this task's public-source tests. A: (open)
+Q1 (technical, to lead): `sheet-rag/vitest.unit.config.mts` `test.include` lists only test/db, test/domain, test/migrations, test/fakes, test/web and test/client. `test/sync/**/*.spec.ts` is not included, so `npm test -- --run` silently skips `test/sync/publicGoogleSource.spec.ts` (and the other test/sync specs). Config is not in this task's file list, so I did not edit it. Proposed fix: add `"test/sync/**/*.spec.ts"` to that include array (owner of the config to approve). Until then the official command does not run this task's public-source tests. A (lead, 2026-11-19): handled by TASK-59, which runs first and adds `test/sync/**/*.spec.ts` to the include list. Do not edit the config; your code stays as written. Deviation ruling: ACCEPTED. Throwing `folder_fetch_network` / `folder_fetch_http_<status>` on a failed folder fetch is fine because every `SheetReadError` keeps the no-deletion guarantee (STORY-14 AC13). Task wording corrected below.
