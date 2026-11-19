@@ -3,7 +3,7 @@
 - id: TASK-70
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 0
 - depends on: TASK-66 (sync_files), TASK-67 (`SheetFile.modified`, `skipSignature`), TASK-69 (runSync budget and ordering)
@@ -54,8 +54,14 @@ Design (lead):
 
 ## Dev notes
 <!-- Written by dev. -->
+- Dev stopped before writing code. Read runSync.ts, syncFiles.ts (getSyncFiles, upsertSyncFile), syncState.ts, planSync.ts, budget.ts, the fakes and runSync.spec.ts. No files changed.
+- Conflict 1 (AC7 zero readCsv): runSync reads (hashes) every picked tab each run (`source.readCsv` per tab, up to maxTabsPerRun = 25) because change detection is by content hash. An idle run with 25+ tabs therefore costs 25 readCsv fetches, not zero. The TASK-69 tests (rotation, `reads` of 25 per run) also depend on picked tabs being read. Zero readCsv needs either (a) skipping reads of tabs in files whose modified and skip signature are unchanged and whose state is clean (no hash change expected, no last_error, not missing, not force). That skips detection of a PARSER_VERSION change (the hash includes it), so it needs a stored parser version or a documented exception; or (b) relaxing AC7 to "zero listTabs, readCsv only for picked tabs (at most maxTabsPerRun)".
+- Conflict 2 (AC5 budget): the listing gate is canAfford(LIST_RESERVE = 6) and the tab gate is canAfford(TAB_RESERVE + FINISH_RESERVE = 10). If the budget refuses the 4th listing, fewer than 6 remain, so fewer than 10 remain for the tab loop and none of the 3 listed files' tabs start (budget_exhausted). AC5 ("the run still processes the tabs of the 3 listed files") cannot hold with this gate. Options: (a) listing gate also reserves one tab (LIST_RESERVE + TAB_RESERVE + FINISH_RESERVE) and AC5 uses a budget sized for it; or (b) AC5 only asserts that listed files' tabs are processed when the tab gate allows.
+- Smaller points to confirm with the answer: a cached fallback (AC6, unaffordable relist) should only be used when the stored skip_sig equals the current one (else a newly skipped tab could be applied); a listTabs throw with subrequest_limit/illegal_invocation sets summary aborted "circuit_breaker" and the abort note with failed_run.
 
 ## Review
 <!-- Written by lead. -->
 
 ## Questions
+1. AC7 (zero readCsv on an idle run) conflicts with the current hash check. runSync reads every picked tab each run (up to maxTabsPerRun), so an idle 50-tab run costs 25 readCsv fetches. Which do you want: (a) skip readCsv for tabs of files whose modified and skip signature are unchanged and whose state is clean (then a PARSER_VERSION change must be handled, e.g. a stored parser version), or (b) relax AC7 to zero listTabs with readCsv bounded by maxTabsPerRun? (technical, to lead)
+2. AC5 (budget) conflicts with the gates: listing needs canAfford(LIST_RESERVE = 6), tabs need canAfford(10). When the 4th listing is refused, fewer than 10 remain, so none of the 3 listed files' tabs are processed. Which do you want: (a) listing also reserves one tab's worst case (LIST_RESERVE + TAB_RESERVE + FINISH_RESERVE), or (b) AC5 asserts processing only when the tab gate allows? (technical, to lead)
