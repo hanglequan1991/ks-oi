@@ -6,7 +6,7 @@
 - status: in-progress
 - assignee: dev
 - rework count: 0
-- depends on: none
+- depends on: TASK-59 (adds test/sync to the vitest include list; must run first)
 - size: fits a 100k-token context (few files, one behaviour)
 
 Context (2026-11-19, from the deployed sheet-rag worker, decision A): the sheets are already synced on sheet-rag and the Drive folder is public (link-shared). The hotel-dictionary sync reads the SAME public Google pages itself, with no credentials. Sandbox cannot reach Google, so this task is tested ONLY against recorded fixtures. The real page format MUST be verified by the owner on the first real run (see Dev notes); a Google format change must never be read as a deletion.

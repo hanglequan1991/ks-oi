@@ -3,10 +3,10 @@
 - id: TASK-47
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: blocked: question
+- status: in-progress
 - assignee: dev
 - rework count: 0
-- depends on: none
+- depends on: TASK-59 (adds test/sync to the vitest include list; must run first)
 - size: fits a 100k-token context (few files, one behaviour)
 
 ## Acceptance criteria

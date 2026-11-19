@@ -5,7 +5,7 @@
 - type: backend
 - status: blocked: question
 - rework count: 0
-- depends on: TASK-47, TASK-48, TASK-56 (replaces its stub), TASK-57; there is NO existing structured extraction in sheet-rag (it stores sheets as free-text chunks), so this parser is written from scratch from the owner's sample rows; and the user's sample rows (see Questions)
+- depends on: TASK-59 (vitest include for test/sync, must run first), TASK-47, TASK-48, TASK-56 (replaces its stub), TASK-57; there is NO existing structured extraction in sheet-rag (it stores sheets as free-text chunks), so this parser is written from scratch from the owner's sample rows; and the user's sample rows (see Questions)
 - size: fits a 100k-token context (few files, one behaviour) once the samples exist; split again if the layout has several variants
 
 ## Acceptance criteria

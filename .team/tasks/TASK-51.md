@@ -5,7 +5,7 @@
 - type: backend
 - status: todo
 - rework count: 0
-- depends on: TASK-48 (record type), TASK-47 (hash helpers)
+- depends on: TASK-59 (vitest include for test/sync, must run first), TASK-48 (record type), TASK-47 (hash helpers)
 - size: fits a 100k-token context (few files, one behaviour)
 
 ## Acceptance criteria

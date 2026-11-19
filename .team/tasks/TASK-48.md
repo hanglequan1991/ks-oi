@@ -3,10 +3,10 @@
 - id: TASK-48
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 0
-- depends on: none
+- depends on: TASK-59 (adds test/sync to the vitest include list; must run first)
 - size: fits a 100k-token context (few files, one behaviour)
 
 ## Acceptance criteria
@@ -32,6 +32,14 @@
 
 ## Dev notes
 
+- Written: `src/sync/record.ts` (types only), `src/sync/validate.ts` (`validateHotel`, codes as in AC2 plus the two warning codes), `test/sync/validate.spec.ts` (9 tests, all pass).
+- Choices: `ValidationResult` is `{ ok: true; warnings }` or `{ ok: false; errors; warnings }`, so warnings are returned on both branches. `bedType` is `string`, `sizeM2` and `maxGuests` are `number`. Room name counts as empty when it folds to nothing. Error order: stars, images by index, then rooms by index (name check, then price).
+- Verified red then green with a temporary config in the scratchpad (outside the repo): 9 of 9 pass, `tsc` clean for the new files.
+- The official command does not run `test/sync/`, see Questions.
+- Unrelated to this task: the full official run shows 1 failure in `test/db/apiSample.spec.ts` ("keeps the default settings from the migration").
+
 ## Review
 
 ## Questions
+
+**Q1 (technical, for lead):** `npm test -- --run` never runs `test/sync/validate.spec.ts`. `sheet-rag/vitest.unit.config.mts` has an `include` list with no `test/sync/**` entry, so vitest reports "No test files found" for this file. That config is not in TASK-48's file list, so I did not edit it. Please approve adding `"test/sync/**/*.spec.ts"` to that `include` list (or tell me another way to run it). Until then the required unit command cannot show TASK-48's tests as passing. Note: `test/sync/csv.spec.ts` and `test/sync/hash.spec.ts` also exist and are missing their modules, so the same include change will affect them too (they belong to other tasks).
