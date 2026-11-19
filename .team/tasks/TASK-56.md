@@ -5,7 +5,7 @@
 - type: backend
 - status: in-progress
 - assignee: dev
-- rework count: 0
+- rework count: 1
 - depends on: TASK-46, TASK-54, TASK-55
 - size: fits a 100k-token context (few files, one behaviour)
 
@@ -43,5 +43,13 @@ Cron frequency: the story says hourly, the user message said daily; hourly is th
 - Unit suite: 63 files, 461 tests passed. Dry run exit 0.
 
 ## Review
+Verdict: rework
+
+Code, tests and config are good: all code ACs covered by tests, suite green (63 files), only listed files changed (siteSync.spec.tsx is in the file list; wrangler.jsonc, src/index.ts, site.spec.tsx untouched), scheduled never throws and skips on unset/blank/placeholder/bad SKIP_TABS without calling Google, route 404 without SYNC_TOKEN (manual run with unconfigured folder gives a generic 500 sync_failed, no leak), no real id or secret in wrangler.hotel.jsonc, AI binding left commented. Only the DEPLOY doc is incomplete:
+1. Step 4 must use `npx wrangler secret put SYNC_TOKEN -c wrangler.hotel.jsonc` (without -c it targets the wrong Worker).
+2. Add a manual-trigger example with curl and the bearer header, token never in the URL, e.g. `curl -X POST -H "Authorization: Bearer $SYNC_TOKEN" https://<worker-host>/internal/sync` (mention `?force=1` is the only query param, and that 404 means SYNC_TOKEN is not set, 401 wrong token).
+3. Add how to read sync runs: `npx wrangler d1 execute hotel-dictionary --remote -c wrangler.hotel.jsonc --command "SELECT * FROM sync_runs ORDER BY started_at DESC LIMIT 5"` (id is a text key, so order by started_at; columns per migrations/0003_sync.sql).
+4. Mention the optional AI binding is off and how to enable it (`"ai": { "binding": "AI" }` in wrangler.hotel.jsonc, only if a later task needs it).
+Only DEPLOY-hotel-dictionary.md needs to change.
 
 ## Questions
