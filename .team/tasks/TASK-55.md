@@ -35,6 +35,10 @@
 ## Dev notes
 Related open check in decision.md (2026-11-19): the limiter trusts CF-Connecting-IP, then X-Forwarded-For. Tests send CF-Connecting-IP.
 
+- Implemented in `src/web/routes/internalSync.ts`; tests in `test/web/routes/internalSync.spec.ts` (8 tests, all green; full unit suite 411 passed).
+- Order: secret gate (404 via `c.notFound()`), then rate limit, then bearer check. `constantTimeEqual` is exported for tests.
+- 200 body is the value returned by `runSync` as-is. No summary shape is defined in STORY-14 or the code yet, so the route does not filter it. If the sync can return file paths or row data, the caller must return counts and failures only.
+
 ## Review
 
 ## Questions

@@ -30,6 +30,10 @@
 - `sheet-rag/test/sync/extract.spec.ts`
 
 ## Dev notes
+- Red: spec failed with missing module `src/sync/extract`. Green: 9/9 extractor tests pass. Full unit suite: 58 files, 411 tests pass.
+- Model name `EXTRACTOR_MODEL = "@cf/meta/llama-3.1-8b-instruct"` is my choice; no text model is named in the design or config. Confirm before deploy (one constant to change).
+- A thrown error from the AI binding falls back at once (no retry). Only invalid JSON and schema failures are retried once.
+- The `warning` field is an optional extra on the result type, needed for AC4.
 
 ## Review
 
