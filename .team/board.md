@@ -158,4 +158,25 @@ QA test cases for STORY-11 (TC-40 owns the shared harness e2e/support/billServer
 | [TC-61](testcases/TC-61.md) | qa | e2e/TC-61.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
 | [TC-62](testcases/TC-62.md) | qa | e2e/TC-62.e2e.ts | - | blocked | 0 | needs live deployment; owner |
 
+## STORY-14: Sheet-to-D1 sync (public Google pages, hourly cron)
+
+File ownership note: src/site.ts, test/web/site.spec.tsx, test/web/site-config.spec.ts, wrangler.hotel.jsonc and DEPLOY-hotel-dictionary.md are touched only by TASK-56; package.json is touched by none of these tasks.
+
+| Task | Type | Files | Assignee | Status | Rework count | Notes |
+|---|---|---|---|---|---|---|
+| [TASK-45](tasks/TASK-45.md) | backend | migrations/0003_sync.sql, test/migrations/0003_sync.spec.ts | dev | in-progress | 0 | deps: none |
+| [TASK-46](tasks/TASK-46.md) | backend | src/sync/sheetSource.ts, src/sync/publicGoogleSource.ts, test/fakes/sheetSource.ts, test/sync/publicGoogleSource.spec.ts, test/fakes/sheetSource.spec.ts, test/fixtures/google/* | dev | in-progress | 0 | deps: none |
+| [TASK-47](tasks/TASK-47.md) | backend | src/sync/csv.ts, src/sync/hash.ts, test/sync/csv.spec.ts, test/sync/hash.spec.ts | dev | in-progress | 0 | deps: none |
+| [TASK-48](tasks/TASK-48.md) | backend | src/sync/record.ts, src/sync/validate.ts, test/sync/validate.spec.ts | dev | in-progress | 0 | deps: none |
+| [TASK-49](tasks/TASK-49.md) | backend | src/db/syncState.ts, src/sync/planSync.ts, test/db/syncState.spec.ts, test/sync/planSync.spec.ts | - | todo | 0 | deps: TASK-45, TASK-46, TASK-47 |
+| [TASK-50](tasks/TASK-50.md) | backend | src/sync/writeHotel.ts, test/sync/writeHotel.spec.ts | - | todo | 0 | deps: TASK-45, TASK-48, TASK-47 |
+| [TASK-51](tasks/TASK-51.md) | backend | src/sync/writeRooms.ts, test/sync/writeRooms.spec.ts | - | todo | 0 | deps: TASK-48, TASK-47 |
+| [TASK-52](tasks/TASK-52.md) | backend | src/sync/overrides.ts, test/sync/overrides.spec.ts | - | todo | 0 | deps: none |
+| [TASK-53](tasks/TASK-53.md) | backend | src/sync/syncHotel.ts, test/sync/syncHotel.spec.ts | - | todo | 0 | deps: TASK-48, TASK-49, TASK-50, TASK-51, TASK-52 |
+| [TASK-54](tasks/TASK-54.md) | backend | src/db/syncRuns.ts, src/sync/runSync.ts, test/db/syncRuns.spec.ts, test/sync/runSync.spec.ts | - | todo | 0 | deps: TASK-46, TASK-49, TASK-53 |
+| [TASK-55](tasks/TASK-55.md) | backend | src/web/routes/internalSync.ts, test/web/routes/internalSync.spec.ts | - | todo | 0 | deps: none (sync injected as a function) |
+| [TASK-56](tasks/TASK-56.md) | backend | src/site.ts, src/sync/rowParser.ts (stub only), wrangler.hotel.jsonc, DEPLOY-hotel-dictionary.md, test/web/site.spec.tsx, test/web/site-config.spec.ts, test/web/siteSync.spec.tsx | - | todo | 0 | deps: TASK-46, TASK-54, TASK-55; sole editor of the shared site/wrangler/deploy-doc files; hourly cron (owner may change) |
+| [TASK-57](tasks/TASK-57.md) | backend | src/sync/extract.ts, test/fakes/extractor.ts, test/sync/extract.spec.ts | - | todo | 0 | deps: TASK-48 |
+| [TASK-58](tasks/TASK-58.md) | backend | src/sync/rowParser.ts, test/sync/rowParser.spec.ts, test/fixtures/sync/*.csv | - | blocked | 0 | blocked: waiting for the owner's DRIVE_FOLDER_ID and ~20 sample rows (two tabs, two cities); deps: TASK-47, TASK-48, TASK-56 (replaces its stub), TASK-57; also shares src/sync/rowParser.ts with TASK-56 (must run after it) |
+
 Note: Deferred TCs with stale wording after the design restyle (TASK-43/44), update when they are automated: TC-40, TC-41 (column headers now 'Đơn giá (VND)' / 'Price (VND)'; vi title), TC-47, 48, 50, 59, 62 (prose 'Pricing'), TC-49 (edited marker now in the note block; text 'Đã sửa giá' / 'Price edited'); also check any TC quoting the old draft-saved text, intro text, language-link location or button order.
