@@ -7,8 +7,10 @@
  *   - tab list:        spreadsheets/d/<fileId>/htmlview
  *   - tab CSV:         spreadsheets/d/<fileId>/export?format=csv&gid=<gid>
  *
- * Format verified only against hand-written fixtures in test/fixtures/google/.
- * The owner must verify against the real pages on the first run (compare the
+ * The tab list shape follows the real htmlview page (items.push({name, pageUrl,
+ * gid})). Fixtures in test/fixtures/google/ mirror it. Page reads that fail
+ * with HTTP 429, HTTP 5xx or a network error are retried up to 3 tries.
+ * The owner must verify against the real pages on each first run (compare the
  * run's file and tab counts with the Drive folder).
  *
  * Safety: a page that does not parse is an error (SheetReadError), never an
@@ -20,8 +22,18 @@ import { SheetConfigError, SheetReadError, type SheetFile, type SheetSource, typ
 const FOLDER_ENTRY_RE =
 	/href="https:\/\/[^"]*?(?:\/d\/|[?&]id=)([A-Za-z0-9_-]{10,})[^"]*"[\s\S]*?<div class="flip-entry-title">([^<]*)<\/div>/g;
 
-/** One tab entry of the htmlview page: items.push({name: "...", gid: "..."}). */
-const TAB_ITEM_RE = /items\.push\(\{name:\s*"((?:[^"\\]|\\.)*)",\s*gid:\s*"(\d+)"\s*\}\)/g;
+/**
+ * One tab entry of the htmlview page, real shape (verified on the live folder):
+ *   items.push({name: "<js-escaped name>", pageUrl: "<url>", gid: "<digits>"...
+ * pageUrl is optional here (older pages), and the entry is not closed by `})`
+ * right after gid, so only name and gid are required.
+ */
+const TAB_ITEM_RE = /items\.push\(\{name:\s*"((?:[^"\\]|\\.)*)"(?:,\s*pageUrl:\s*"[^"]*")?,\s*gid:\s*"(\d+)"/g;
+
+/** Retry policy for the public pages: 3 tries, backoff 1s and 2s, plus jitter. */
+const MAX_TRIES = 3;
+const BACKOFF_MS = [1000, 2000];
+const MAX_JITTER_MS = 500;
 
 /** Trailing `.xlsx` of a Drive file name (the city is the name without it). */
 const XLSX_SUFFIX_RE = /\.xlsx$/i;
@@ -55,7 +67,11 @@ export type PublicGoogleSourceOptions = {
 	/** Entries of the form "File name/Tab name" (file name without .xlsx). */
 	skipTabs?: string[];
 	fetchFn?: typeof fetch;
+	/** Waits between tries; tests inject a fake so they run instantly. */
+	sleep?: (ms: number) => Promise<void>;
 };
+
+const realSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function createPublicGoogleSource(opts: PublicGoogleSourceOptions): SheetSource {
 	const folderId = typeof opts.folderId === "string" ? opts.folderId.trim() : "";
@@ -64,19 +80,36 @@ export function createPublicGoogleSource(opts: PublicGoogleSourceOptions): Sheet
 	}
 	const skip = new Set(opts.skipTabs ?? []);
 	const fetchFn: typeof fetch = opts.fetchFn ?? fetch;
+	const sleep = opts.sleep ?? realSleep;
 
+	/**
+	 * GET a page as text. Up to MAX_TRIES tries on HTTP 429, HTTP >= 500 or a
+	 * thrown fetch; other statuses fail at once. Errors carry only a sanitized
+	 * reason code, never the URL.
+	 */
 	async function getText(url: string, failReason: string): Promise<string> {
-		let res: Response;
-		try {
-			res = await fetchFn(url);
-		} catch {
-			// The error text may contain the URL; do not pass it on.
-			throw new SheetReadError(`${failReason}_network`);
+		for (let attempt = 1; ; attempt++) {
+			if (attempt > 1) {
+				const jitter = Math.floor(Math.random() * (MAX_JITTER_MS + 1));
+				await sleep(BACKOFF_MS[attempt - 2] + jitter);
+			}
+			const last = attempt === MAX_TRIES;
+			let res: Response;
+			try {
+				res = await fetchFn(url);
+			} catch {
+				// The error text may contain the URL; do not pass it on.
+				if (last) throw new SheetReadError(`${failReason}_network`);
+				continue;
+			}
+			if (res.ok) {
+				return res.text();
+			}
+			const retryable = res.status === 429 || res.status >= 500;
+			if (!retryable || last) {
+				throw new SheetReadError(`${failReason}_http_${res.status}`);
+			}
 		}
-		if (!res.ok) {
-			throw new SheetReadError(`${failReason}_http_${res.status}`);
-		}
-		return res.text();
 	}
 
 	return {

@@ -23,6 +23,28 @@ function fakeFetch(routes: Record<string, () => Response | Promise<Response>>) {
 	return { fetchFn, calls };
 }
 
+/** Fake fetch answering the n-th call with the n-th response (the last one repeats). */
+function scriptedFetch(responses: Array<() => Response>) {
+	const calls: Call[] = [];
+	const fetchFn = async (input: string | URL | Request): Promise<Response> => {
+		calls.push(String(input));
+		const next = responses[Math.min(calls.length, responses.length) - 1];
+		return next();
+	};
+	return { fetchFn, calls };
+}
+
+/** Injected sleep that records every requested delay and returns at once. */
+function recordingSleep() {
+	const sleeps: number[] = [];
+	const sleep = async (ms: number): Promise<void> => {
+		sleeps.push(ms);
+	};
+	return { sleep, sleeps };
+}
+
+const noSleep = async (): Promise<void> => {};
+
 const FOLDER_URL = "https://drive.google.com/embeddedfolderview?id=FOLDER123";
 
 describe("createPublicGoogleSource rejects a blank folder id", () => {
@@ -97,10 +119,14 @@ describe("listFiles throws folder_parse_empty on the empty page and on a fetch f
 
 	it("throws SheetReadError on a 500 and on a network error, never returns []", async () => {
 		const bad = fakeFetch({ [FOLDER_URL]: () => new Response("boom", { status: 500 }) });
-		await expect(createPublicGoogleSource({ folderId: "FOLDER123", fetchFn: bad.fetchFn }).listFiles()).rejects.toBeInstanceOf(SheetReadError);
+		await expect(
+			createPublicGoogleSource({ folderId: "FOLDER123", fetchFn: bad.fetchFn, sleep: noSleep }).listFiles(),
+		).rejects.toBeInstanceOf(SheetReadError);
 
 		const down = fakeFetch({});
-		await expect(createPublicGoogleSource({ folderId: "FOLDER123", fetchFn: down.fetchFn }).listFiles()).rejects.toBeInstanceOf(SheetReadError);
+		await expect(
+			createPublicGoogleSource({ folderId: "FOLDER123", fetchFn: down.fetchFn, sleep: noSleep }).listFiles(),
+		).rejects.toBeInstanceOf(SheetReadError);
 	});
 });
 
@@ -108,7 +134,7 @@ describe("listTabs parses names and gids including escapes and honours skipTabs"
 	const HTMLVIEW = "https://docs.google.com/spreadsheets/d/FILE1/htmlview";
 	const file = { fileId: "FILE1", fileName: "Hanoi" };
 
-	it("parses the three tabs with escaped quote and \\uXXXX decoded", async () => {
+	it("parses all tabs from real-shape htmlview fixture with correct names and gids", async () => {
 		const { fetchFn, calls } = fakeFetch({ [HTMLVIEW]: () => new Response(fixture("htmlview.html"), { status: 200 }) });
 		const tabs = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn }).listTabs(file);
 		expect(calls).toEqual([HTMLVIEW]);
@@ -116,6 +142,22 @@ describe("listTabs parses names and gids including escapes and honours skipTabs"
 			{ fileId: "FILE1", fileName: "Hanoi", gid: "0", tabName: "Mong Hotel" },
 			{ fileId: "FILE1", fileName: "Hanoi", gid: "1234567", tabName: 'Hotel "Sunrise" Villa' },
 			{ fileId: "FILE1", fileName: "Hanoi", gid: "98765", tabName: "Café Lotus" },
+		]);
+	});
+
+	it("parses legacy no-pageUrl shape", async () => {
+		const legacy = [
+			'var items = [];',
+			'items.push({name: "Mong Hotel", gid: "0"});',
+			'items.push({name: "Hotel \\"Sunrise\\" Villa", gid: "1234567"});',
+			'items.push({name: "Caf\\u00e9 Lotus", gid: "98765"});',
+		].join("\n");
+		const { fetchFn } = fakeFetch({ [HTMLVIEW]: () => new Response(legacy, { status: 200 }) });
+		const tabs = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn }).listTabs(file);
+		expect(tabs.map((t) => [t.gid, t.tabName])).toEqual([
+			["0", "Mong Hotel"],
+			["1234567", 'Hotel "Sunrise" Villa'],
+			["98765", "Café Lotus"],
 		]);
 	});
 
@@ -142,7 +184,7 @@ describe("listTabs parses names and gids including escapes and honours skipTabs"
 });
 
 describe("listTabs throws tab_list_parse_empty on the empty page", () => {
-	it("throws tab_list_parse_empty when the page has no tabs", async () => {
+	it("empty htmlview page throws tab_list_parse_empty", async () => {
 		const { fetchFn } = fakeFetch({
 			"https://docs.google.com/spreadsheets/d/FILE1/htmlview": () => new Response(fixture("htmlview-empty.html"), { status: 200 }),
 		});
@@ -151,6 +193,87 @@ describe("listTabs throws tab_list_parse_empty on the empty page", () => {
 			.catch((e) => e);
 		expect(err).toBeInstanceOf(SheetReadError);
 		expect(err.reason).toBe("tab_list_parse_empty");
+	});
+});
+
+describe("getText retries 429 and 5xx with backoff, never other statuses", () => {
+	const HTMLVIEW = "https://docs.google.com/spreadsheets/d/FILE1/htmlview";
+	const file = { fileId: "FILE1", fileName: "Hanoi" };
+
+	it("retries once after a 503 then succeeds", async () => {
+		const { fetchFn, calls } = scriptedFetch([
+			() => new Response("busy", { status: 503 }),
+			() => new Response(fixture("htmlview.html"), { status: 200 }),
+		]);
+		const { sleep, sleeps } = recordingSleep();
+		const tabs = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep }).listTabs(file);
+		expect(calls).toEqual([HTMLVIEW, HTMLVIEW]);
+		expect(sleeps).toHaveLength(1);
+		expect(sleeps[0]).toBeGreaterThanOrEqual(1000);
+		expect(sleeps[0]).toBeLessThanOrEqual(1500);
+		expect(tabs).toHaveLength(3);
+	});
+
+	it("gives up after 3 tries on 503 with <reason>_http_503", async () => {
+		const { fetchFn, calls } = scriptedFetch([() => new Response("busy", { status: 503 })]);
+		const { sleep, sleeps } = recordingSleep();
+		const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep })
+			.listTabs(file)
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(SheetReadError);
+		expect(err.reason).toBe("tab_list_fetch_http_503");
+		expect(calls).toHaveLength(3);
+		expect(sleeps).toHaveLength(2);
+		expect(sleeps[0]).toBeGreaterThanOrEqual(1000);
+		expect(sleeps[0]).toBeLessThanOrEqual(1500);
+		expect(sleeps[1]).toBeGreaterThanOrEqual(2000);
+		expect(sleeps[1]).toBeLessThanOrEqual(2500);
+	});
+
+	it("does not retry 404 (or 403)", async () => {
+		for (const status of [404, 403]) {
+			const { fetchFn, calls } = scriptedFetch([() => new Response("nope", { status })]);
+			const { sleep, sleeps } = recordingSleep();
+			const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep })
+				.listTabs(file)
+				.catch((e) => e);
+			expect(err.reason).toBe(`tab_list_fetch_http_${status}`);
+			expect(calls).toHaveLength(1);
+			expect(sleeps).toHaveLength(0);
+		}
+	});
+
+	it("retries a thrown fetch then reports <reason>_network", async () => {
+		const { fetchFn, calls } = fakeFetch({
+			[FOLDER_URL]: () => {
+				throw new TypeError("socket hang up");
+			},
+		});
+		const { sleep, sleeps } = recordingSleep();
+		const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep })
+			.listFiles()
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(SheetReadError);
+		expect(err.reason).toBe("folder_fetch_network");
+		expect(calls).toHaveLength(3);
+		expect(sleeps).toHaveLength(2);
+	});
+
+	it("error messages contain no URL", async () => {
+		const bad = scriptedFetch([() => new Response("busy", { status: 503 })]);
+		const thrown = scriptedFetch([
+			() => {
+				throw new TypeError("failed to fetch https://docs.google.com/x");
+			},
+		]);
+		for (const fetchFn of [bad.fetchFn, thrown.fetchFn]) {
+			const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep: noSleep })
+				.listTabs(file)
+				.catch((e) => e);
+			expect(err).toBeInstanceOf(SheetReadError);
+			expect(String(err.message)).not.toContain("://");
+			expect(String(err.message)).not.toContain("docs.google");
+		}
 	});
 });
 
@@ -179,7 +302,7 @@ describe("readCsv returns text and throws SheetReadError on 500, network error, 
 				void input;
 				return body();
 			};
-			const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn: fetchFn as typeof fetch })
+			const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn: fetchFn as typeof fetch, sleep: noSleep })
 				.readCsv(tab)
 				.catch((e) => e);
 			expect(err).toBeInstanceOf(SheetReadError);
