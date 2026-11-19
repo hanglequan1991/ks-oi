@@ -3,7 +3,7 @@
 - id: TASK-69
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 1
 - depends on: TASK-65 (budget, limits, countingDb), TASK-66 (last_checked_at, markTabsSeenBatch, markTabsChecked, pickOldestFirst), TASK-68 (same runSync.ts; abort fields)
@@ -28,7 +28,7 @@ Design (lead):
 3. AC3: The `markTabSeen` per-tab loop is gone: the listed tabs are marked with `markTabsSeenBatch` (D1 call count for 60 tabs is at most 2 for marking, asserted with the counting fake).
 4. AC4: With a fake budget that allows only N tabs, the run stops before the platform limit: `aborted: "budget_exhausted"`, note `abort`/`budget_exhausted`, `finished_at` set, and total spend does not exceed the budget limit (assert `budget.used <= limit` with counting wrappers around the fake db and fetch).
 5. AC5: `finishRun` is still called when the budget is exhausted (the reserve guarantees it).
-6. AC6: Unchanged tabs get `last_checked_at` updated through one `markTabsChecked` batch call; an unreadable tab does not.
+6. AC6: Unchanged and failed tabs get their check time in one `markTabsChecked` batch; applied tabs through `recordTabSuccess`.
 7. AC7: A tab applied or unchanged is not failed; counts `created/updated/unchanged/failed/hidden` keep their old meaning for the picked tabs.
 8. AC8: `SyncSummary.deferred` is a number only (AC9 of the story: counts and codes only).
 9. AC9: With no `limits` and no `budget` passed, defaults apply (25 tabs; budget unlimited when `budget` is undefined, so existing tests keep working; if an existing test lists more than 25 tabs, update it deliberately).
@@ -40,7 +40,9 @@ Design (lead):
 - [ ] `marks listed tabs seen with batched calls only`: covers AC3
 - [ ] `stops with budget_exhausted before exceeding the budget`: covers AC4
 - [ ] `always finishes the run row on budget exhaustion`: covers AC5
-- [ ] `unchanged tabs refresh last_checked_at in one batch, unreadable tabs do not`: covers AC6
+- [ ] `unchanged and failed tabs refresh the check time in one batch`: covers AC6
+- [ ] `permanently failing tabs rotate and do not starve the rest`: covers AC2, AC6
+- [ ] `a failed tab keeps its stored hash and only its check time moves`: covers AC6
 - [ ] `counts keep their meaning for processed tabs`: covers AC7
 - [ ] `summary carries deferred as a number and no text`: covers AC8
 - [ ] `defaults apply without limits or budget`: covers AC9
@@ -90,5 +92,16 @@ Rework notes (files: `sheet-rag/src/sync/runSync.ts`, `sheet-rag/test/sync/runSy
 Judgement on the other open items (no code change required):
 - (2) Fixed start-up calls are not gated. Idle run at 450 tabs: unfinished-runs read 1, startRun 1, listFiles 1, sync_files read 1 (TASK-70), getSyncState 1, seen batches 9 (450 / 50 per batch, not 1), settings read 1, markTabsChecked 1, finishRun 1 = about 16 D1/fetch calls, plus 1 fetch per changed file listing. That leaves 24 of 40 (34 of 50) and the per-tab gate (10) then stops cleanly, so the reserve is sufficient and finishRun is not at risk in practice. Consequence for TASK-70 AC7 ("at most 8 counted D1 calls"): that bound only holds for at most 50 tabs; with 450 tabs the seen batches alone are 9. TASK-70 must assert its bound on a small fixture (or state "7 + number of seen chunks"); pm/lead will adjust TASK-70's text when it is dispatched. Not a TASK-69 defect.
 - (3) A removal skipped by the budget stays unmarked and so stays in `plan.removed` next run (self-healing). A count is not worth a new summary field now; `removals_deferred` not added (AC9 surface kept minimal).
+
+### Re-review (rework count 1)
+Verdict: **approve**.
+
+Verified by lead: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag: 69 files, 551 tests pass. Changes are only in `runSync.ts` and `runSync.spec.ts` (task file edited by lead).
+1. `attemptedKeys` is pushed on read failure (incl. breaker path), parse failure, and invalid/apply_failed; one `markTabsChecked(db, [...unchangedKeys, ...attemptedKeys], now)` call, at most 25 statements, FINISH_RESERVE 2 unchanged. Applied tabs not added. OK.
+2. Hash untouched (`a failed tab keeps its stored hash...` asserts it). OK.
+3. AC6 test rewritten: 4 check rows at LATER, exactly one check batch of 4 statements. OK.
+4. Rotation test is meaningful: run 2 must read exactly 26..50 (would be 1..25 without the attempt marks), run 3 reads the 10 never-checked plus the 15 oldest, 60 distinct tabs after 3 runs, in both read-fail and parse-fail variants. OK.
+5. "Last attempt" comment present. OK.
+AC6 wording and test list in this task updated to the dev's text. No real defect found.
 
 ## Questions
