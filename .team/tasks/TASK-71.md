@@ -3,7 +3,7 @@
 - id: TASK-71
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: rework
 - assignee: dev
 - rework count: 0
 - depends on: TASK-64 (doc), TASK-65, TASK-69, TASK-70, TASK-72, TASK-73 (and transitively 63, 66, 67, 68)
@@ -53,5 +53,15 @@ Everything built so far is injectable; this task connects it to the real Worker 
 
 ## Review
 <!-- Written by lead. -->
+Verdict: rework (doc only; code, config and tests are fine).
+
+Verified: npm test 71 files / 606 passed; playwright 32 passed; wrangler dry-run OK with the 6 vars. site.ts: one budget per syncDepsFor call (scheduled and manual both go through it), countingDb and countingFetch over a `globalThis.fetch` arrow, source gets the wrapped fetch, parseRunLimits defaults 25/40, nowMs passed (runSync builds the deadline from it, soft 8 / hard 10 min), no secrets or folder id logged, only listed files changed. wrangler.hotel.jsonc: placeholders kept, cron hourly, SKIP_TABS comment describes both forms. Migration 0004 is all CREATE TABLE IF NOT EXISTS, so it is idempotent and safe on a live DB with 0001-0003. Cause codes list matches src/sync/fetchErrors.ts and runSync. Stale comments in syncState.ts and 0004 accepted as a note (0004's "never applied remotely" comment is stale if the owner already applied it; harmless).
+
+Rework notes (DEPLOY-hotel-dictionary.md only):
+1. "Limits": warn that raising `SUBREQUEST_BUDGET` above the platform limit of the owner's plan (Free 50, Paid 1000) does not help: the run would hit the platform "Too many subrequests" error (`csv_subrequest_limit`) instead of stopping cleanly at the budget. Keep the value at or below the plan limit (the code clamps at 1000). Same for `MAX_TABS_PER_RUN`: keep it in line with the budget.
+2. Run notes table, `csv_subrequest_limit`: wrong meaning. fetchErrors.ts maps the Workers runtime error "Too many subrequests" to it (platform limit hit), not a Google limit response. Fix the meaning, and the action (lower `SUBREQUEST_BUDGET` to the plan limit or below).
+3. Migration-order note (step 3) is vague ("only from the final version of the code") and the deploy order is not stated. Replace with the exact order for the next deploy: (1) `git pull`, (2) `npx wrangler d1 migrations apply hotel-dictionary --remote -c wrangler.hotel.jsonc` (applies 0004 for the first time; safe to re-run, only CREATE TABLE IF NOT EXISTS), (3) set `DRIVE_FOLDER_ID` in `wrangler.hotel.jsonc` vars (Sheet sync step 2 currently comes after the deploy steps; point to it), (4) `npm run build:client` if needed, then deploy. Note that deploying code before the migration would make the sync fail on the missing tables.
+4. Update `test/web/site-config.spec.ts` doc assertions only if you add headings; no new heading is required.
+
 
 ## Questions
