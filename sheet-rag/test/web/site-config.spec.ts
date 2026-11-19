@@ -177,7 +177,7 @@ describe("DEPLOY-hotel-dictionary.md: limits, pause and run notes (TASK-71)", ()
 		expect(doc).toContain("MAX_TABS_PER_RUN");
 		expect(doc).toContain("SUBREQUEST_BUDGET");
 		expect(doc).toContain("?force=1");
-		expect(doc).toContain("18");
+		expect(doc).toContain("about 150 hourly runs");
 		expect(doc).toContain("comment out");
 	});
 });

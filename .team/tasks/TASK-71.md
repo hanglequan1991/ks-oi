@@ -53,6 +53,9 @@ Everything built so far is injectable; this task connects it to the real Worker 
 - Rework 1 (doc only, `DEPLOY-hotel-dictionary.md`): (1) Limits: plan-limit warning for SUBREQUEST_BUDGET (Free 50, Paid 1000; platform "Too many subrequests" = `csv_subrequest_limit`) and MAX_TABS_PER_RUN rule from TAB_RESERVE 8 (3 fetch tries + 5 D1 calls) plus LIST_RESERVE 6 + FINISH_RESERVE 2 = 8. Idle cost from the TASK-73 idle-run tests in `test/sync/runSyncReadSkip.spec.ts`: 1 fetch, at most 8 D1 calls up to 50 tabs, 7 + ceil(tabs/50) above. (2) `csv_subrequest_limit` row now describes the runtime error (fetchErrors.ts `subrequest_limit`); `aborted_circuit_breaker` row lists the immediate causes (IMMEDIATE_CAUSES in runSync.ts). Other rows re-checked against fetchErrors.ts: unchanged. (3) New "## Deploy order (every deploy)" section, five steps as listed; placed after the first-time Steps so the existing order test still holds; Sheet sync step 2 points to it.
 - Open point for lead: by the TAB_RESERVE rule the Free defaults (25 tabs, budget 40) and the Paid example (200 tabs, budget 1000) are budget-bound, so the "about 18 runs" figure is a cap-only estimate. The doc now says so; the example values from AC5/AC6 are kept.
 - Tests after rework: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` 71 files, 606 tests passed.
+- Rework 2 (doc "Limits" plus one test assertion): replaced the "about 18 hourly runs" paragraph with labelled estimates (assumptions stated; Free: about 3 tabs per run, about 150 runs, about 6 days; unchanged tabs about 14 per run; cap 25 unreachable on Free, needs 208; Paid 1000/200: about 163 tabs per run, 3 runs). Only one "18" figure existed in the doc (grep checked). Constants checked against code: TAB_FETCH_TRIES 3, TAB_APPLY_CALLS 5, TAB_RESERVE 8, FINISH_RESERVE 2, LIST_RESERVE 6, DEFAULT_SUBREQUEST_BUDGET 40, DEFAULT_MAX_TABS_PER_RUN 25, budget cap 1000, tab cap 500. All match the brief, no difference.
+- Test change: `test/web/site-config.spec.ts` asserted `toContain("18")` on the doc, which pinned the old figure. Changed only that line to `toContain("about 150 hourly runs")`.
+- Tests after rework 2: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` 71 files, 606 tests passed.
 
 ## Review
 <!-- Written by lead. -->
@@ -82,3 +85,7 @@ Verdict: rework (second round, doc only; `DEPLOY-hotel-dictionary.md` "Limits" o
 3. No other change; no test change needed (the doc test asserts headings and codes only).
 
 ## Questions
+
+### Final review (third pass, doc only)
+Verdict: approve.
+Verified: npm test 71 files / 606 passed. `site-config.spec.ts` is in the file list; only the one assertion changed (`toContain("about 150 hourly runs")`). Own arithmetic with TAB_RESERVE 8, FINISH_RESERVE 2, LIST_RESERVE 6, defaults 40/25, idle cost 17: Free 23 left, tabs start at 23/17/11, next at 5 (<10), so 3 tabs per run and 450/3 = 150 runs; unchanged-only tabs cost 1 each, start while remaining >= 10, so 14 per run; 25 x 8 + 8 = 208; Paid 983 left, 983 - 6(n-1) >= 10 gives n = 163, 163 + 163 + 124 = 450 in 3 runs. All doc numbers correct and labelled as estimates. Grep: no remaining "18 runs" or contradicting figure in the doc, wrangler.hotel.jsonc comments or site.ts. Code, config, tests and doc of TASK-71 are acceptable.
