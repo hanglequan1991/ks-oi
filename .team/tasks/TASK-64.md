@@ -3,7 +3,7 @@
 - id: TASK-64
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-63 (shares publicGoogleSource.ts and its spec), TASK-46 (done)

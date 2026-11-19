@@ -3,7 +3,7 @@
 - id: TASK-66
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: blocked: question
+- status: done
 - assignee: dev
 - rework count: 1
 - depends on: TASK-54, TASK-56, TASK-62 (all done). Disjoint from TASK-63 and TASK-65, so it can run in parallel with them.

@@ -3,7 +3,8 @@
 - id: TASK-69
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-65 (budget, limits, countingDb), TASK-66 (last_checked_at, markTabsSeenBatch, markTabsChecked, pickOldestFirst), TASK-68 (same runSync.ts; abort fields)
 - size: fits a 100k-token context (few files, one behaviour; if the dev finds it too large, report back instead of widening scope)
