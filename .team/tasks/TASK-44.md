@@ -3,7 +3,8 @@
 - id: TASK-44
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-43 (defines the CSS for every class below), plus TASK-35, TASK-36, TASK-37 (done)
 - size: fits a 100k-token context (7 small source edits, 5 test files extended; no file over about 330 lines is rewritten)

@@ -3,9 +3,9 @@
 - id: TASK-43
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
-- rework count: 0
+- rework count: 1
 - depends on: TASK-33, TASK-35, TASK-36, TASK-37 (all done)
 - size: fits a 100k-token context (2 files: one CSS file rewrite, one test file extended)
 
@@ -79,6 +79,14 @@ Checked OK: tests pass (45 files / 318 tests); only bill.css, bill-css.spec.ts (
 
 1. The mobile block `@media (max-width: 720px)` also matches when printing on A4: the page box is 210mm - 28mm margins = about 688px wide, so the mobile rules apply in print. AC11 requires that the mobile card rules not apply in print, and the print block does not undo them all. Leaks: `.bill-summary` keeps the dark `#14202B` background with white text, radius and padding (browsers drop backgrounds by default, so the grand total prints white on white, and it is not black and white); `.row-title` ("Dòng n") shows in print while the index is hidden; `.bill-foot` keeps `flex-direction: column`; `.c-total` keeps 18px/700 flex; `.note-markers`, `.bill-bottom` and `.c-index` keep mobile layout. Fix (preferred, smallest): change the mobile query to `@media screen and (max-width: 720px)`, and update the spec's `mediaBody(..., "@media (max-width: 720px)")` calls (lines 78 and 281) to the new prelude. Then add a spec assertion that the mobile block's prelude contains `screen` (so it cannot leak into print). Alternative: keep the query and add explicit print resets for every mobile property above, with a test for `.bill-summary` background and `.row-title` display in print; this is longer and more fragile.
 2. After the change, rerun `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag/ and keep the file list unchanged.
+
+### Re-review (rework count 1)
+Verdict: **approve**.
+
+1. The defect is gone. The only mobile query in bill.css is `@media screen and (max-width: 720px)` (line 410). The other at-rules are `@media print` and `@page`. The mobile block cannot match in print, so the dark `.bill-summary`, `.row-title`, the `.bill-foot` column, `.c-total`, `.note-markers`, `.bill-bottom` and `.c-index` no longer leak. The print block is unchanged and still hides and resets what AC11 requires.
+2. The spec uses the new prelude in its mobile lookups (lines 78 and 281). A new assertion checks that the screen-only prelude exists and that the old `@media (max-width: 720px)` prelude does not.
+3. `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag/ gives 45 files and 318 tests passing.
+4. The rework changed only `bill.css` (1 line) and `bill-css.spec.ts` (the 8-line change in the spec). No other file changed outside `.team`. No regressions.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
