@@ -44,6 +44,12 @@ The folder page (`embeddedfolderview`) carries each file's last-modified text. T
 - Not touched: runSync.ts, fakes (optional fields need no change).
 
 ## Review
-<!-- Written by lead. -->
+Verdict: approve
+
+- AC1-AC5 covered by tests (publicGoogleSource.spec.ts: modified present/absent, entity+trim, blank, ids/names unchanged, signature stable/different, empty fixed). Suite green per coordinator. Only listed files in the task's scope; fakes untouched.
+- MODIFIED_RE `flip-entry-last-modified"><div>([^<]*)<` is the same text as the working reference (`flip-entry-last-modified"><div>([^<]*)<`), so class and nested div shape match. Reference scans lazily from the title across the page (it would borrow the next entry's value when one is missing; ours does not): ours scans only the slice from the end of the entry's title match to the next entry match or next `flip-entry-title`. Node check on a 2-entry sample (first has modified, second has none): ids/names parsed, first gets "Nov 1", second gets none. Absence gives undefined, never a failure.
+- Fixture uses the real shape (entries 0, 1 have it, entry 2 none).
+- skipSignature: deterministic (NFC/trim/lower-case, dedupe, sort, JSON, FNV-1a 32, `s`+8 hex), order/duplicate/case insensitive (documented in the code comment), changes with the entry set, empty list fixed (`s741638a5`).
+- Residual note (not a defect): no test has a missing modified in the middle of the list; logic verified by hand above.
 
 ## Questions
