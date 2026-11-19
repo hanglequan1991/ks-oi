@@ -57,5 +57,9 @@ Design:
 
 ## Review
 <!-- Written by lead. -->
+- Verdict: approve (lead, 2026-11-19).
+- Re-ran: `npm test -- --run` 70 files / 566 passed; Playwright chromium 32 passed.
+- AC1-AC8 covered by the new or extended tests; migration amended in place (nullable columns, no ALTER, re-run test keeps a meta row); only listed files changed.
+- Meta rule (written only when parserVersion is given): no silent skip inside the helpers. markTabsChecked takes meta per key, so TASK-73 must pass meta for unchanged tabs too (otherwise the stored file_modified goes stale and the tab is re-read each run, which is safe but wasteful). Failed attempts use the no-meta SQL and never move the stored values (syncHotel failed-apply and no-meta tests). Note for TASK-73: always pass parserVersion with fileModified, including for the unchanged-tab markTabsChecked.
 
 ## Questions

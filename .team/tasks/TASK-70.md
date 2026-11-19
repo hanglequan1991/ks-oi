@@ -67,6 +67,10 @@ Design (lead):
 
 ## Review
 <!-- Written by lead. -->
+- Verdict: approve (lead, 2026-11-19).
+- Re-ran: `npm test -- --run` 70 files / 566 passed; Playwright chromium 32 passed. AC9: runSync.spec.ts untouched and green.
+- Covers AC1-AC8 (9 tests in runSyncListing.spec.ts). Code matches the design: gate LIST_RESERVE+TAB_RESERVE+FINISH_RESERVE, null modified never unchanged, cached fallback only with matching skip_sig else listing_incomplete (removals skipped), listTabs throw is failed_run with breaker causes adding circuit_breaker, cache row written only after a successful listTabs of that file.
+- Deviation confirmed as correct: the pre-loop budget_exhausted check applies only when the listing is incomplete AND TAB_RESERVE+FINISH_RESERVE (10) is unaffordable, which can happen because the gate (16) refuses at any budget below 16. It does not contradict A2 (a refused listing leaves room for a tab only when the budget was at or above 10) nor AC5 (budget 24 case still processes tabs). A complete listing with a tiny budget never reaches this check and is handled by the existing per-tab gate, as before.
 
 ## Questions
 (Answered by lead, status restored to todo.)
