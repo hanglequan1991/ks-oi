@@ -3,7 +3,7 @@
 - id: TASK-46
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: blocked: question
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (adds test/sync to the vitest include list; must run first)
@@ -43,8 +43,11 @@ Context (2026-11-19, from the deployed sheet-rag worker, decision A): the sheets
 - `sheet-rag/test/fixtures/google/*`
 
 ## Dev notes
-Mimic the sheet-rag patterns exactly as listed in the ACs; keep each regex in one named constant so the owner can adjust it. State in the file header comment: "Format verified only against hand-written fixtures; the owner must verify against the real pages on the first run (compare the run's file and tab counts with the Drive folder)". Dropping a regex-failed page into an error (not an empty list) is the safety guard. Do not import `src/sync/hash.ts`.
+Mimic the sheet-rag patterns exactly as listed in the ACs; keep each regex in one named constant so the owner can adjust it.
+Dev (2026-11-19): regex constants are FOLDER_ENTRY_RE, TAB_ITEM_RE, XLSX_SUFFIX_RE in `publicGoogleSource.ts`. The folder regex assumes the entry link comes before its `<div class="flip-entry-title">` (fixtures are hand-written). A failed folder fetch throws `folder_fetch_network` or `folder_fetch_http_<status>` (the test name says folder_parse_empty; any SheetReadError keeps the no-deletion guarantee). The tab-list equivalents are `tab_list_fetch_*`; CSV errors are `csv_network`, `csv_http_<status>`, `csv_html_page`, `csv_empty`.
+Dev (2026-11-19): tests run and green via a scratch vitest config outside the project (test/sync not in the include, see Questions): 35 passed for publicGoogleSource.spec.ts and fakes/sheetSource.spec.ts. Pre-existing unrelated failure in test/db/apiSample.spec.ts (settings count 6 vs 5, from the migration work), not touched here. State in the file header comment: "Format verified only against hand-written fixtures; the owner must verify against the real pages on the first run (compare the run's file and tab counts with the Drive folder)". Dropping a regex-failed page into an error (not an empty list) is the safety guard. Do not import `src/sync/hash.ts`.
 
 ## Review
 
 ## Questions
+Q1 (technical, to lead): `sheet-rag/vitest.unit.config.mts` `test.include` lists only test/db, test/domain, test/migrations, test/fakes, test/web and test/client. `test/sync/**/*.spec.ts` is not included, so `npm test -- --run` silently skips `test/sync/publicGoogleSource.spec.ts` (and the other test/sync specs). Config is not in this task's file list, so I did not edit it. Proposed fix: add `"test/sync/**/*.spec.ts"` to that include array (owner of the config to approve). Until then the official command does not run this task's public-source tests. A: (open)
