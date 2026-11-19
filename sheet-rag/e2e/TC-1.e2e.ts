@@ -22,8 +22,9 @@ const REQUIRED_TABLES = [
 	"overrides",
 ];
 
-// Out-of-scope prefixes for Version 1 (Mytour crawl, sync runs, admin).
-const OUT_OF_SCOPE_PREFIXES = ["crawl_", "admin_", "sync_"];
+// Sync tables (migration 0003) are in scope. Out-of-scope prefixes for Version 1 are the Mytour crawl and admin.
+const SYNC_TABLES = ["sync_state", "sync_runs"];
+const OUT_OF_SCOPE_PREFIXES = ["crawl_", "admin_"];
 
 // The test must not pick up a Cloudflare token from the environment.
 delete process.env.CLOUDFLARE_API_TOKEN;

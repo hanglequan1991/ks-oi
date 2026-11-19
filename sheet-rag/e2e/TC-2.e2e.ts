@@ -8,7 +8,14 @@ import { applyMigrations } from "../test/fakes/migrations";
 
 const MIGRATIONS_DIR = join(__dirname, "..", "migrations");
 
-const SETTINGS_KEYS = ["service_fee_percent", "show_fee_note", "disclaimer_vi", "disclaimer_en", "data_version"];
+const SETTINGS_KEYS = [
+	"service_fee_percent",
+	"show_fee_note",
+	"disclaimer_vi",
+	"disclaimer_en",
+	"data_version",
+	"sync_auto_publish",
+];
 
 const CITY = { slug: "da-nang", name_vi: "Da Nang", name_en: "Da Nang" };
 const HOTEL_ID = "a1b2c3d4e5f60718";

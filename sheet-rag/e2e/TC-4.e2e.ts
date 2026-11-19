@@ -14,8 +14,15 @@ const EXPECTED_DISCLAIMER_EN =
 const EXPECTED_DISCLAIMER_VI =
 	"Giá và tình trạng phòng thay đổi theo số phòng còn lại và báo cáo từ khách sạn, chúng tôi không cam kết, vui lòng gọi điện để xác nhận trước khi đặt phòng.";
 
-// Version 1 has no phone or Zalo key.
-const EXPECTED_KEYS = ["data_version", "disclaimer_en", "disclaimer_vi", "service_fee_percent", "show_fee_note"];
+// Version 1 keys plus the sync switch (migration 0003). Version 1 has no phone or Zalo key.
+const EXPECTED_KEYS = [
+	"data_version",
+	"disclaimer_en",
+	"disclaimer_vi",
+	"service_fee_percent",
+	"show_fee_note",
+	"sync_auto_publish",
+];
 
 // The test must not pick up a Cloudflare token from the environment.
 delete process.env.CLOUDFLARE_API_TOKEN;

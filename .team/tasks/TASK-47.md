@@ -33,6 +33,7 @@
 - Wrote `sheet-rag/test/sync/csv.spec.ts` and `sheet-rag/test/sync/hash.spec.ts` (red phase, not yet run green).
 - `env -u CLOUDFLARE_API_TOKEN npm test -- --run test/sync` reports "No test files found". The vitest include list in `sheet-rag/vitest.unit.config.mts` covers only `test/db`, `test/domain`, `test/migrations`, `test/fakes`, `test/web`, `test/client`. `test/sync/**` is not in it.
 - Source files `src/sync/csv.ts` and `src/sync/hash.ts` not written yet (blocked before green).
+- Green: wrote `src/sync/csv.ts` (parseCsv) and `src/sync/hash.ts` (sha256Hex, hotelIdFor, contentHash). `test/sync/csv.spec.ts` and `test/sync/hash.spec.ts`: 7 of 7 pass. Full suite: 371 of 372 pass; the one failure is the known `test/db/apiSample.spec.ts` settings count.
 
 ## Review
 
