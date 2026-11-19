@@ -52,6 +52,9 @@ test.describe("TC-4: seeded settings hold the default fee, fee note and agreed d
 		// Step 3: fee note is on.
 		expect(await settingValue(db, "show_fee_note")).toBe("true");
 
+		// Step 3b: sync auto-publish switch is on (migration 0003).
+		expect(await settingValue(db, "sync_auto_publish")).toBe("true");
+
 		// Step 4: both disclaimers are the agreed texts, exactly.
 		const disclaimerEn = await settingValue(db, "disclaimer_en");
 		const disclaimerVi = await settingValue(db, "disclaimer_vi");
@@ -68,7 +71,7 @@ test.describe("TC-4: seeded settings hold the default fee, fee note and agreed d
 		expect(disclaimerEn).toBe(EXPECTED_DISCLAIMER_EN);
 		expect(disclaimerVi).toBe(EXPECTED_DISCLAIMER_VI);
 
-		// Step 5: the settings table holds exactly the Version 1 keys.
+		// Step 5: the settings table holds the Version 1 keys plus the sync switch (six keys).
 		const { results } = await db
 			.prepare("SELECT key FROM settings ORDER BY key")
 			.all<{ key: string }>();

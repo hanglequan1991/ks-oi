@@ -3,7 +3,7 @@
 - id: TASK-59
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: todo
+- status: done
 - rework count: 0
 - depends on: none (MUST RUN FIRST: every STORY-14 task with specs under `sheet-rag/test/sync/` depends on it)
 - size: fits a 100k-token context (one config line, one test)

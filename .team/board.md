@@ -164,13 +164,15 @@ File ownership note: src/site.ts, test/web/site.spec.tsx, test/web/site-config.s
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TASK-45](tasks/TASK-45.md) | backend | migrations/0003_sync.sql, test/migrations/0003_sync.spec.ts | dev | in-progress | 0 | deps: none |
-| [TASK-46](tasks/TASK-46.md) | backend | src/sync/sheetSource.ts, src/sync/publicGoogleSource.ts, test/fakes/sheetSource.ts, test/sync/publicGoogleSource.spec.ts, test/fakes/sheetSource.spec.ts, test/fixtures/google/* | dev | in-progress | 0 | deps: none |
-| [TASK-47](tasks/TASK-47.md) | backend | src/sync/csv.ts, src/sync/hash.ts, test/sync/csv.spec.ts, test/sync/hash.spec.ts | dev | in-progress | 0 | deps: none |
-| [TASK-48](tasks/TASK-48.md) | backend | src/sync/record.ts, src/sync/validate.ts, test/sync/validate.spec.ts | dev | in-progress | 0 | deps: none |
-| [TASK-49](tasks/TASK-49.md) | backend | src/db/syncState.ts, src/sync/planSync.ts, test/db/syncState.spec.ts, test/sync/planSync.spec.ts | - | todo | 0 | deps: TASK-45, TASK-46, TASK-47 |
-| [TASK-50](tasks/TASK-50.md) | backend | src/sync/writeHotel.ts, test/sync/writeHotel.spec.ts | - | todo | 0 | deps: TASK-45, TASK-48, TASK-47 |
-| [TASK-51](tasks/TASK-51.md) | backend | src/sync/writeRooms.ts, test/sync/writeRooms.spec.ts | - | todo | 0 | deps: TASK-48, TASK-47 |
+| [TASK-45](tasks/TASK-45.md) | backend | migrations/0003_sync.sql, test/migrations/0003_sync.spec.ts | dev | done | 0 | deps: none; lead approved |
+| [TASK-46](tasks/TASK-46.md) | backend | src/sync/sheetSource.ts, src/sync/publicGoogleSource.ts, test/fakes/sheetSource.ts, test/sync/publicGoogleSource.spec.ts, test/fakes/sheetSource.spec.ts, test/fixtures/google/* | dev | done | 0 | deps: TASK-59; lead approved; format unverified against real Google pages (owner to verify on first run) |
+| [TASK-47](tasks/TASK-47.md) | backend | src/sync/csv.ts, src/sync/hash.ts, test/sync/csv.spec.ts, test/sync/hash.spec.ts | dev | done | 0 | deps: TASK-59; lead approved |
+| [TASK-48](tasks/TASK-48.md) | backend | src/sync/record.ts, src/sync/validate.ts, test/sync/validate.spec.ts | dev | done | 0 | deps: TASK-59; lead approved |
+| [TASK-59](tasks/TASK-59.md) | backend | vitest.unit.config.mts, test/client/vitest-config.spec.ts | dev | done | 0 | deps: none; lead approved; only task editing vitest.unit.config.mts |
+| [TASK-60](tasks/TASK-60.md) | backend | test/db/apiSample.spec.ts, e2e/TC-1.e2e.ts, e2e/TC-2.e2e.ts, e2e/TC-3.e2e.ts, e2e/TC-4.e2e.ts | dev | in-progress | 1 | deps: TASK-45 (done); rework: see task file (only TC-4.e2e.ts to touch) |
+| [TASK-49](tasks/TASK-49.md) | backend | src/db/syncState.ts, src/sync/planSync.ts, test/db/syncState.spec.ts, test/sync/planSync.spec.ts | dev | in-progress | 0 | deps: TASK-59, TASK-45, TASK-46, TASK-47 |
+| [TASK-50](tasks/TASK-50.md) | backend | src/sync/writeHotel.ts, test/sync/writeHotel.spec.ts | dev | in-progress | 0 | deps: TASK-59, TASK-45, TASK-48, TASK-47 |
+| [TASK-51](tasks/TASK-51.md) | backend | src/sync/writeRooms.ts, test/sync/writeRooms.spec.ts | dev | in-progress | 0 | deps: TASK-59, TASK-48, TASK-47 |
 | [TASK-52](tasks/TASK-52.md) | backend | src/sync/overrides.ts, test/sync/overrides.spec.ts | - | todo | 0 | deps: none |
 | [TASK-53](tasks/TASK-53.md) | backend | src/sync/syncHotel.ts, test/sync/syncHotel.spec.ts | - | todo | 0 | deps: TASK-48, TASK-49, TASK-50, TASK-51, TASK-52 |
 | [TASK-54](tasks/TASK-54.md) | backend | src/db/syncRuns.ts, src/sync/runSync.ts, test/db/syncRuns.spec.ts, test/sync/runSync.spec.ts | - | todo | 0 | deps: TASK-46, TASK-49, TASK-53 |
