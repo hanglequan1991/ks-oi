@@ -42,6 +42,13 @@
 ## Dev notes
 The test uses a stub parse function that reads a trivial format defined in the test; the real parser is TASK-58.
 
+- Dev (TASK-54): red then green; `npm test -- --run` full suite 454 passed, 0 failed.
+- `extract` is typed optional in SyncDeps and not used (syncHotel takes no extractor).
+- `PARSER_VERSION = "1"` is defined locally in src/sync/runSync.ts (no shared constant exists yet). The parser task should move it.
+- `finishRun` takes a list of note items and encodes it (truncated, valid JSON), instead of a pre-built JSON string.
+- Notes hold failure items (tab, reason code) and unmapped facility items (tab, facility label). Error messages from sources are not stored.
+- `kind` option is passed through to sync_runs.kind (default `manual`).
+
 ## Review
 
 ## Questions
