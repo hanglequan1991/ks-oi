@@ -3,7 +3,8 @@
 - id: TASK-73
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-72 (columns and helpers), TASK-70 (listing cache; both edit runSync.ts, TASK-70 first), TASK-69 (done)
 - size: fits a 100k-token context (few files, one behaviour)

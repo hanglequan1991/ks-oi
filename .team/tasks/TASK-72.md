@@ -3,7 +3,7 @@
 - id: TASK-72
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-66 (done), TASK-69 (done). No dependency on TASK-70; disjoint files, may run in parallel with it.
