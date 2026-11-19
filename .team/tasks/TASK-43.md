@@ -72,8 +72,12 @@ Nothing else (no `app.css`, no `.tsx`, no `render.ts`). Shared with TASK-44: non
 - Not deployed. TASK-44 must land before the page is fully correct.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework
-1. Specific, actionable note. -->
+Verdict: **rework** (one defect; everything else matches).
+
+Checked OK: tests pass (45 files / 318 tests); only bill.css, bill-css.spec.ts (and this task file) changed; no `@import`, no external `url()`, no Inter; tokens, 7-column grid, header row, 44px inputs, edited-price border, note spans (2/7 and 2/5 when edited), footer grid and total, listbox and hint, button variants, header and lang toggle, mobile card order with 44px targets and dark bar, print hiding list and 6-column print grid all match the AC. Class-name contract preserved (bill-viewmodel test passes). TASK-44 can follow with no file overlap. Dev notes judged: `.row-title` hidden on desktop is right; `.btn-danger` unchanged is right; print `.bill-foot` flex is fine on its own, but see note 1.
+
+1. The mobile block `@media (max-width: 720px)` also matches when printing on A4: the page box is 210mm - 28mm margins = about 688px wide, so the mobile rules apply in print. AC11 requires that the mobile card rules not apply in print, and the print block does not undo them all. Leaks: `.bill-summary` keeps the dark `#14202B` background with white text, radius and padding (browsers drop backgrounds by default, so the grand total prints white on white, and it is not black and white); `.row-title` ("Dòng n") shows in print while the index is hidden; `.bill-foot` keeps `flex-direction: column`; `.c-total` keeps 18px/700 flex; `.note-markers`, `.bill-bottom` and `.c-index` keep mobile layout. Fix (preferred, smallest): change the mobile query to `@media screen and (max-width: 720px)`, and update the spec's `mediaBody(..., "@media (max-width: 720px)")` calls (lines 78 and 281) to the new prelude. Then add a spec assertion that the mobile block's prelude contains `screen` (so it cannot leak into print). Alternative: keep the query and add explicit print resets for every mobile property above, with a test for `.bill-summary` background and `.row-title` display in print; this is longer and more fragile.
+2. After the change, rerun `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag/ and keep the file list unchanged.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
