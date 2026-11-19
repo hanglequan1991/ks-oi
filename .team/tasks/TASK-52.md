@@ -3,7 +3,7 @@
 - id: TASK-52
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (adds test/sync to the vitest include list; must run first)
@@ -29,6 +29,10 @@
 - `sheet-rag/test/sync/overrides.spec.ts`
 
 ## Dev notes
+- Implemented `buildOverrideStatements(db, hotelId)` as a synchronous builder: one fixed UPDATE per whitelisted pair (8 pairs), guarded by EXISTS so a missing row or unusable value changes nothing. Column names come from a constant whitelist only.
+- `stars` also requires 1 to 5 and `base_price` requires >= 0, so the CHECK constraints never fail the batch. `stars` and `base_price` must be digits only; anything else is skipped.
+- `buildDataVersionStatement(db)` is an upsert: missing creates '1'; numeric increments; non-numeric (including '') resets to 1. Stored as TEXT.
+- Tests: 9 cases in `test/sync/overrides.spec.ts` (the 6 listed plus stars, status-valid, and hotel-scope isolation). Full unit suite: 59 files, 420 tests passing.
 
 ## Review
 

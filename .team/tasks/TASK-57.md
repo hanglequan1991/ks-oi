@@ -3,7 +3,7 @@
 - id: TASK-57
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (vitest include for test/sync, must run first), TASK-48

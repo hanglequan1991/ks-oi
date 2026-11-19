@@ -3,7 +3,7 @@
 - id: TASK-55
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: review
 - assignee: dev
 - rework count: 0
 - depends on: none (takes the sync as an injected function)
