@@ -41,7 +41,8 @@ import {
 import { NETWORK_CAUSES, type NetworkCause } from "./fetchErrors";
 import { planSync } from "./planSync";
 import { syncHotel } from "./syncHotel";
-import { listAllTabs, SheetReadError, type SheetSource, type SheetTab } from "./sheetSource";
+import { SheetReadError, type SheetFile, type SheetSource, type SheetTab } from "./sheetSource";
+import { getSyncFiles, upsertSyncFile, type SyncFileTab } from "../db/syncFiles";
 import type { ParsedHotel } from "./record";
 
 /** Version of the sheet parser. Changing it makes every tab hash differently, so all are re-applied. */
@@ -67,6 +68,13 @@ export const TAB_RESERVE = TAB_FETCH_TRIES + TAB_APPLY_CALLS;
 
 /** Subrequests kept for the end of the run: the markTabsChecked batch and the finishRun call. */
 export const FINISH_RESERVE = 2;
+
+/**
+ * Subrequests kept for one listing: TAB_FETCH_TRIES listTabs tries, one upsertSyncFile call and 2 spare.
+ * A listing starts only when LIST_RESERVE + TAB_RESERVE + FINISH_RESERVE is affordable, so a refused
+ * listing always leaves room for one tab (AC5, decision A2).
+ */
+export const LIST_RESERVE = TAB_FETCH_TRIES + 1 + 2;
 
 /** D1 calls of one hideRemovedTab: the hotel lookup and one write (markTabMissing or the batch). */
 const HIDE_CALLS = 2;
@@ -216,6 +224,74 @@ async function hideRemovedTab(
 	return true;
 }
 
+/** A cache row may be used as is when its modified and skip signature still match the source. */
+function cacheMatches(row: { skipSig: string | null }, skipSignature: string | undefined): boolean {
+	return (row.skipSig ?? undefined) === skipSignature;
+}
+
+function tabsOf(file: SheetFile, cached: SyncFileTab[]): SheetTab[] {
+	return cached.map((tab) => ({ fileId: file.fileId, fileName: file.fileName, gid: tab.gid, tabName: tab.tabName }));
+}
+
+/**
+ * Lists the tabs of every file, skipping listTabs where the cache proves nothing changed (same
+ * `modified` and skip signature). A file that must be listed is listed only when the budget can also
+ * pay for one tab afterwards. A file that cannot be listed uses its cached tabs when the skip signature
+ * still matches, otherwise it is left out and `incomplete` is set (removals are then not applied).
+ * Throws on a listFiles or listTabs failure; a file is cached only after its listTabs succeeded.
+ */
+async function listWithCache(
+	db: D1Database,
+	source: SheetSource,
+	budget: SubrequestBudget,
+	now: string,
+): Promise<{ tabs: SheetTab[]; incomplete: boolean }> {
+	const files = await source.listFiles();
+	const cache = await getSyncFiles(db);
+	const skipSignature = source.skipSignature;
+	const tabs: SheetTab[] = [];
+	let incomplete = false;
+
+	for (const file of files) {
+		const row = cache.get(file.fileId);
+		const cachedTabs = row?.tabs ?? null;
+		const unchanged =
+			row !== undefined &&
+			cachedTabs !== null &&
+			file.modified !== undefined &&
+			row.modified !== null &&
+			row.modified === file.modified &&
+			cacheMatches(row, skipSignature);
+		if (unchanged) {
+			tabs.push(...tabsOf(file, cachedTabs));
+			continue;
+		}
+
+		if (budget.canAfford(LIST_RESERVE + TAB_RESERVE + FINISH_RESERVE)) {
+			const listed = await source.listTabs(file);
+			await upsertSyncFile(db, {
+				fileId: file.fileId,
+				fileName: file.fileName,
+				modified: file.modified ?? null,
+				skipSig: skipSignature ?? null,
+				tabs: listed.map((tab) => ({ gid: tab.gid, tabName: tab.tabName })),
+				listedAt: now,
+			});
+			tabs.push(...listed);
+			continue;
+		}
+
+		// Not affordable this run. A stale list is used only with the same skip signature (a newly
+		// skipped tab must not be applied); the next run relists the file.
+		if (cachedTabs !== null && row !== undefined && cacheMatches(row, skipSignature)) {
+			tabs.push(...tabsOf(file, cachedTabs));
+			continue;
+		}
+		incomplete = true;
+	}
+	return { tabs, incomplete };
+}
+
 export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<SyncSummary> {
 	const { db, source, parse } = deps;
 	const now = deps.now();
@@ -236,6 +312,7 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 	const items: RunNoteItem[] = [];
 	let aborted: SyncSummary["aborted"];
 	let tabs: SheetTab[] = [];
+	let listingIncomplete = false;
 	let started = 0;
 
 	const fail = (tab: string | null, reason: string, readPhase = false): void => {
@@ -257,11 +334,20 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 		return summary;
 	};
 
-	// Listing: any throw ends the run before anything is written.
+	// Listing: any throw ends the run before anything is written. The subrequest breaker causes
+	// (IMMEDIATE_CAUSES) abort the run at once, as in the tab loop.
 	try {
-		tabs = await listAllTabs(source);
+		const listing = await listWithCache(db, source, budget, now);
+		tabs = listing.tabs;
+		listingIncomplete = listing.incomplete;
+		if (listingIncomplete) items.push({ kind: "info", reason: "listing_incomplete" });
 	} catch (error) {
+		const cause = networkCauseOf(error);
 		fail(null, reasonOf(error));
+		if (cause !== undefined && IMMEDIATE_CAUSES.has(cause)) {
+			aborted = "circuit_breaker";
+			items.push({ kind: "abort", reason: "aborted_circuit_breaker" });
+		}
 		return finish(true);
 	}
 
@@ -290,7 +376,13 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 		// IMMEDIATE_CAUSES). A success, an HTTP-status failure or another cause resets the streak.
 		let streakCause: NetworkCause | undefined;
 		let streak = 0;
-		for (const tab of picked) {
+		// A listing was refused and the budget cannot pay for even one tab: nothing can start, so the run
+		// stops with budget_exhausted (the TASK-69 contract) instead of finishing silently.
+		if (listingIncomplete && !budget.canAfford(TAB_RESERVE + FINISH_RESERVE)) {
+			aborted = "budget_exhausted";
+			items.push({ kind: "abort", reason: "budget_exhausted" });
+		}
+		for (const tab of aborted === undefined ? picked : []) {
 			if (deadline.softExceeded() || deadline.hardExceeded()) {
 				aborted = "deadline";
 				items.push({ kind: "abort", reason: "deadline" });
@@ -379,9 +471,10 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 		await markTabsChecked(db, [...unchangedKeys, ...attemptedKeys], now);
 
 		// Removed tabs come from the full listing, so a deferred tab is never one of them. After an
-		// early stop the removals are not applied at all. Each removal needs its own budget check;
-		// the ones left over wait for the next run (they stay removed in the next plan).
-		if (aborted === undefined) {
+		// early stop, or when a file could not be listed (its tabs are unknown), the removals are not
+		// applied at all. Each removal needs its own budget check; the ones left over wait for the next
+		// run (they stay removed in the next plan).
+		if (aborted === undefined && !listingIncomplete) {
 			const { removed } = planSync({ tabs, state, hashes: new Map() });
 			for (const row of removed) {
 				if (!budget.canAfford(HIDE_CALLS + FINISH_RESERVE)) break;
