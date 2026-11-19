@@ -3,7 +3,7 @@
 - id: TASK-54
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 1
 - depends on: TASK-59 (vitest include for test/sync, must run first), TASK-46, TASK-49, TASK-53
@@ -70,5 +70,15 @@ AC9 result type is fine by inspection: counts, `failures: {tab, reason}[]`, `fai
 Rework notes:
 1. AC9 test is not hostile enough. The hostile fixture only covers a readCsv Error carrying a URL. Extend the "returned summary ..." test (and assert on the serialized result) with: a parse function returning `{ ok:false, reason: SHEET_URL }`, a parse function that throws an Error containing SHEET_URL and the secret, a `listFiles` throwing `new SheetReadError(SHEET_URL)` (failed run), and a `SheetReadError` with a non-code reason on readCsv. Expect `unexpected_error` in each case and no URL, token, file id or row text in `JSON.stringify(result)`. Also include a facility label not in the map and assert it is absent from the result (present only in notes).
 2. `hideRemovedTab` is not atomic. `markTabMissing` is committed first, then the hotel is hidden in a separate batch. If the batch fails, the tab has `missing_since` set but the hotel stays visible, and planSync never lists it as removed again, so the hotel is never hidden (the opposite of STORY-14 AC9). Fix inside runSync.ts only: put the missing marking into the same `db.batch` as the hotel hide and the `hidden_by_sync` update (e.g. one `UPDATE sync_state SET missing_since = COALESCE(missing_since, ?), prior_status = ?, hidden_by_sync = 1, updated_at = ?` statement in the batch, without changing syncState.ts, which is outside the file list), keeping the owner-hidden branch using `markTabMissing`. Add a test that a failing batch (fake D1 throwing on batch) leaves `missing_since` null so the next run retries and hides it.
+
+### Re-review (after rework 1)
+
+Verdict: approve.
+
+Checked: coordinator's run of `env -u CLOUDFLARE_API_TOKEN npm test -- --run` = 62 files / 456 tests green; code and tests read directly.
+1. AC9 test: resolved. Covers parse reason = URL, parse throwing URL + token + row text, readCsv `SheetReadError(URL)`, and (separate test) listFiles/listTabs errors with URL/token (failed run, `unexpected_error`, tab null). Serialized result is checked for `https://`, token, row text, file ids and the unmapped facility label; exact key set and exact failures list asserted; the label is asserted present only in notes.
+2. Atomic hide: resolved. `MARK_REMOVED_HIDDEN_SQL`, the hotel hide and `buildDataVersionStatement` are in one `db.batch`; owner-hidden/missing-hotel branch still uses `markTabMissing`. The failing-batch test genuinely distinguishes the orders: the fake DB only overrides `batch`, so in the old order `markTabMissing` (a plain prepare/run) would have succeeded and left `missing_since` set before the batch threw; the test asserts `missing_since: null`, `hidden_by_sync: 0`, `prior_status: null` and a published hotel, which would fail on the old code. The retry run then hides it with the right state.
+
+Accepted: PARSER_VERSION stays local until TASK-58. Only the listed files changed.
 
 ## Questions
