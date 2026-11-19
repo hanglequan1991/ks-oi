@@ -3,7 +3,7 @@
 - id: TASK-57
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (vitest include for test/sync, must run first), TASK-48
@@ -36,5 +36,12 @@
 - The `warning` field is an optional extra on the result type, needed for AC4.
 
 ## Review
+
+Verdict: approve
+
+- AC1-AC5 covered; tests use createFakeAi only, no real AI call. Suite green (420 tests). Only the three listed files are involved.
+- Invalid JSON / schema failure retried once then passthrough with `warning: 'extractor_fallback'` (tested, 2 calls); a throwing binding falls back at once and never throws (tested); limits tested at 4000/80/80 and at the exact boundary.
+- Input kinds are only 'description' | 'facilities'; the extractor has no path for booking rules, prices or image URLs (sheet-owned), and the prompt forbids mentioning them. This is enforced by types only, not by a test; acceptable.
+- EXTRACTOR_MODEL `@cf/meta/llama-3.1-8b-instruct`: UNVERIFIED. No Cloudflare docs search tool was available in this session. To my knowledge it is a Workers AI text-generation model, but it may be deprecated or renamed; confirm against the current Workers AI model catalogue before deploy. It is a single constant.
 
 ## Questions

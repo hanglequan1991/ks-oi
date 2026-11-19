@@ -3,7 +3,7 @@
 - id: TASK-52
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: review
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (adds test/sync to the vitest include list; must run first)
@@ -35,5 +35,14 @@
 - Tests: 9 cases in `test/sync/overrides.spec.ts` (the 6 listed plus stars, status-valid, and hotel-scope isolation). Full unit suite: 59 files, 420 tests passing.
 
 ## Review
+
+Verdict: approve
+
+- AC1-AC5 each covered by a meaningful test; full suite green (59 files / 420 tests, run by coordinator). Only the two listed files changed by this task.
+- SQL is 8 fixed UPDATEs built from a constant WHITELIST; override field name is only a bound parameter (?2), never concatenated. Non-whitelisted fields (name, source_hash) are tested as ignored.
+- EXISTS guard: missing room / unusable value leaves the sheet value (tested). `overrides.value` is NOT NULL so no NULL can be written into a NOT NULL column.
+- Extra guards are sensible: stars 1..5 mirrors the CHECK constraint, base_price >= 0 mirrors its CHECK; digits-only means "1,200,000" or "4.0" is skipped (consistent with AC2 "does not cast"). No valid integer override is dropped.
+- Ordering (overrides after sheet writes, then data_version) is the caller's job and is stated in TASK-53 AC3; not testable here.
+- Non-blocking: no test for stars 0/6 or negative base_price being skipped. Optional.
 
 ## Questions

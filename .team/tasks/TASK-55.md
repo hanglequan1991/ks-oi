@@ -3,9 +3,9 @@
 - id: TASK-55
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: review
+- status: in-progress
 - assignee: dev
-- rework count: 0
+- rework count: 1
 - depends on: none (takes the sync as an injected function)
 - size: fits a 100k-token context (few files, one behaviour)
 
@@ -40,5 +40,15 @@ Related open check in decision.md (2026-11-19): the limiter trusts CF-Connecting
 - 200 body is the value returned by `runSync` as-is. No summary shape is defined in STORY-14 or the code yet, so the route does not filter it. If the sync can return file paths or row data, the caller must return counts and failures only.
 
 ## Review
+
+Verdict: rework
+
+Everything else is right (404 gate first, rate limit before token check, SHA-256 + full XOR compare, header-only token, noindex via global middleware, generic 500 with no echo, GET 404). One defect:
+
+1. AC2 says the unset-secret 404 must be indistinguishable from an unknown route. `app.use(path, noindex(), noStore)` runs for every method on `/internal/sync`, so with the secret unset the 404 carries `Cache-Control: no-store`, while an unknown route's 404 carries none (noindex is global, so that header is fine). The route is therefore detectable by header. Fix: apply `noStore` only after the secret gate (e.g. set it inside `tokenCheck`/after the gate passes, and on the 429 response path), so the secret-unset 404 and the GET 404 have exactly the same headers as `/internal/nope`. The 429 and 401 must still carry no-store (existing test).
+2. Strengthen test `404 when token unset or empty`: compare the full header set (at least `Cache-Control` and `X-Robots-Tag`) and status against an unknown route, and also assert it for a GET and another method (AC2 says every method).
+3. Note (no change needed): the default limiter is in-memory per isolate, so the 5/min is per isolate; acceptable for now, tracked by the open decision.md check on CF-Connecting-IP.
+
+The 200 body is runSync's result unfiltered; the guarantee is placed on TASK-54 (new AC9 added there).
 
 ## Questions

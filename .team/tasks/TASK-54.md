@@ -17,6 +17,7 @@
 6. AC6: a run with no change reports `unchanged = N`, `created = updated = 0`, writes no hotel rows and does not bump `data_version` (STORY-14 AC10).
 7. AC7: `sync_runs` row has created, updated, failed, hidden, unchanged counts and a notes list of failures (tab name, reason code, message) and unmapped facility labels; no secret or URL with a token is ever written to notes.
 8. AC8: concurrency: if a run started less than 15 minutes ago and has no `finished_at`, `runSync` returns `{ skipped: 'already_running' }` without doing anything.
+9. AC9: the value returned by `runSync` (it is served as the body of `POST /internal/sync`, TASK-55, unfiltered) contains ONLY counts (created, updated, failed, hidden, unchanged) and failure entries made of tab name and reason code (plus `skipped` / `failed_run` flags). No row text, no URLs, no file ids, no error messages from sources, no secrets.
 
 ## Unit tests to write
 - [ ] `first run creates hotels, second run changes nothing`: covers AC3, AC6
@@ -29,6 +30,7 @@
 - [ ] `run log counts and truncation`: covers AC1, AC7
 - [ ] `second concurrent run is skipped`: covers AC8
 - [ ] `notes contain no url or token`: covers AC7
+- [ ] `returned summary has only counts and failure codes, no url, row text or secret`: covers AC9 (serialize the result and assert it contains no URL, token or cell text from the fixture)
 
 ## Files this task may touch
 - `sheet-rag/src/db/syncRuns.ts`
