@@ -41,6 +41,7 @@ Cron frequency: the story says hourly, the user message said daily; hourly is th
 
 - Implemented: site.ts (SiteEnv fields, scheduled handler, registerInternalSyncRoute in mount, placeholder treated as unconfigured), src/sync/rowParser.ts stub, wrangler.hotel.jsonc (triggers, vars), DEPLOY-hotel-dictionary.md section, tests in test/web/siteSync.spec.tsx (new) and test/web/site-config.spec.ts (new describe appended).
 - Unit suite: 63 files, 461 tests passed. Dry run exit 0.
+- Rework 1 (doc only, sheet-rag/DEPLOY-hotel-dictionary.md): secret step uses `-c wrangler.hotel.jsonc`; curl manual trigger with bearer header (token not in URL) and status table (200, 401, 404, 429, 500); `?force=1` documented (supported: passed to runSync, planSync re-applies all tabs); JSON summary described (counts, failures codes, failed_run, skipped); sync_runs query with real columns from migrations/0003_sync.sql; optional AI binding documented as off, not read by the current code (extractor not wired into the sync yet), with model deprecation check before deploy. Unit suite: 63 files, 461 tests passed.
 
 ## Review
 Verdict: rework

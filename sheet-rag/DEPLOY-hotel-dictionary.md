@@ -80,10 +80,57 @@ The Worker syncs hotel data from a public Google Drive folder. It reads the same
 3. Optional: set `SKIP_TABS` in `vars` to a JSON array of `"File name/Tab name"` strings to leave out. The default `"[]"` skips nothing.
 4. Set the secret that guards the manual trigger (not stored in the file):
    ```sh
-   npx wrangler secret put SYNC_TOKEN
+   npx wrangler secret put SYNC_TOKEN -c wrangler.hotel.jsonc
    ```
+   The `-c` flag is required so the secret goes to the `hotel-dictionary` Worker.
    Without `SYNC_TOKEN`, `POST /internal/sync` answers 404. With it, send `Authorization: Bearer <token>`.
 5. Deploy with `npx wrangler deploy -c wrangler.hotel.jsonc` (or `npm run deploy:hotel`). The cron `0 * * * *` runs the sync every hour. This is one string in `triggers.crons`; change it there if you want a different schedule (for example daily).
-6. After the first run, check the file and tab counts against the Drive folder. The sync reports counts and failure codes only (no sheet content).
+6. After the first run, check the file and tab counts against the Drive folder (see "Read the sync run log" below).
 
 Until the row parser is in place, every tab is reported with `parser_not_configured` and nothing is published. This is expected for this release.
+
+### Trigger a sync by hand
+
+Keep the token out of the URL. Put it in an environment variable and send it in the header:
+
+```sh
+export SYNC_TOKEN=<the token you set in step 4>
+curl -X POST https://<your-domain>/internal/sync -H "Authorization: Bearer $SYNC_TOKEN"
+```
+
+Responses:
+
+| Status | Body | Meaning |
+|---|---|---|
+| 200 | JSON summary (below) | The sync ran. |
+| 401 | `{"error":"unauthorized"}` | The token is missing or wrong. |
+| 404 | not found | `SYNC_TOKEN` is not set on the Worker. Run step 4. |
+| 429 | `{"error":"too_many_requests"}` | More than 5 requests per minute from one client IP. Wait a minute. |
+| 500 | `{"error":"sync_failed"}` | The run threw an error. The Worker logs the detail; the response carries no detail. |
+
+The optional query parameter `?force=1` re-applies every tab, even tabs whose content did not change. Use it only when you need a full re-apply. Example: `https://<your-domain>/internal/sync?force=1`.
+
+The 200 response is a JSON summary with counts and failure codes only:
+
+- `created`, `updated`, `failed`, `hidden`, `unchanged`: number of hotels or tabs in each state.
+- `failures`: a list of `{ "tab": "<tab name or null>", "reason": "<short code>" }`. `tab` is `null` for a run-level failure. `reason` is a short lowercase code such as `parser_not_configured`; anything else is reported as `unexpected_error`.
+- `failed_run: true` (only when the whole run failed).
+- `skipped: "already_running"` (only when another run was still in progress).
+
+### Read the sync run log
+
+Each run writes one row to `sync_runs`. The columns are `id`, `kind` (`scheduled` or `manual`), `started_at`, `finished_at`, `created`, `updated`, `failed`, `hidden`, `unchanged` and `notes`. Read the latest five runs:
+
+```sh
+npx wrangler d1 execute hotel-dictionary --remote -c wrangler.hotel.jsonc --command "SELECT * FROM sync_runs ORDER BY started_at DESC LIMIT 5"
+```
+
+### Optional AI binding (off by default)
+
+The AI binding is off. The current Worker code does not read it, and the free-text extractor is not wired into the sync yet. To enable it later, uncomment this in `wrangler.hotel.jsonc` (in the same block as the other bindings):
+
+```jsonc
+"ai": { "binding": "AI" }
+```
+
+Before you deploy with it on, check that the extractor model `@cf/meta/llama-3.3-70b-instruct-fp8-fast` is not deprecated in the Workers AI model list. If it is, the extractor code must be updated first.
