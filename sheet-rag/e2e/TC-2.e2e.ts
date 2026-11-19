@@ -143,7 +143,7 @@ test.describe("TC-2: migrations are safe to run again", () => {
 		const countsBefore = Object.fromEntries(await Promise.all(tables.map(async (t) => [t, await countRows(db, t)])));
 		const settingsBefore = await settingsRows(db);
 		expect(settingsBefore.map((row) => row.key)).toEqual([...SETTINGS_KEYS].sort());
-		expect(settingsBefore).toHaveLength(5);
+		expect(settingsBefore).toHaveLength(6);
 		const snapshotBefore = await snapshot(db);
 
 		// Step 4: run the migrations a second time, then a third time.
@@ -155,7 +155,7 @@ test.describe("TC-2: migrations are safe to run again", () => {
 		expect(countsAfter, "row counts of all tables must be unchanged").toEqual(countsBefore);
 
 		const settingsAfter = await settingsRows(db);
-		expect(settingsAfter, "settings must keep exactly one row per key").toHaveLength(5);
+		expect(settingsAfter, "settings must keep exactly one row per key").toHaveLength(6);
 		expect(settingsAfter).toEqual(settingsBefore);
 
 		const cityRow = await db.prepare("SELECT * FROM cities WHERE slug = ?").bind(CITY.slug).first();

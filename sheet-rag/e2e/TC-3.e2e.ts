@@ -70,7 +70,7 @@ test.describe("TC-3: a setting changed after seeding survives a migration re-run
 		expect(afterRerun.show_fee_note).toBe(EDITED_FEE_NOTE);
 		expect(afterRerun.disclaimer_en).toBe(EDITED_DISCLAIMER_EN);
 		expect(afterRerun.disclaimer_vi).toBe(DEFAULT_DISCLAIMER_VI);
-		expect(await settingsCount(db), "settings must still have 5 rows").toBe(5);
+		expect(await settingsCount(db), "settings must still have 6 rows").toBe(6);
 
 		// Step 5 (edge): delete the data_version row, re-run migrations, read settings again.
 		const deleted = await db.prepare("DELETE FROM settings WHERE key = 'data_version'").run();
@@ -84,6 +84,6 @@ test.describe("TC-3: a setting changed after seeding survives a migration re-run
 		expect(afterEdgeRerun.service_fee_percent).toBe(EDITED_FEE);
 		expect(afterEdgeRerun.show_fee_note).toBe(EDITED_FEE_NOTE);
 		expect(afterEdgeRerun.disclaimer_en).toBe(EDITED_DISCLAIMER_EN);
-		expect(await settingsCount(db)).toBe(5);
+		expect(await settingsCount(db)).toBe(6);
 	});
 });

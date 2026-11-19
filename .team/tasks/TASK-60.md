@@ -38,6 +38,9 @@ Checked and NOT affected (no change needed): `test/migrations/0002_seed_settings
 For qalead (NOT in the dev list; qalead owns them): `.team/testcases/TC-1.md` (expected results 4 and 5 and the out-of-scope check: `sync_state`/`sync_runs` now exist), `TC-2.md` (settings has 6 rows incl. `sync_auto_publish`, expected results 3 and 5), `TC-3.md` (still 6 rows, expected results 4 and 5 and the review notes), `TC-4.md` (expected result 5: exact keys now include `sync_auto_publish`).
 
 ## Dev notes
+- Red: apiSample (count 6 vs 5) and TC-1..TC-4 failed on the stale schema as expected.
+- Green: unit suite 52 files / 372 tests passed; TC-1..TC-4 chromium 4 passed.
+- Edits: apiSample (6 settings, sync_auto_publish), TC-1 (sync_state/sync_runs exist; prefixes crawl_/admin_; non-required non-sync tables checked), TC-2 (SETTINGS_KEYS + 6 counts), TC-3 (6 rows), TC-4 (EXPECTED_KEYS of six).
 
 ## Review
 

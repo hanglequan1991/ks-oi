@@ -140,7 +140,8 @@ describe("apiSample fixture", () => {
 		expect(map.data_version).toBe("1");
 		expect(map.disclaimer_vi).toEqual(expect.any(String));
 		expect(map.disclaimer_en).toEqual(expect.any(String));
-		expect(settings.results).toHaveLength(5);
+		expect(map.sync_auto_publish).toBe("true");
+		expect(settings.results).toHaveLength(6);
 	});
 
 	it("seedManyPublished adds 60 published hotels", async () => {

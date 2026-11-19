@@ -59,9 +59,13 @@ test.describe("TC-1: migrations create all tables on an empty database", () => {
 		for (const table of REQUIRED_TABLES) {
 			expect(tables, `table "${table}" should exist`).toContain(table);
 		}
+		for (const table of SYNC_TABLES) {
+			expect(tables, `sync table "${table}" should exist (migration 0003)`).toContain(table);
+		}
 
-		// Step 6: no out-of-scope tables were created.
-		for (const table of tables) {
+		// Step 6: no out-of-scope tables were created (sync tables are allowed).
+		const requiredOrSync = [...REQUIRED_TABLES, ...SYNC_TABLES];
+		for (const table of tables.filter((t) => !requiredOrSync.includes(t))) {
 			for (const prefix of OUT_OF_SCOPE_PREFIXES) {
 				expect(table.startsWith(prefix), `table "${table}" must not exist in Version 1`).toBe(false);
 			}
