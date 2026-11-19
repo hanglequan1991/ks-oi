@@ -75,7 +75,7 @@ function hasProp(body: string, prop: string): boolean {
 const css = normalise(readFileSync(CSS_PATH, "utf8"));
 const all = parseBlocks(css);
 const screen = all.filter((b) => !b.prelude.startsWith("@"));
-const mobile = parseBlocks(mediaBody(all, "@media (max-width: 720px)"));
+const mobile = parseBlocks(mediaBody(all, "@media screen and (max-width: 720px)"));
 const print = parseBlocks(mediaBody(all, "@media print"));
 
 const TEMPLATE = "56px minmax(0,1.5fr) minmax(0,1.3fr) 96px 180px 170px 44px";
@@ -278,7 +278,11 @@ describe("bill.css", () => {
 	});
 
 	it("mobile card order and dark total bar", () => {
-		expect(mediaBody(all, "@media (max-width: 720px)")).not.toBe("");
+		expect(mediaBody(all, "@media screen and (max-width: 720px)")).not.toBe("");
+		// The mobile prelude must be screen-only so mobile rules cannot leak into print.
+		const preludes = all.filter((b) => b.prelude.startsWith("@media")).map((b) => key(b.prelude));
+		expect(preludes).toContain(key("@media screen and (max-width: 720px)"));
+		expect(preludes).not.toContain(key("@media (max-width: 720px)"));
 		expect(hasDecl(declsOf(mobile, ".bill-head"), "display", "none")).toBe(true);
 		const card = declsOf(mobile, ".bill-card");
 		expect(hasDecl(card, "background", "none")).toBe(true);

@@ -70,6 +70,7 @@ Nothing else (no `app.css`, no `.tsx`, no `render.ts`). Shared with TASK-44: non
 - `.btn-danger` keeps its old values (AC12 says keep screen defaults).
 - Comments in bill.css avoid the words `@import`, `Inter` and `googleapis` because the spec checks the whole file text.
 - Not deployed. TASK-44 must land before the page is fully correct.
+- Rework 1 (review note 1): mobile query changed to `@media screen and (max-width: 720px)`. The spec's two mobile lookups use the new prelude, and a new assertion checks the screen-only prelude exists and the old one does not. Because the mobile block no longer matches print, the leaks (dark `.bill-summary`, `.row-title`, `.bill-foot` column, `.c-total`, `.note-markers`, `.bill-bottom`, `.c-index`) are gone, so no extra print resets were added. Print block unchanged. Full suite: 45 files, 318 tests pass.
 
 ## Review
 Verdict: **rework** (one defect; everything else matches).

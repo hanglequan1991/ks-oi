@@ -407,7 +407,7 @@ main {
 
 /* ---------- Mobile cards ---------- */
 
-@media (max-width: 720px) {
+@media screen and (max-width: 720px) {
   .bill-page {
     padding: 20px 16px 24px;
   }
