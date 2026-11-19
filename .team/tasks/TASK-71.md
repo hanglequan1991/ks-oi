@@ -43,6 +43,13 @@ Everything built so far is injectable; this task connects it to the real Worker 
 
 ## Dev notes
 <!-- Written by dev. -->
+- Red first: new tests failed (no `syncDepsFor` export, no limits/budget, no vars, no doc headings). Then green.
+- `src/site.ts`: `syncDepsFor(db, env)` exported; one budget per call; `db` wrapped by `countingDb`; source fetch is `countingFetch(...)` over `(...a) => globalThis.fetch(...a)` (no detached reference). `limits`, `budget`, `nowMs` added to deps. scheduled and manual route unchanged in behaviour.
+- `wrangler.hotel.jsonc`: vars `MAX_TABS_PER_RUN "25"`, `SUBREQUEST_BUDGET "40"`; cron `0 * * * *` kept; SKIP_TABS and cron comments updated; placeholders kept.
+- `DEPLOY-hotel-dictionary.md`: added `## Limits`, `## Pause the sync`, `## Run notes` (cause codes with meaning and action), a skip-list "owner to confirm" section, and a migration-order warning under step 3. Corrected the `?force=1` line (it re-applies the next batch only).
+- Tests: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` 71 files, 606 tests passed. Playwright node chromium 32 passed. Dry-run OK (bindings DB, ASSETS, DRIVE_FOLDER_ID, SKIP_TABS, MAX_TABS_PER_RUN, SUBREQUEST_BUDGET).
+- Not touched (out of file list): `src/db/syncState.ts` (comment near TAB_CHECK_META_SQL), `migrations/0004_sync_budget.sql`.
+- Note: the `listing_incomplete` row in the doc describes it as info only; that is from runSync.ts (`kind: "info"`).
 
 ## Review
 <!-- Written by lead. -->

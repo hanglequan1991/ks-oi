@@ -133,4 +133,51 @@ describe("wrangler.hotel.jsonc: sync settings (TASK-56)", () => {
 		expect(text).toContain("wrangler secret put SYNC_TOKEN");
 		expect(text).not.toMatch(/SYNC_TOKEN"?\s*:\s*"(?!\s*$)/);
 	});
+
+	it("wrangler.hotel.jsonc has the new vars, the hourly cron and no real ids (TASK-71)", () => {
+		const text = read("wrangler.hotel.jsonc");
+		const cfg = parseJsonc(text);
+
+		expect(cfg.vars.MAX_TABS_PER_RUN).toBe("25");
+		expect(cfg.vars.SUBREQUEST_BUDGET).toBe("40");
+		expect(cfg.vars.SKIP_TABS).toBe("[]");
+		expect(cfg.triggers?.crons).toEqual(["0 * * * *"]);
+		expect(text).toContain("budget");
+		expect(text).toContain("circuit breaker");
+
+		// Placeholders only: no real folder id, database id or secret.
+		expect(cfg.vars.DRIVE_FOLDER_ID).toBe("REPLACE_WITH_DRIVE_FOLDER_ID");
+		expect(cfg.d1_databases[0].database_id).toBe("REPLACE_WITH_D1_ID");
+		expect(text).not.toMatch(/drive\.google\.com|docs\.google\.com/);
+	});
+});
+
+describe("DEPLOY-hotel-dictionary.md: limits, pause and run notes (TASK-71)", () => {
+	it("deploy doc has Limits, Pause the sync and the cause code list", () => {
+		const doc = read("DEPLOY-hotel-dictionary.md");
+		const headings = ["## Limits", "## Pause the sync", "## Run notes"];
+		for (const heading of headings) {
+			expect(doc, heading).toContain(heading);
+		}
+		const codes = [
+			"csv_subrequest_limit",
+			"csv_illegal_invocation",
+			"csv_timeout",
+			"csv_redirect_error",
+			"csv_network_other",
+			"aborted_circuit_breaker",
+			"budget_exhausted",
+			"deadline",
+			"abandoned",
+			"listing_incomplete",
+		];
+		for (const code of codes) {
+			expect(doc, code).toContain(`\`${code}\``);
+		}
+		expect(doc).toContain("MAX_TABS_PER_RUN");
+		expect(doc).toContain("SUBREQUEST_BUDGET");
+		expect(doc).toContain("?force=1");
+		expect(doc).toContain("18");
+		expect(doc).toContain("comment out");
+	});
 });

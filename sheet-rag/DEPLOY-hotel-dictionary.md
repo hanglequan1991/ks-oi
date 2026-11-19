@@ -23,6 +23,8 @@ Run every command in `sheet-rag/`. Run the steps in this order.
    npx wrangler d1 migrations apply hotel-dictionary --remote -c wrangler.hotel.jsonc
    ```
 
+   Migration order: apply migration `0004` only from the final version of the code. Run this step (the owner runs `wrangler d1 migrations apply`) before you deploy the Worker code in step 5, so the database and the Worker agree.
+
 4. Build the browser bundle (`public/bill.js`):
 
    ```sh
@@ -131,7 +133,7 @@ Responses:
 | 429 | `{"error":"too_many_requests"}` | More than 5 requests per minute from one client IP. Wait a minute. |
 | 500 | `{"error":"sync_failed"}` | The run threw an error. The Worker logs the detail; the response carries no detail. |
 
-The optional query parameter `?force=1` re-applies every tab, even tabs whose content did not change. Use it only when you need a full re-apply. Example: `https://<your-domain>/internal/sync?force=1`.
+The optional query parameter `?force=1` re-applies only the next batch of tabs (up to `MAX_TABS_PER_RUN`), even tabs whose content did not change. It does not re-apply the whole folder in one run. Use it only when you need a re-apply. Example: `https://<your-domain>/internal/sync?force=1`.
 
 The 200 response is a JSON summary with counts and failure codes only:
 
@@ -157,3 +159,46 @@ The AI binding is off. The current Worker code does not read it, and the free-te
 ```
 
 Before you deploy with it on, check that the extractor model `@cf/meta/llama-3.3-70b-instruct-fp8-fast` is not deprecated in the Workers AI model list. If it is, the extractor code must be updated first.
+
+## Limits
+
+Each run has two limits, set as plain `vars` in `wrangler.hotel.jsonc`:
+
+- `MAX_TABS_PER_RUN` (default `"25"`): the most tabs one run reads. Tabs past the limit wait for the next run.
+- `SUBREQUEST_BUDGET` (default `"40"`): the most outbound requests and D1 calls one run may make. When the budget runs out, the run stops early and records `budget_exhausted`.
+
+The values are strings. Blank or invalid values fall back to the defaults. The defaults fit the Free plan, which allows 50 subrequests per invocation. On the Paid plan (1000 subrequests) the owner may raise them, for example `"1000"` for `SUBREQUEST_BUDGET` and `"200"` for `MAX_TABS_PER_RUN`. Change the values, then redeploy.
+
+A folder of about 450 tabs converges over several hourly runs. At 25 tabs per run that is about 18 hourly runs (about 18 hours) for the first full pass. Later runs only read changed tabs in the same batches. `?force=1` re-applies only the next batch, not the whole folder, so it does not speed up the first pass.
+
+## Pause the sync
+
+To stop the hourly sync without removing the Worker:
+
+1. In `wrangler.hotel.jsonc`, comment out the `triggers.crons` line, or set it to an empty list `[]`.
+2. Redeploy: `npx wrangler deploy -c wrangler.hotel.jsonc` (or `npm run deploy:hotel`).
+
+The site keeps serving the last synced data. The manual route `POST /internal/sync` stays available with `SYNC_TOKEN`. To resume, restore the cron `"0 * * * *"` and redeploy.
+
+## Run notes
+
+Each run writes a `notes` value in `sync_runs` (see "Read the sync run log"). Notes use these codes. Each code has one meaning and one action.
+
+| Code | Meaning | Action |
+|---|---|---|
+| `csv_subrequest_limit` | Google returned a limit error for one tab (too many requests in one invocation). | Lower `MAX_TABS_PER_RUN` or `SUBREQUEST_BUDGET`, or raise the plan limit. The tab is retried next run. |
+| `csv_illegal_invocation` | The fetch call was made with the wrong receiver. A code bug, not a Google problem. | Stop the sync (see "Pause the sync") and report it to the developer. |
+| `csv_timeout` | Google did not answer in time for one tab. | Usually transient. If it repeats, check the Drive sharing and try again later. |
+| `csv_redirect_error` | Google redirected the tab in a way the sync does not follow. | Check that the file is shared as "Anyone with the link can view". |
+| `csv_network_other` | Another network error for one tab. | Usually transient. If it repeats, report it to the developer. |
+| `aborted_circuit_breaker` | The run stopped after repeated network errors (the breaker opened). | Wait for the next run. If it repeats, pause the sync and check the cause codes above. |
+| `budget_exhausted` | The run used all of `SUBREQUEST_BUDGET`. | Normal during the first pass. Raise the budget on the Paid plan, or wait for later runs. |
+| `deadline` | The run reached the time limit (soft 8 minutes, hard 10 minutes) and stopped. | Normal for large folders. The rest is picked up next run. |
+| `abandoned` | An earlier run never finished and was closed by a later run. | Normal after a crash. Repeated cases: pause the sync and report it. |
+| `listing_incomplete` | Info only. The folder listing was only partly read, and the run went on with the part it had. | Check the folder size and the limits. Nothing needs to be done if later runs read the rest. |
+
+Failure reasons in the 200 response (`failures[].reason`) use the same `csv_` codes for tabs.
+
+## Skip list (owner to confirm)
+
+The recommended `SKIP_TABS` list in step 3 comes from a review of the live folder. It is a recommendation only. The owner must confirm each tab name is a non-hotel tab before using it. Once a tab is skipped, its hotels are hidden on the next run.

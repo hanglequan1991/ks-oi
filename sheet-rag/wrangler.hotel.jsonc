@@ -41,7 +41,10 @@
 	},
 	/**
 	 * Sheet sync schedule (hourly). One string; the owner may change it.
-	 * The Worker runs the sync from the `scheduled` handler.
+	 * The Worker runs the sync from the `scheduled` handler. The per-run budget,
+	 * the circuit breaker and the stale-run abandon protect against a stuck run
+	 * repeating. To pause the sync, comment this out or set it to [] and redeploy
+	 * (see "Pause the sync" in DEPLOY-hotel-dictionary.md).
 	 */
 	"triggers": {
 		"crons": ["0 * * * *"]
@@ -50,7 +53,14 @@
 	 * Plain variables (not secrets).
 	 * DRIVE_FOLDER_ID: the public Drive folder id. REPLACE_WITH_DRIVE_FOLDER_ID is a
 	 * placeholder; the Worker treats it as unconfigured and skips the sync (logged).
-	 * SKIP_TABS: JSON array of "File name/Tab name" to skip, for example ["File/Tab"].
+	 * SKIP_TABS: JSON array of strings to skip, matched case-insensitively. Each entry
+	 * is either "File name/Tab name" (skips that tab in that one file, no .xlsx) or a
+	 * tab name alone (skips every tab with that name in every file), for example
+	 * ["File/Tab", "Tab name"].
+	 * MAX_TABS_PER_RUN and SUBREQUEST_BUDGET: per-run limits, as strings. The values
+	 * shown are the Free-plan defaults (Free allows 50 subrequests per invocation).
+	 * On a Paid plan (1000 subrequests) the owner may raise them, for example
+	 * "1000" and "200". See "Limits" in DEPLOY-hotel-dictionary.md.
 	 *
 	 * Secret (not in this file): SYNC_TOKEN, set with `wrangler secret put SYNC_TOKEN`.
 	 * Without it, POST /internal/sync answers 404.
@@ -60,6 +70,8 @@
 	 */
 	"vars": {
 		"DRIVE_FOLDER_ID": "REPLACE_WITH_DRIVE_FOLDER_ID",
-		"SKIP_TABS": "[]"
+		"SKIP_TABS": "[]",
+		"MAX_TABS_PER_RUN": "25",
+		"SUBREQUEST_BUDGET": "40"
 	}
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import site from "../../src/site";
+import site, { syncDepsFor } from "../../src/site";
 import { createPublicGoogleSource } from "../../src/sync/publicGoogleSource";
 import { parseSheetRows } from "../../src/sync/rowParser";
 import { createFakeD1, type FakeD1 } from "../fakes/d1";
@@ -84,10 +84,13 @@ describe("site: scheduled handler", () => {
 		site.scheduled({} as ScheduledController, env as never, ctx);
 		await settle();
 
-		expect(mockedFactory).toHaveBeenCalledWith({
-			folderId: FOLDER,
-			skipTabs: ["Đà Nẵng/Mỹ Khê"],
-		});
+		expect(mockedFactory).toHaveBeenCalledWith(
+			expect.objectContaining({
+				folderId: FOLDER,
+				skipTabs: ["Đà Nẵng/Mỹ Khê"],
+				fetchFn: expect.any(Function),
+			}),
+		);
 		expect(ctx.waitUntil).toHaveBeenCalledTimes(1);
 		const runs = await db.prepare("SELECT kind FROM sync_runs").all<{ kind: string }>();
 		expect(runs.results.map((r) => r.kind)).toEqual(["scheduled"]);
@@ -123,6 +126,101 @@ describe("site: scheduled handler", () => {
 			expect(await count(db, "sync_runs"), JSON.stringify(extra)).toBe(0);
 			expect(errorSpy, JSON.stringify(extra)).toHaveBeenCalled();
 		}
+	});
+});
+
+describe("site: budget, limits and counting wrappers (TASK-71)", () => {
+	function lastFactoryOptions(): { fetchFn: typeof fetch } {
+		const calls = mockedFactory.mock.calls;
+		return calls[calls.length - 1][0] as unknown as { fetchFn: typeof fetch };
+	}
+
+	it("syncDepsFor passes parsed limits and a shared budget", async () => {
+		const { db, env } = await makeEnv({ MAX_TABS_PER_RUN: "7", SUBREQUEST_BUDGET: "12" });
+		const deps = syncDepsFor(env.DB, env as never);
+		expect(deps.limits).toEqual({ maxTabsPerRun: 7, subrequestBudget: 12 });
+		expect(deps.budget).toBeDefined();
+		expect(deps.budget?.remaining).toBe(12);
+		expect(typeof deps.nowMs?.()).toBe("number");
+		expect(db).toBeDefined();
+
+		// Unset, blank or invalid values give the defaults 25 tabs and 40 subrequests (AC3).
+		for (const extra of [{}, { MAX_TABS_PER_RUN: "", SUBREQUEST_BUDGET: "" }, { MAX_TABS_PER_RUN: "x", SUBREQUEST_BUDGET: "-3" }]) {
+			const { env: e } = await makeEnv(extra);
+			const d = syncDepsFor(e.DB, e as never);
+			expect(d.limits, JSON.stringify(extra)).toEqual({ maxTabsPerRun: 25, subrequestBudget: 40 });
+		}
+
+		// One budget per call: a second call gets a fresh counter.
+		const first = syncDepsFor(env.DB, env as never);
+		const second = syncDepsFor(env.DB, env as never);
+		expect(first.budget).not.toBe(second.budget);
+	});
+
+	it("db calls through the deps spend budget", async () => {
+		const { env } = await makeEnv({ SUBREQUEST_BUDGET: "10" });
+		const deps = syncDepsFor(env.DB, env as never);
+		expect(deps.budget?.used).toBe(0);
+		await deps.db.prepare("SELECT COUNT(*) AS n FROM hotels").first();
+		expect(deps.budget?.used).toBe(1);
+	});
+
+	it("fetch through the source spends budget", async () => {
+		const stub = vi.fn(async () => new Response("ok"));
+		vi.stubGlobal("fetch", stub);
+		try {
+			const { env } = await makeEnv({ SUBREQUEST_BUDGET: "10" });
+			const deps = syncDepsFor(env.DB, env as never);
+			const { fetchFn } = lastFactoryOptions();
+			const res = await fetchFn("https://example.test/page");
+			expect(await res.text()).toBe("ok");
+			expect(stub).toHaveBeenCalledTimes(1);
+			expect(deps.budget?.used).toBe(1);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("wrapped fetch keeps a safe receiver", async () => {
+		const stub = function (this: unknown) {
+			if (this !== globalThis) throw new TypeError("Illegal invocation");
+			return Promise.resolve(new Response("ok"));
+		};
+		vi.stubGlobal("fetch", stub);
+		try {
+			const { env } = await makeEnv();
+			syncDepsFor(env.DB, env as never);
+			const { fetchFn } = lastFactoryOptions();
+			await expect(fetchFn("https://example.test/page")).resolves.toBeInstanceOf(Response);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("scheduled and manual still skip on unconfigured folder id and never throw", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		for (const extra of [{ DRIVE_FOLDER_ID: undefined }, { DRIVE_FOLDER_ID: "  " }, { DRIVE_FOLDER_ID: "REPLACE_WITH_DRIVE_FOLDER_ID" }]) {
+			mockedFactory.mockClear();
+			const { db, env } = await makeEnv({ ...extra, SYNC_TOKEN: TOKEN });
+			const { ctx, settle } = makeCtx();
+			expect(() => site.scheduled({} as ScheduledController, env as never, ctx), JSON.stringify(extra)).not.toThrow();
+			await settle();
+			expect(mockedFactory, JSON.stringify(extra)).not.toHaveBeenCalled();
+			expect(await count(db, "sync_runs"), JSON.stringify(extra)).toBe(0);
+
+			const res = await site.fetch(
+				new Request("https://example.test/internal/sync", {
+					method: "POST",
+					headers: { "CF-Connecting-IP": "8.8.8.8", Authorization: `Bearer ${TOKEN}` },
+				}),
+				env as never,
+				makeCtx().ctx,
+			);
+			expect(res.status, JSON.stringify(extra)).not.toBe(200);
+			expect(mockedFactory, JSON.stringify(extra)).not.toHaveBeenCalled();
+			expect(await count(db, "sync_runs"), JSON.stringify(extra)).toBe(0);
+		}
+		expect(errorSpy).toHaveBeenCalled();
 	});
 });
 

@@ -28,6 +28,8 @@ import { createPublicGoogleSource, parseSkipTabs } from "./sync/publicGoogleSour
 import { runSync, type SyncDeps } from "./sync/runSync";
 import { SheetConfigError } from "./sync/sheetSource";
 import { parseSheetRows } from "./sync/rowParser";
+import { countingDb } from "./sync/countingDb";
+import { countingFetch, createSubrequestBudget, parseRunLimits } from "./sync/budget";
 
 export interface SiteEnv {
 	DB: D1Database;
@@ -38,6 +40,10 @@ export interface SiteEnv {
 	SKIP_TABS?: string;
 	/** Bearer token for POST /internal/sync (a secret). Unset makes the route 404. */
 	SYNC_TOKEN?: string;
+	/** Tabs read per run (positive integer). Unset, blank or invalid gives 25. */
+	MAX_TABS_PER_RUN?: string;
+	/** Subrequests per run (positive integer). Unset, blank or invalid gives 40. */
+	SUBREQUEST_BUDGET?: string;
 	/** Optional AI binding. Not used by the site; typed so the env stays honest. */
 	AI?: unknown;
 }
@@ -50,21 +56,35 @@ const PLACEHOLDER_FOLDER_ID = "REPLACE_WITH_DRIVE_FOLDER_ID";
 /**
  * Builds the sync dependencies from the env. Throws SheetConfigError when the
  * folder id is unset, blank or the placeholder, or when SKIP_TABS is malformed.
+ *
+ * Each call makes ONE subrequest budget (one per invocation). The db and the
+ * source's fetch are wrapped so every D1 call and every fetch spends from it.
  */
-function syncDepsFor(db: D1Database, env: SiteEnv): SyncDeps {
+export function syncDepsFor(db: D1Database, env: SiteEnv): SyncDeps {
 	const folderId = (env.DRIVE_FOLDER_ID ?? "").trim();
 	if (folderId === "" || folderId === PLACEHOLDER_FOLDER_ID) {
 		throw new SheetConfigError("DRIVE_FOLDER_ID is not configured");
 	}
+	const limits = parseRunLimits(env);
+	const budget = createSubrequestBudget(limits.subrequestBudget);
+	// A plain arrow that calls globalThis.fetch: a detached fetch reference throws "Illegal invocation".
+	const fetchFn = countingFetch(
+		((...args: Parameters<typeof fetch>) => globalThis.fetch(...args)) as typeof fetch,
+		budget,
+	);
 	const source = createPublicGoogleSource({
 		folderId,
 		skipTabs: parseSkipTabs(env.SKIP_TABS),
+		fetchFn,
 	});
 	return {
-		db,
+		db: countingDb(db, budget),
 		source,
 		parse: parseSheetRows,
 		now: () => new Date().toISOString(),
+		nowMs: () => Date.now(),
+		limits,
+		budget,
 	};
 }
 
