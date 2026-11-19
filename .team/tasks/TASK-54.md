@@ -49,6 +49,12 @@ The test uses a stub parse function that reads a trivial format defined in the t
 - Notes hold failure items (tab, reason code) and unmapped facility items (tab, facility label). Error messages from sources are not stored.
 - `kind` option is passed through to sync_runs.kind (default `manual`).
 
+Rework 1 (dev):
+- AC9 test extended with hostile fixtures: parse reason = URL, parse throws with URL + token + row text, readCsv SheetReadError(URL), listFiles and listTabs errors carrying URL/token (failed run). Unmapped facility label is absent from the result and present only in notes. Serialized results checked for URL, token, row text, file id, label.
+- `hideRemovedTab` is atomic: the missing mark (`MARK_REMOVED_HIDDEN_SQL`, same effect as markTabMissing plus hidden_by_sync = 1) is in the same `db.batch` as the hotel hide and the data version statement. Owner-hidden branch still uses markTabMissing. syncState.ts unchanged. New test "a failing batch leaves the tab unmarked, so the next run hides it".
+- PARSER_VERSION is still local in src/sync/runSync.ts (not moved). TASK-58 (parser) must move it or own it. Do not move it before then.
+- Suite: `env -u CLOUDFLARE_API_TOKEN npm test -- --run`: 62 files, 456 passed, 0 failed.
+
 ## Review
 
 Verdict: rework (2 small items; everything else approved).

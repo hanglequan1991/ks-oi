@@ -314,17 +314,30 @@ describe("runSync: run log, concurrency and output", () => {
 	});
 
 	it("returned summary has only counts and failure codes, no url, row text or secret", async () => {
-		source.tabs.push(TAB_C);
-		source.csv["file-1:3"] = `stars=9\ndesc=${SECRET_ROW_TEXT}\nprice=1000000`;
-		const failing: SheetSource = {
+		const FACILITY_LABEL = "CHỖ-ĐẬU-XE-NGẦM-QQ";
+		const TAB_D: SheetTab = { fileId: "file-1", fileName: "Đà Nẵng", gid: "4", tabName: "Đường Sơn" };
+		source.tabs.push(TAB_C, TAB_D);
+		source.csv["file-1:3"] = `stars=4\ndesc=${SECRET_ROW_TEXT}\nprice=1000000`;
+		source.csv["file-1:4"] = csvOk();
+
+		// Hostile fixtures: a parse reason that is a URL, a parse that throws a URL and a secret,
+		// a readCsv SheetReadError whose reason is a URL, and an unmapped facility label on tab A.
+		const hostileParse = (csv: string, tab: SheetTab): ParseResult => {
+			if (tab.gid === "2") return { ok: false, reason: SHEET_URL };
+			if (tab.gid === "3") throw new Error(`parse ${SHEET_URL} ${SECRET_TOKEN} ${SECRET_ROW_TEXT}`);
+			const parsed = stubParse(csv);
+			if (parsed.ok) parsed.record.facilities = [FACILITY_LABEL];
+			return parsed;
+		};
+		const hostileRead: SheetSource = {
 			...source,
 			readCsv: async (tab: SheetTab) => {
-				if (tab.gid === "2") throw new Error(`fetch ${SHEET_URL}`);
+				if (tab.gid === "4") throw new SheetReadError(SHEET_URL);
 				return source.readCsv(tab);
 			},
 		};
 
-		const result = await runSync(deps({ source: failing }));
+		const result = await runSync(deps({ source: hostileRead, parse: hostileParse }));
 		const serialized = JSON.stringify(result);
 
 		expect(serialized).not.toContain("https://");
@@ -332,15 +345,87 @@ describe("runSync: run log, concurrency and output", () => {
 		expect(serialized).not.toContain(SECRET_ROW_TEXT);
 		expect(serialized).not.toContain("FILE-ID-99");
 		expect(serialized).not.toContain("file-1");
+		expect(serialized).not.toContain(FACILITY_LABEL);
 		expect(Object.keys(result).sort()).toEqual(
 			["created", "failed", "failures", "hidden", "unchanged", "updated"].sort(),
 		);
 		for (const failure of result.failures) {
 			expect(Object.keys(failure).sort()).toEqual(["reason", "tab"]);
 		}
+		expect(result).toMatchObject({ created: 1, failed: 3, hidden: 0, unchanged: 0 });
 		expect(result.failures).toEqual([
+			{ tab: "Đường Sơn", reason: "unexpected_error" },
 			{ tab: "Sông Hàn", reason: "unexpected_error" },
-			{ tab: "Mỹ Khê", reason: "stars_range" },
+			{ tab: "Mỹ Khê", reason: "unexpected_error" },
 		]);
+
+		// The facility label is kept in the run log notes only.
+		const notes = (await getLatestRun(asDb(db)))!.notes as string;
+		expect(notes).toContain(FACILITY_LABEL);
+		expect(notes).not.toContain(SHEET_URL);
+		expect(notes).not.toContain(SECRET_TOKEN);
+		expect(notes).not.toContain(SECRET_ROW_TEXT);
+	});
+
+	it("listing errors carrying a url or secret return a failed run with only a code", async () => {
+		await runSync(deps());
+		const listFilesUrl: SheetSource = {
+			...source,
+			listFiles: async () => {
+				throw new SheetReadError(SHEET_URL);
+			},
+		};
+		const listTabsUrl: SheetSource = {
+			...source,
+			listTabs: async () => {
+				throw new SheetReadError(`${SHEET_URL} ${SECRET_TOKEN}`);
+			},
+		};
+
+		for (const hostile of [listFilesUrl, listTabsUrl]) {
+			const result = await runSync(deps({ source: hostile, now: () => LATER }));
+			const serialized = JSON.stringify(result);
+
+			expect(result).toMatchObject({ failed_run: true, failed: 1, hidden: 0 });
+			expect(result.failures).toEqual([{ tab: null, reason: "unexpected_error" }]);
+			expect(serialized).not.toContain("https://");
+			expect(serialized).not.toContain(SECRET_TOKEN);
+			expect(serialized).not.toContain("file-1");
+		}
+		expect(await hotelStatus(TAB_A)).toBe("published");
+		expect(await hotelStatus(TAB_B)).toBe("published");
+	});
+});
+
+describe("runSync: removed tab hide is atomic", () => {
+	it("a failing batch leaves the tab unmarked, so the next run hides it", async () => {
+		await runSync(deps());
+		source.tabs.splice(source.tabs.indexOf(TAB_B), 1);
+
+		const failingDb = {
+			...asDb(db),
+			batch: async () => {
+				throw new Error("D1 batch failed");
+			},
+		} as unknown as Db;
+		const failed = await runSync(deps({ db: failingDb, now: () => LATER }));
+
+		expect(failed).toMatchObject({ failed_run: true, hidden: 0 });
+		expect(await hotelStatus(TAB_B)).toBe("published");
+		expect(await stateOf(TAB_B)).toMatchObject({
+			missing_since: null,
+			hidden_by_sync: 0,
+			prior_status: null,
+		});
+
+		const retry = await runSync(deps({ now: () => "2026-11-19T12:00:00Z" }));
+
+		expect(retry).toMatchObject({ hidden: 1, failed: 0 });
+		expect(await hotelStatus(TAB_B)).toBe("hidden");
+		expect(await stateOf(TAB_B)).toMatchObject({
+			hidden_by_sync: 1,
+			prior_status: "published",
+			missing_since: "2026-11-19T12:00:00Z",
+		});
 	});
 });

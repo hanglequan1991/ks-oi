@@ -21,7 +21,16 @@ export const PARSER_VERSION = "1";
 /** A run that started less than this long ago, and has no finished_at, blocks a new run. */
 const STALE_RUN_MS = 15 * 60 * 1000;
 
-const SAFE_REASON = /^[a-z][a-z0-9_]{0,63}$/;
+// Same effect as markTabMissing plus hidden_by_sync = 1. Kept as one statement so it can share a batch.
+const MARK_REMOVED_HIDDEN_SQL = `
+	UPDATE sync_state SET
+		missing_since = COALESCE(missing_since, ?),
+		prior_status = ?,
+		hidden_by_sync = 1,
+		updated_at = ?
+	WHERE source_file_id = ? AND source_gid = ?`;
+
+const SAFE_REASON =/^[a-z][a-z0-9_]{0,63}$/;
 const UNKNOWN_REASON = "unexpected_error";
 
 export type ParseResult = { ok: true; record: ParsedHotel } | { ok: false; reason: string };
@@ -105,14 +114,15 @@ async function hideRemovedTab(
 		return false;
 	}
 
-	await markTabMissing(db, key, now, hotel.status);
+	// One batch: the missing mark, the hotel hide and the data version commit together or not at
+	// all. A failed batch leaves the tab unmarked, so the next run lists it as removed again.
 	await db.batch([
+		db
+			.prepare(MARK_REMOVED_HIDDEN_SQL)
+			.bind(now, hotel.status, now, row.source_file_id, row.source_gid),
 		db
 			.prepare("UPDATE hotels SET status = 'hidden' WHERE id = ? AND status <> 'hidden'")
 			.bind(hotelId),
-		db
-			.prepare("UPDATE sync_state SET hidden_by_sync = 1, updated_at = ? WHERE source_file_id = ? AND source_gid = ?")
-			.bind(now, row.source_file_id, row.source_gid),
 		buildDataVersionStatement(db),
 	]);
 	return true;
