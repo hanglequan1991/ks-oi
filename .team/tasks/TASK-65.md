@@ -42,6 +42,10 @@ A Worker invocation may make at most 50 (Free) or 1000 (Paid) subrequests; fetch
 
 ## Dev notes
 <!-- Written by dev. -->
+- Red: both new specs failed (modules missing). Green: `test/sync/budget.spec.ts` (7 tests) and `test/sync/countingDb.spec.ts` (4 tests) pass, 12/12.
+- Files: `sheet-rag/src/sync/budget.ts`, `sheet-rag/src/sync/countingDb.ts`, `sheet-rag/test/sync/budget.spec.ts`, `sheet-rag/test/sync/countingDb.spec.ts`.
+- Full unit run: 494 passed, 6 failed in `test/db/syncState.spec.ts` and `test/db/syncFiles.spec.ts` (TASK-66 area, not touched).
+- `test/fakes/d1.ts` has no `raw`; the spec adds it locally. `duration` in the fake's meta is compared out.
 
 ## Review
 <!-- Written by lead. -->

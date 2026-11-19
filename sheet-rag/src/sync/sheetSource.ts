@@ -5,9 +5,11 @@
  * `fileId` + `gid` are the stable identity, so renaming a tab or a file does
  * not create a duplicate by itself.
  *
- * This module has no imports on purpose: it must not depend on Cloudflare
- * bindings, so the sync logic stays testable with fakes.
+ * This module has no runtime imports on purpose: it must not depend on Cloudflare
+ * bindings, so the sync logic stays testable with fakes. The only import is a
+ * type-only one (the network cause set), erased at build time.
  */
+import type { NetworkCause } from "./fetchErrors";
 
 export type SheetFile = { fileId: string; fileName: string };
 
@@ -31,11 +33,14 @@ export interface SheetSource {
  */
 export class SheetReadError extends Error {
 	readonly reason: string;
+	/** Set only for a thrown fetch (never for HTTP status failures). Read by the circuit breaker. */
+	readonly networkCause?: NetworkCause;
 
-	constructor(reason: string) {
+	constructor(reason: string, networkCause?: NetworkCause) {
 		super(reason);
 		this.name = "SheetReadError";
 		this.reason = reason;
+		this.networkCause = networkCause;
 	}
 }
 

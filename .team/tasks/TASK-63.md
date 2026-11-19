@@ -48,6 +48,10 @@ Design (fixed by lead):
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red first: new fetchErrors.spec.ts and updated publicGoogleSource.spec.ts failed as expected (missing module, old `_network` code).
+- Green: `src/sync/fetchErrors.ts` (new, pure). `SheetReadError(reason, networkCause?)` in sheetSource.ts; the file's only import is `import type` from fetchErrors. `getText` catch block classifies, throws `<reason>_<cause>`, and fails at once for subrequest_limit / illegal_invocation.
+- The `fake` source needed no change (no test pins `_network` outside publicGoogleSource.spec.ts).
+- Targeted specs: 55 passed (fetchErrors, publicGoogleSource, test/fakes). Full suite: 500 passed, 1 failed in `test/sync/syncHotel.spec.ts` (TASK-65/66 area, not touched here).
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework

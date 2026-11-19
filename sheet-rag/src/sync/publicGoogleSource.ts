@@ -9,14 +9,17 @@
  *
  * The tab list shape follows the real htmlview page (items.push({name, pageUrl,
  * gid})). Fixtures in test/fixtures/google/ mirror it. Page reads that fail
- * with HTTP 429, HTTP 5xx or a network error are retried up to 3 tries.
- * The owner must verify against the real pages on each first run (compare the
+ * with HTTP 429 or HTTP 5xx are retried up to 3 tries. A thrown fetch is
+ * classified into a cause (fetchErrors.ts) and reported as `<reason>_<cause>`:
+ * subrequest_limit and illegal_invocation fail at once (no retry); timeout,
+ * redirect_error and network_other are retried up to 3 tries. The owner must verify against the real pages on each first run (compare the
  * run's file and tab counts with the Drive folder).
  *
  * Safety: a page that does not parse is an error (SheetReadError), never an
  * empty list. A Google format change must never be read as a deletion.
  */
 import { SheetConfigError, SheetReadError, type SheetFile, type SheetSource, type SheetTab } from "./sheetSource";
+import { classifyFetchError, type NetworkCause } from "./fetchErrors";
 
 /** One entry of the folder page: a link carrying the file id, then the title. */
 const FOLDER_ENTRY_RE =
@@ -34,6 +37,9 @@ const TAB_ITEM_RE = /items\.push\(\{name:\s*"((?:[^"\\]|\\.)*)"(?:,\s*pageUrl:\s
 const MAX_TRIES = 3;
 const BACKOFF_MS = [1000, 2000];
 const MAX_JITTER_MS = 500;
+
+/** Thrown-fetch causes that are never retried (one call, no sleep). */
+const NO_RETRY_CAUSES: ReadonlySet<NetworkCause> = new Set<NetworkCause>(["subrequest_limit", "illegal_invocation"]);
 
 /** Trailing `.xlsx` of a Drive file name (the city is the name without it). */
 const XLSX_SUFFIX_RE = /\.xlsx$/i;
@@ -84,7 +90,8 @@ export function createPublicGoogleSource(opts: PublicGoogleSourceOptions): Sheet
 
 	/**
 	 * GET a page as text. Up to MAX_TRIES tries on HTTP 429, HTTP >= 500 or a
-	 * thrown fetch; other statuses fail at once. Errors carry only a sanitized
+	 * thrown fetch (subrequest_limit and illegal_invocation fail at once);
+	 * other statuses fail at once. Errors carry only a sanitized
 	 * reason code, never the URL.
 	 */
 	async function getText(url: string, failReason: string): Promise<string> {
@@ -97,9 +104,13 @@ export function createPublicGoogleSource(opts: PublicGoogleSourceOptions): Sheet
 			let res: Response;
 			try {
 				res = await fetchFn(url);
-			} catch {
-				// The error text may contain the URL; do not pass it on.
-				if (last) throw new SheetReadError(`${failReason}_network`);
+			} catch (err) {
+				// Only the cause is kept: the error text may contain the URL.
+				const cause = classifyFetchError(err);
+				// Retrying a subrequest limit or an illegal invocation is pointless.
+				if (last || NO_RETRY_CAUSES.has(cause)) {
+					throw new SheetReadError(`${failReason}_${cause}`, cause);
+				}
 				continue;
 			}
 			if (res.ok) {

@@ -47,6 +47,29 @@ const noSleep = async (): Promise<void> => {};
 
 const FOLDER_URL = "https://drive.google.com/embeddedfolderview?id=FOLDER123";
 
+describe("SheetReadError exposes networkCause and stays optional", () => {
+	it("one-argument use leaves networkCause undefined", () => {
+		const err = new SheetReadError("folder_parse_empty");
+		expect(err.reason).toBe("folder_parse_empty");
+		expect(err.networkCause).toBeUndefined();
+	});
+
+	it("two-argument use exposes the cause", () => {
+		const err = new SheetReadError("csv_timeout", "timeout");
+		expect(err.reason).toBe("csv_timeout");
+		expect(err.networkCause).toBe("timeout");
+	});
+
+	it("HTTP-status failures leave networkCause undefined", async () => {
+		const { fetchFn } = scriptedFetch([() => new Response("nope", { status: 404 })]);
+		const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep: noSleep })
+			.listFiles()
+			.catch((e) => e);
+		expect(err.reason).toBe("folder_fetch_http_404");
+		expect(err.networkCause).toBeUndefined();
+	});
+});
+
 describe("createPublicGoogleSource rejects a blank folder id", () => {
 	it("throws SheetConfigError for undefined, empty and blank folder ids", () => {
 		expect(() => createPublicGoogleSource({ folderId: undefined as unknown as string })).toThrow(SheetConfigError);
@@ -267,7 +290,7 @@ describe("getText retries 429 and 5xx with backoff, never other statuses", () =>
 		}
 	});
 
-	it("retries a thrown fetch then reports <reason>_network", async () => {
+	it("thrown fetch ends as csv_network_other after 3 tries with sleeps", async () => {
 		const { fetchFn, calls } = fakeFetch({
 			[FOLDER_URL]: () => {
 				throw new TypeError("socket hang up");
@@ -278,9 +301,99 @@ describe("getText retries 429 and 5xx with backoff, never other statuses", () =>
 			.listFiles()
 			.catch((e) => e);
 		expect(err).toBeInstanceOf(SheetReadError);
-		expect(err.reason).toBe("folder_fetch_network");
+		expect(err.reason).toBe("folder_fetch_network_other");
+		expect(err.networkCause).toBe("network_other");
 		expect(calls).toHaveLength(3);
 		expect(sleeps).toHaveLength(2);
+		expect(sleeps[0]).toBeGreaterThanOrEqual(1000);
+		expect(sleeps[1]).toBeGreaterThanOrEqual(2000);
+	});
+
+	it("error text containing the URL does not leak into the reason or message", async () => {
+		const leaky = "failed to fetch https://docs.google.com/spreadsheets/d/FILE1/export?format=csv&gid=0 Too many subrequests";
+		const { fetchFn } = scriptedFetch([
+			() => {
+				throw new TypeError(leaky);
+			},
+		]);
+		const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep: noSleep })
+			.readCsv({ fileId: "FILE1", fileName: "Hanoi", gid: "0", tabName: "Mong Hotel" })
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(SheetReadError);
+		expect(err.reason).toBe("csv_subrequest_limit");
+		expect(err.networkCause).toBe("subrequest_limit");
+		for (const text of [err.reason, err.message, err.networkCause]) {
+			expect(String(text)).not.toContain("://");
+			expect(String(text)).not.toContain("docs.google");
+			expect(String(text)).not.toContain("gid=");
+			expect(String(text)).not.toContain("failed to fetch");
+		}
+	});
+
+	it("subrequest_limit is not retried", async () => {
+		const { fetchFn, calls } = fakeFetch({
+			[FOLDER_URL]: () => {
+				throw new TypeError("Too many subrequests.");
+			},
+		});
+		const { sleep, sleeps } = recordingSleep();
+		const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep })
+			.listFiles()
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(SheetReadError);
+		expect(err.reason).toBe("folder_fetch_subrequest_limit");
+		expect(calls).toHaveLength(1);
+		expect(sleeps).toHaveLength(0);
+	});
+
+	it("illegal_invocation is not retried", async () => {
+		const { fetchFn, calls } = fakeFetch({
+			[FOLDER_URL]: () => {
+				throw new TypeError("Illegal invocation");
+			},
+		});
+		const { sleep, sleeps } = recordingSleep();
+		const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep })
+			.listFiles()
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(SheetReadError);
+		expect(err.reason).toBe("folder_fetch_illegal_invocation");
+		expect(err.networkCause).toBe("illegal_invocation");
+		expect(calls).toHaveLength(1);
+		expect(sleeps).toHaveLength(0);
+	});
+
+	it("timeout is retried then reported as <reason>_timeout", async () => {
+		const { fetchFn, calls } = fakeFetch({
+			[FOLDER_URL]: () => {
+				const e = new Error("The operation was aborted due to timeout");
+				e.name = "TimeoutError";
+				throw e;
+			},
+		});
+		const { sleep, sleeps } = recordingSleep();
+		const err = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep })
+			.listFiles()
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(SheetReadError);
+		expect(err.reason).toBe("folder_fetch_timeout");
+		expect(err.networkCause).toBe("timeout");
+		expect(calls).toHaveLength(3);
+		expect(sleeps).toHaveLength(2);
+	});
+
+	it("a thrown fetch that succeeds on retry returns the page", async () => {
+		const { fetchFn, calls } = scriptedFetch([
+			() => {
+				throw new TypeError("socket hang up");
+			},
+			() => new Response(fixture("folder.html"), { status: 200 }),
+		]);
+		const { sleep, sleeps } = recordingSleep();
+		const files = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn, sleep }).listFiles();
+		expect(files).toHaveLength(3);
+		expect(calls).toHaveLength(2);
+		expect(sleeps).toHaveLength(1);
 	});
 
 	it("error messages contain no URL", async () => {
