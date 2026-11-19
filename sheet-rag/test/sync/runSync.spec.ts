@@ -827,7 +827,7 @@ describe("runSync: per-run tab cap, oldest-first, budget (TASK-69)", () => {
 		}
 	});
 
-	it("unchanged tabs refresh last_checked_at in one batch, unreadable tabs do not", async () => {
+	it("unchanged and failed tabs refresh the check time in one batch", async () => {
 		fillTabs(4);
 		await runSync(deps({ now: () => NOW }));
 		source.failRead.push("file-1:3");
@@ -842,7 +842,7 @@ describe("runSync: per-run tab cap, oldest-first, budget (TASK-69)", () => {
 		expect(checks).toEqual([
 			{ tab_key: "file-1:1", last_checked_at: LATER },
 			{ tab_key: "file-1:2", last_checked_at: LATER },
-			{ tab_key: "file-1:3", last_checked_at: NOW },
+			{ tab_key: "file-1:3", last_checked_at: LATER },
 			{ tab_key: "file-1:4", last_checked_at: LATER },
 		]);
 		const checkBatches = spy.calls.filter(
@@ -850,7 +850,55 @@ describe("runSync: per-run tab cap, oldest-first, budget (TASK-69)", () => {
 				c.op === "batch" && c.sql.length > 0 && c.sql.every((s) => s.includes("sync_tab_checks")),
 		);
 		expect(checkBatches).toHaveLength(1);
-		expect(checkBatches[0].sql).toHaveLength(3);
+		expect(checkBatches[0].sql).toHaveLength(4);
+	});
+
+	it("permanently failing tabs rotate and do not starve the rest", async () => {
+		// Two ways a tab can fail every run: the read fails, or the parser rejects the CSV.
+		const variants: Array<{ name: string; fault: () => SheetReadError | undefined; broken: boolean }> = [
+			{ name: "read", fault: () => new SheetReadError("fake_read_failed"), broken: false },
+			{ name: "parse", fault: () => undefined, broken: true },
+		];
+		for (const variant of variants) {
+			db = createFakeD1();
+			await applyMigrations(db);
+			sixtyTabs();
+			if (variant.broken) for (let i = 1; i <= 60; i++) source.csv[`file-1:${i}`] = "status=broken";
+			const runTimes = [NOW, LATER, "2026-11-19T12:00:00Z"];
+			const runs: string[][] = [];
+
+			for (const at of runTimes) {
+				const reads: string[] = [];
+				const result = await runSync(deps({ source: faultySource(variant.fault, reads), now: () => at }));
+				expect(result, variant.name).toMatchObject({ created: 0, failed: 25, deferred: 35 });
+				expect(result.aborted, variant.name).toBeUndefined();
+				runs.push(reads);
+			}
+
+			expect(runs[0], variant.name).toEqual(range(1, 25));
+			expect(runs[1], variant.name).toEqual(range(26, 50));
+			expect(runs[2], variant.name).toHaveLength(25);
+			expect(runs[2], variant.name).toEqual(expect.arrayContaining(range(51, 60)));
+			expect(runs[2].filter((gid) => runs[0].includes(gid)), variant.name).toEqual(range(1, 15));
+			expect(new Set(runs.flat()).size, variant.name).toBe(60);
+		}
+	});
+
+	it("a failed tab keeps its stored hash and only its check time moves", async () => {
+		fillTabs(2);
+		await runSync(deps({ now: () => NOW }));
+		const before = await stateOf(tabOf(1));
+		source.failRead.push("file-1:1");
+
+		const result = await runSync(deps({ now: () => LATER }));
+
+		expect(result).toMatchObject({ failed: 1, unchanged: 1 });
+		expect((await stateOf(tabOf(1))).hash).toBe(before.hash);
+		const [check] = await rows<{ last_checked_at: string }>(
+			"SELECT last_checked_at FROM sync_tab_checks WHERE tab_key = ?",
+			"file-1:1",
+		);
+		expect(check.last_checked_at).toBe(LATER);
 	});
 
 	it("counts keep their meaning for processed tabs", async () => {

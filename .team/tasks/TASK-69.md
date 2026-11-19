@@ -63,6 +63,13 @@ Design (lead):
 - `deferred` is a count in the summary (`listed - started`).
 - Not done / open: a tab whose read keeps failing has no check row, so it sorts first every run (possible starvation of the rest; needs a decision from lead). `startRun`, `getUnfinishedRuns`, `getSyncState`, the seen batches and listing are not gated by `canAfford`. A removal skipped by the budget is not reported in the summary.
 
+Rework 1 (lead notes 1-5):
+- Note 1: `attemptedKeys` collects every picked tab that ended in `fail(...)` (read failure incl. breaker path, parse failure, invalid, apply_failed). `markTabsChecked(db, [...unchangedKeys, ...attemptedKeys], now)` is still one batch, at most 25 statements (cap). Applied tabs are not added. Header and batch comments updated. `syncState.ts` untouched, hash untouched.
+- Note 2: AC6 test renamed `unchanged and failed tabs refresh the check time in one batch`; tab `file-1:3` unreadable now gets LATER in a 4-statement batch. The AC6 wording in this file was not edited (dev may not touch it); lead to update the wording: "unchanged and failed tabs get their check time in one markTabsChecked batch; applied tabs through recordTabSuccess".
+- Note 3: added `permanently failing tabs rotate and do not starve the rest` (read-fail and parse-fail variants over 60 tabs, cap 25, 3 runs cover all 60, run 2 does not re-read run 1's tabs, each run `failed: 25, deferred: 35`). Added `a failed tab keeps its stored hash and only its check time moves`.
+- Note 4: comment on `last_checked_at` meaning "last attempt" added in `runSync.ts`. Stale comments in `syncState.ts` and migration 0004 not touched.
+- Note 5: `env -u CLOUDFLARE_API_TOKEN npm test -- --run`: 69 files, 551 tests pass (was 549; +2 net: rotation and hash tests added, AC6 renamed).
+
 ## Review
 <!-- Written by lead. -->
 Verdict: **rework** (rework count 0 -> 1, pm applies).

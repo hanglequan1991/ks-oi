@@ -5,8 +5,9 @@
 // tab seen (one batch per 50 tabs), pick at most maxTabsPerRun tabs oldest-first (never checked first),
 // then for each picked tab, one at a time: read and hash it (a failed read leaves that tab alone),
 // skip it when unchanged, otherwise apply it (a failing tab never stops the others). Stops cleanly
-// with `budget_exhausted` when the next tab is not affordable, then marks the unchanged tabs checked,
-// hides the removed tabs (only after a complete run) and writes the run log. The run row is always finished.
+// with `budget_exhausted` when the next tab is not affordable, then marks the unchanged and the
+// attempted-but-failed tabs checked (one batch), hides the removed tabs (only after a complete run)
+// and writes the run log. The run row is always finished.
 // The returned summary carries only counts and failure codes (AC9).
 
 import {
@@ -275,6 +276,10 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 		const { picked } = pickOldestFirst(tabs, state, limits.maxTabsPerRun);
 		const autoPublish = await readAutoPublish(db);
 		const unchangedKeys: TabKey[] = [];
+		// last_checked_at (sync_tab_checks) means "last attempt", not "last success": it only orders the
+		// picks (pickOldestFirst), so a tab that keeps failing rotates to the back instead of starving the
+		// rest. A failed tab keeps its hash, so change detection and the retry are unaffected.
+		const attemptedKeys: TabKey[] = [];
 		const csvOf = new Map<string, string>();
 
 		// Read, hash and apply the picked tabs one at a time. A tab starts only when its worst case
@@ -299,6 +304,7 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 			started++;
 
 			const key = keyOf(tab.fileId, tab.gid);
+			const tabKey: TabKey = { fileId: tab.fileId, gid: tab.gid };
 			let hash: string;
 			try {
 				const csv = await source.readCsv(tab);
@@ -308,6 +314,7 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 				csvOf.set(key, csv);
 			} catch (error) {
 				fail(tab.tabName, reasonOf(error), true);
+				attemptedKeys.push(tabKey);
 				const cause = networkCauseOf(error);
 				if (cause === undefined) {
 					streak = 0;
@@ -342,6 +349,7 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 				const reason = sanitizeReason(parsed.reason);
 				await recordTabError(db, { fileId: tab.fileId, gid: tab.gid, tabName: tab.tabName, error: reason, now });
 				fail(tab.tabName, reason);
+				attemptedKeys.push(tabKey);
 				continue;
 			}
 
@@ -359,15 +367,16 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 				counts.created++;
 			} else if (result.outcome === "updated") {
 				counts.updated++;
-			} else if (result.outcome === "invalid") {
-				fail(tab.tabName, sanitizeReason(result.issues?.[0]?.code));
 			} else {
-				fail(tab.tabName, "apply_failed");
+				// invalid or apply_failed. Applied tabs are not added: recordTabSuccess writes their check time.
+				attemptedKeys.push(tabKey);
+				fail(tab.tabName, result.outcome === "invalid" ? sanitizeReason(result.issues?.[0]?.code) : "apply_failed");
 			}
 		}
 
-		// One batch for every unchanged tab read this run. Failed reads and applied tabs are not in it.
-		await markTabsChecked(db, unchangedKeys, now);
+		// One batch for every picked tab that was unchanged or attempted and failed (at most the cap of
+		// 25 statements). Applied tabs are not in it.
+		await markTabsChecked(db, [...unchangedKeys, ...attemptedKeys], now);
 
 		// Removed tabs come from the full listing, so a deferred tab is never one of them. After an
 		// early stop the removals are not applied at all. Each removal needs its own budget check;
