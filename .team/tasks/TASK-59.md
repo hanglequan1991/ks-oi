@@ -23,4 +23,6 @@
 
 ## Review
 
+Verdict: approve (2026-11-19). AC1 and AC2 met: one include line added, six existing globs unchanged, test/client/vitest-config.spec.ts asserts all seven. Only the two listed files changed.
+
 ## Questions

@@ -31,4 +31,6 @@
 
 ## Review
 
+Verdict: approve (2026-11-19). AC1-AC4 covered by test/migrations/0003_sync.spec.ts (columns via PRAGMA, owner-set false kept, 0001-0003 twice gives 6 settings rows); full suite green. Migration uses IF NOT EXISTS everywhere and INSERT OR IGNORE for sync_auto_publish='true'. Only the two listed files changed.
+
 ## Questions

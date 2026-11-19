@@ -44,4 +44,8 @@ For qalead (NOT in the dev list; qalead owns them): `.team/testcases/TC-1.md` (e
 
 ## Review
 
+Verdict: rework (2026-11-19). AC1-AC4 and AC6 are met (apiSample, TC-1, TC-2, TC-3 correct; unit and e2e green).
+1. AC5 not fully done: `e2e/TC-4.e2e.ts` must also assert that the value of `sync_auto_publish` is `'true'` (add `expect(await settingValue(db, "sync_auto_publish")).toBe("true")` near the other value checks). Also fix the step 5 comment, which still says the table holds exactly the Version 1 keys; it should say Version 1 keys plus the sync switch.
+No other changes needed. Only TC-4.e2e.ts is to be touched.
+
 ## Questions

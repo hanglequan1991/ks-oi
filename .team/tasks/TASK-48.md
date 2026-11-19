@@ -40,6 +40,8 @@
 
 ## Review
 
+Verdict: approve (2026-11-19). AC1-AC5 covered by validate.spec.ts (9 tests). Price must be a positive safe integer (0, negative, 1.5, NaN rejected), null allowed; stars 1..5 integer or null; https-only images; room duplicates folded; all errors collected in stable order; description/facilities only warn. Imports only domain/fold and types. Only listed files changed.
+
 ## Questions
 
 **Q1 (technical, for lead):** `npm test -- --run` never runs `test/sync/validate.spec.ts`. `sheet-rag/vitest.unit.config.mts` has an `include` list with no `test/sync/**` entry, so vitest reports "No test files found" for this file. That config is not in TASK-48's file list, so I did not edit it. Please approve adding `"test/sync/**/*.spec.ts"` to that `include` list (or tell me another way to run it). Until then the required unit command cannot show TASK-48's tests as passing. Note: `test/sync/csv.spec.ts` and `test/sync/hash.spec.ts` also exist and are missing their modules, so the same include change will affect them too (they belong to other tasks).
