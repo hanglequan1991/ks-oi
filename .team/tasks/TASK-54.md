@@ -1,0 +1,44 @@
+# TASK-54: runSync orchestrator and run log
+
+- id: TASK-54
+- story: [STORY-14](../stories/STORY-14.md)
+- type: backend
+- status: todo
+- rework count: 0
+- depends on: TASK-46, TASK-49, TASK-53
+- size: fits a 100k-token context (few files, one behaviour)
+
+## Acceptance criteria
+1. AC1: `src/db/syncRuns.ts` exports `startRun(db, kind, now): Promise<string>`, `finishRun(db, id, counts, notes, now)`, `getLatestRun(db)`. `notes` is a JSON string of at most 4000 characters (truncated, still valid JSON: `{"items":[...],"truncated":true}`).
+2. AC2: `src/sync/runSync.ts` exports `runSync(deps, opts?: { force?: boolean }): Promise<SyncSummary>` with `deps = { db, source: SheetSource, parse: (csv: string, tab: SheetTab) => ParseResult, now: () => string, extract?: (...) => ... }`; `ParseResult = { ok: true; record: ParsedHotel } | { ok: false; reason: string }`. No Cloudflare imports; everything injected.
+3. AC3: flow: `listTabs` -> hash each tab (`contentHash(csv, PARSER_VERSION)`) -> `planSync` -> for each changed tab, parse then `syncHotel`; one failing tab (parse failure, invalid, error) never stops the others (STORY-14 AC7, AC11). `autoPublish` read from `settings.sync_auto_publish` (`'true'` only).
+4. AC4: if `listTabs` or any needed `readTab` of the listing step throws, the run is recorded as failed and NOTHING is removed or hidden (STORY-14 AC13). A single tab whose read fails is reported and its hotel left alone.
+5. AC5: removed tabs: hotel set to `hidden` with `hidden_by_sync = 1`, `prior_status` = status before, `markTabMissing`; a hotel already `hidden` is not touched; hotels are never deleted (STORY-14 AC9).
+6. AC6: a run with no change reports `unchanged = N`, `created = updated = 0`, writes no hotel rows and does not bump `data_version` (STORY-14 AC10).
+7. AC7: `sync_runs` row has created, updated, failed, hidden, unchanged counts and a notes list of failures (tab name, reason code, message) and unmapped facility labels; no secret or URL with a token is ever written to notes.
+8. AC8: concurrency: if a run started less than 15 minutes ago and has no `finished_at`, `runSync` returns `{ skipped: 'already_running' }` without doing anything.
+
+## Unit tests to write
+- [ ] `first run creates hotels, second run changes nothing`: covers AC3, AC6
+- [ ] `editing one tab updates only that hotel`: covers AC3
+- [ ] `invalid tab reported, valid tab still synced`: covers AC3, AC7
+- [ ] `listTabs failure fails the run and hides nothing`: covers AC4
+- [ ] `readTab failure for one tab leaves its hotel alone`: covers AC4
+- [ ] `removed tab hides the hotel, owner-hidden hotel untouched, tab returns restores`: covers AC5
+- [ ] `empty tab list does not hide anything`: covers AC4, AC5
+- [ ] `run log counts and truncation`: covers AC1, AC7
+- [ ] `second concurrent run is skipped`: covers AC8
+- [ ] `notes contain no url or token`: covers AC7
+
+## Files this task may touch
+- `sheet-rag/src/db/syncRuns.ts`
+- `sheet-rag/src/sync/runSync.ts`
+- `sheet-rag/test/db/syncRuns.spec.ts`
+- `sheet-rag/test/sync/runSync.spec.ts`
+
+## Dev notes
+The test uses a stub parse function that reads a trivial format defined in the test; the real parser is TASK-58.
+
+## Review
+
+## Questions
