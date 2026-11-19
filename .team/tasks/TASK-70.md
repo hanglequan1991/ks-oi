@@ -9,7 +9,7 @@
 - size: fits a 100k-token context (few files, one behaviour)
 
 ## Background
-Today every run does `listFiles` plus one `listTabs` fetch per file (one per city). On a 450-tab folder that is dozens of fetches before any tab is read, and it repeats hourly although nothing changed. Goal: an idle run costs `listFiles` (1 fetch) plus a handful of D1 calls (honest estimate: about 7 subrequests in total: unfinished-runs read, start, sync_state read, sync_files read, settings read, markTabsSeenBatch, finish); the "about 1" in the story applies to fetches only.
+Today every run does `listFiles` plus one `listTabs` fetch per file (one per city). On a 450-tab folder that is dozens of fetches before any tab is read, and it repeats hourly although nothing changed. Goal: an idle run costs `listFiles` (1 fetch) plus D1 calls that scale with the tab count (measured after TASK-69 review): 7 fixed D1 calls (unfinished-runs read, startRun, sync_files read, getSyncState, settings read, markTabsChecked, finishRun) plus `ceil(tabs / 50)` `markTabsSeenBatch` chunk batches (TASK-66 AC6, chunks of 50), so about 16 at 450 tabs. The "about 1" in the story applies to fetches only. `last_checked_at` (table `sync_tab_checks`, TASK-66, no ALTER) means "last attempt" after TASK-69 rework 1; this task only reads it through `getSyncState` and does not change it.
 
 Design (lead):
 - Replace `listAllTabs(source)` in runSync by a new function in this file (or a small new helper in the same file, no new module): `listWithCache`.
@@ -29,7 +29,7 @@ Design (lead):
 4. AC4: `modified` undefined always relists.
 5. AC5: First run with a cold cache and 10 files and a budget that affords only 3 listings: 3 files are listed and cached, 7 are `listing_incomplete`; the run still processes the tabs of the 3 listed files; no tab is hidden or marked missing; the next run lists the next files (convergence over runs).
 6. AC6: When a file cannot be relisted but has a cached list, the cached tabs are used and removal logic stays valid.
-7. AC7: The idle-run cost test: a run with all files unchanged and all tabs checked recently performs 1 fetch and at most 8 counted D1 calls with `countingDb`/`countingFetch` around fakes (assert the exact numbers measured, within these bounds).
+7. AC7: Idle-run cost, two assertions with `countingDb`/`countingFetch` around fakes, all files unchanged (same `modified` and skip signature, cache warm) and nothing to apply: (a) small fixture of at most 50 tabs: exactly 1 fetch (the folder listing; zero `listTabs` and zero `readCsv` fetches) and at most 8 counted D1 calls; (b) scaling fixture of 450 tabs: exactly 1 fetch (folder listing only, zero `listTabs`/`readCsv` fetches) and D1 calls `<= 7 + ceil(tabs / 50)` (so `<= 16`). Assert the exact measured numbers within these bounds.
 8. AC8: A `listTabs` throw still yields a failed run with a code only; no cache row is written for that file.
 9. AC9: Existing runSync listing tests stay green; any that assumed `listAllTabs` call order is updated deliberately. `listAllTabs` in `sheetSource.ts` is left in place (still exported, unused by runSync; do not edit that file).
 
@@ -40,7 +40,8 @@ Design (lead):
 - [ ] `missing modified always relists`: covers AC4
 - [ ] `cold cache with small budget lists some files, defers others, hides nothing, converges`: covers AC5
 - [ ] `falls back to cached tabs when relisting is unaffordable`: covers AC6
-- [ ] `idle run costs one fetch and at most 8 D1 calls`: covers AC7
+- [ ] `idle run with at most 50 tabs costs one fetch and at most 8 D1 calls`: covers AC7(a)
+- [ ] `idle run with 450 tabs costs one fetch and at most 7 + ceil(tabs / 50) D1 calls`: covers AC7(b)
 - [ ] `listTabs failure fails the run with a code and writes no cache row`: covers AC8
 - [ ] `subrequest_limit during listTabs trips the breaker and finishes the row`: covers AC8 and TASK-68
 
