@@ -3,7 +3,7 @@
 - id: TASK-53
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 1
 - depends on: TASK-59 (vitest include for test/sync, must run first), TASK-48, TASK-49, TASK-50, TASK-51, TASK-52
@@ -54,3 +54,12 @@ Rework notes:
 4. Judged, no change: (a) chunking is wrong here because it would break all-or-nothing (AC3/AC4); D1 has no statement-count cap and a hotel with hundreds of rooms/rules is hundreds of small statements, well under 30 s. The only 100 KB risk is a single oversized text cell (Sheets allows 50,000 chars per cell, multi-byte Vietnamese can exceed 100 KB); the batch would then throw and syncHotel already returns `error` with the message stored and the hash not advanced, so the tab is retried and reported, nothing partial is written. Optional hardening belongs in TASK-50/51 validation (cap cell length), not here. (b) data_version bumping on every apply is fine: planSync (src/sync/planSync.ts) puts a tab in `changed` only when the hash differs, it is new, forced, restored or has last_error, so an unchanged tab never reaches syncHotel and caches are not invalidated by no-op runs. The test comment that the identical-rows test excludes the settings row is accurate.
 
 ## Questions
+
+
+### Re-review (rework count 1)
+Verdict: approve
+
+1. Resolved: restore statement uses CASE (prior_status in review/published, else review), runs before the flag/prior_status clear, so NULL, invalid and 'hidden' all fall to review. A dedicated 'hidden' test is not required: it takes the same ELSE branch as NULL, which is tested.
+2. Resolved: tests added for NULL and 'review' prior_status.
+3. Resolved: pinning test compares inline success row with recordTabSuccess on every column.
+4. No regression found; only syncHotel.ts and its spec in scope. Suite 60 files / 436 tests green (coordinator run).

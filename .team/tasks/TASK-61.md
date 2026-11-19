@@ -3,7 +3,7 @@
 - id: TASK-61
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 1
 - depends on: TASK-57 (done)
@@ -56,3 +56,11 @@ Model constant, version bump, single retry, fallback and object-reply parsing ar
 
 ## Operational note
 The model deprecation check must be repeated before each deploy: confirm in the Workers AI model catalog (developers.cloudflare.com/workers-ai/models/) that `@cf/meta/llama-3.3-70b-instruct-fp8-fast` is not Deprecated and has no near planned deprecation date. Deprecation status is time-sensitive and was only verified on 2026-11-19.
+
+
+### Re-review (rework count 1)
+Verdict: approve
+
+1. Resolved: `buildRequest` passes `json_schema: REPLY_SCHEMA` directly (extract.ts:108-109); no name/schema wrapper.
+2. Resolved: `expectDirectSchema` asserts the direct schema and absence of name/schema keys, used for first call and retry.
+3. Dev notes updated. Only extract.ts and extract.spec.ts in scope. Suite 60 files / 436 tests green (coordinator run).
