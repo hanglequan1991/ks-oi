@@ -54,8 +54,11 @@ Design (fixed by lead):
 - Targeted specs: 55 passed (fetchErrors, publicGoogleSource, test/fakes). Full suite: 500 passed, 1 failed in `test/sync/syncHotel.spec.ts` (TASK-65/66 area, not touched here).
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework
-1. Specific, actionable note. -->
+Verdict: approve (lead, 2026-11-19)
+- Tests cover all ACs: classify mapping and closed set (AC1), SheetReadError optional networkCause (AC2), csv_network_other after 3 tries with sleeps and no URL leak (AC3), subrequest_limit and illegal_invocation fail after one fetch with no sleep, timeout retried (AC4), HTTP 503/404 behaviour kept (AC5); header comment lists the cause codes (AC6).
+- Targeted run: fetchErrors, publicGoogleSource, budget, countingDb specs all green (47 tests here, 55 with test/fakes per dev).
+- Code matches: classification reads only error.name and error.message, returns only a member of the closed set; the reason is `<reason>_<cause>`, the message and URL are never stored. fetchErrors.ts has no runtime imports; sheetSource.ts imports it as a type only. Only files in the list changed.
+- Minor, not blocking: the header comment line about "The owner must verify..." now runs on after the new text; tidy when next touched (TASK-64/67).
 
 ## Questions
 Q1 (for the owner, via product; first task of this fix): (a) Which Cloudflare Workers plan is the hotel-dictionary Worker on, Free (50 subrequests per invocation) or Paid (1000)? Defaults in this fix assume Free (SUBREQUEST_BUDGET 40, MAX_TABS_PER_RUN 25); on Paid the owner raises both in `vars`. (b) Should Cloudflare Queues be used later to fan out one message per tab, as the deployed sheet-rag does?

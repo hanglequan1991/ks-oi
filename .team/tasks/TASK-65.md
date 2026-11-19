@@ -48,6 +48,9 @@ A Worker invocation may make at most 50 (Free) or 1000 (Paid) subrequests; fetch
 - `test/fakes/d1.ts` has no `raw`; the spec adds it locally. `duration` in the fake's meta is compared out.
 
 ## Review
-<!-- Written by lead. -->
+Verdict: approve (lead, 2026-11-19)
+- Tests cover AC1-AC6: parseRunLimits defaults, junk/zero/negative/fractional, caps (AC1); budget counting, never below zero, keeps counting past the limit (AC2); countingFetch spends once, including failing calls (AC3); countingDb run/first/all/raw once each, a batch of three counted once, exec/dump, identical results and errors versus the fake (AC4, AC5); deadline soft 8 min / hard 10 min with an injected clock (AC6).
+- Code check: budget.ts and countingDb.ts have no runtime Cloudflare imports (AC7), time is injected, `bind` returns a wrapped statement so `prepare().bind().run()` counts once, batch unwraps proxies and counts once. Only the four listed files changed. Targeted specs green.
+- Note for TASK-69/71 (not a defect): countingDb counts at call time, so a failing call is still counted, which is the honest behaviour.
 
 ## Questions
