@@ -37,6 +37,7 @@ Related open check in decision.md (2026-11-19): the limiter trusts CF-Connecting
 
 - Implemented in `src/web/routes/internalSync.ts`; tests in `test/web/routes/internalSync.spec.ts` (8 tests, all green; full unit suite 411 passed).
 - Order: secret gate (404 via `c.notFound()`), then rate limit, then bearer check. `constantTimeEqual` is exported for tests.
+- Rework 1 (lead verdict): `noStore` moved after the secret gate in the POST chain; the path-wide `app.use` (noindex + noStore) removed, since the global middleware in createApp already sets noindex. The secret-unset 404 now has the same headers as an unknown route for POST, GET, PUT, PATCH, DELETE. Test `404 when token unset or empty` compares status, body and the full header set against `/internal/nope` for each method. Red first (failed on `cache-control: no-store`), then green.
 - 200 body is the value returned by `runSync` as-is. No summary shape is defined in STORY-14 or the code yet, so the route does not filter it. If the sync can return file paths or row data, the caller must return counts and failures only.
 
 ## Review

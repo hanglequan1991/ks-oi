@@ -4,8 +4,9 @@
 // sees booking rules, prices or image URLs, and it never throws: on a bad
 // reply it falls back to the passthrough result with a warning.
 
-export const EXTRACTOR_MODEL = "@cf/meta/llama-3.1-8b-instruct";
-export const EXTRACTOR_VERSION = "extract-v1";
+export const EXTRACTOR_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+// Bump when the model or the request shape changes, so cached results are not reused across them.
+export const EXTRACTOR_VERSION = "extract-v2";
 
 const MAX_TEXT = 4000;
 const MAX_FACILITIES = 80;

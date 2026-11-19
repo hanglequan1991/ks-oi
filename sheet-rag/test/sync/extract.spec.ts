@@ -112,6 +112,64 @@ describe("extract", () => {
 		}
 	});
 
+	it("extractor model constant is the llama 3.3 70b fp8 fast model", () => {
+		expect(EXTRACTOR_MODEL).toBe("@cf/meta/llama-3.3-70b-instruct-fp8-fast");
+	});
+
+	it("extractor version is extract-v2", () => {
+		expect(EXTRACTOR_VERSION).toBe("extract-v2");
+	});
+
+	it("ai extractor sends the model and json_schema response_format", async () => {
+		const ai = createFakeAi([reply({ facilities: ["Gym"] })]);
+		await createAiExtractor(ai).extract({ text: "Gym", kind: "facilities" });
+
+		expect(ai.calls).toHaveLength(1);
+		const input = ai.calls[0].input as {
+			messages: unknown[];
+			response_format: {
+				type: string;
+				json_schema: { name: string; schema: Record<string, any> };
+			};
+		};
+		expect(ai.calls[0].model).toBe(EXTRACTOR_MODEL);
+		expect(Array.isArray(input.messages)).toBe(true);
+		expect(input.response_format.type).toBe("json_schema");
+		expect(typeof input.response_format.json_schema.name).toBe("string");
+
+		const schema = input.response_format.json_schema.schema;
+		expect(schema.type).toBe("object");
+		expect(schema.additionalProperties).toBe(false);
+		expect(schema.properties.descriptionVi).toEqual({ type: ["string", "null"] });
+		expect(schema.properties.facilities).toEqual({
+			type: "array",
+			items: { type: "string" },
+		});
+	});
+
+	it("retry call also sends response_format", async () => {
+		const ai = createFakeAi([{ response: "oops" }, reply({ facilities: ["Gym"] })]);
+		await expect(
+			createAiExtractor(ai).extract({ text: "Gym", kind: "facilities" }),
+		).resolves.toEqual({ facilities: ["Gym"] });
+
+		expect(ai.calls).toHaveLength(2);
+		for (const call of ai.calls) {
+			expect(call.model).toBe(EXTRACTOR_MODEL);
+			expect((call.input as { response_format: { type: string } }).response_format.type).toBe(
+				"json_schema",
+			);
+		}
+	});
+
+	it("ai extractor accepts an object response from json mode", async () => {
+		const ai = createFakeAi([{ response: { facilities: ["Gym"] } }]);
+		await expect(
+			createAiExtractor(ai).extract({ text: "Gym", kind: "facilities" }),
+		).resolves.toEqual({ facilities: ["Gym"] });
+		expect(ai.calls).toHaveLength(1);
+	});
+
 	it("accepts values at the exact limits", async () => {
 		const ai = createFakeAi([
 			reply({
