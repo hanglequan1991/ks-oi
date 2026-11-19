@@ -5,7 +5,7 @@
 - type: backend
 - status: in-progress
 - assignee: dev
-- rework count: 0
+- rework count: 1
 - depends on: TASK-65 (budget, limits, countingDb), TASK-66 (last_checked_at, markTabsSeenBatch, markTabsChecked, pickOldestFirst), TASK-68 (same runSync.ts; abort fields)
 - size: fits a 100k-token context (few files, one behaviour; if the dev finds it too large, report back instead of widening scope)
 
@@ -65,5 +65,23 @@ Design (lead):
 
 ## Review
 <!-- Written by lead. -->
+Verdict: **rework** (rework count 0 -> 1, pm applies).
+
+Verified by lead: `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag: 69 files, 549 tests pass. `git diff` shows only `runSync.ts` changed in the green phase (spec came with the red commit 79f232d); no other file touched. ACs 1-10 each have a named test. AC9 (counts and codes only, `deferred` a number) OK. Cap, `pickOldestFirst`, `budget_exhausted` with reserve (TAB_RESERVE 8 = 3 fetches + 5, FINISH_RESERVE 2), single `markTabsChecked` batch, batched seen marks, removals only after a non-aborted run, deferred tabs never removed: all correct. The TAB_RESERVE test derives `TAB_APPLY_CALLS` from the real `syncHotel` through `countingDb` over four scenarios (create, update, other tab, failing batch) and asserts `toBe(Math.max(...costs))`: genuine measurement, accepted. (Parse-failure path costs 1 call via `recordTabError`, below the max.)
+
+Defect (open item 1, STARVATION, confirmed real): `last_checked_at` is read only by `pickOldestFirst` (grep of src: no other reader; change detection uses hash and last_error in `planSync`). A tab whose read or apply keeps failing never gets a check row, sorts first forever; with the parser still a stub all 450 tabs fail and the same 25 are retried forever.
+
+Decision: the check time becomes "last attempt" for ordering. A failed tab (read failure, parse failure, invalid, apply_failed) is upserted into `sync_tab_checks` at `now`, in the SAME end-of-run `markTabsChecked` batch as the unchanged tabs. No change to `syncState.ts`, no migration, no new task, no file-list extension: `TabKey` batch and `tabCheckStatement` already exist and work for any tab with a `sync_state` row (every listed tab has one after the seen batch). Change detection is unaffected: hash and `last_error` are untouched, so a failed tab is still retried when picked again (an unchanged hash with a recent failure is retried later, not first).
+
+Rework notes (files: `sheet-rag/src/sync/runSync.ts`, `sheet-rag/test/sync/runSync.spec.ts` only):
+1. In `runSync.ts` collect `attemptedKeys` for every picked tab that ended in `fail(...)` (read failure incl. the breaker path, parse failure, `invalid`, `apply_failed`) and pass `[...unchangedKeys, ...attemptedKeys]` to one `markTabsChecked(db, keys, now)` call. Still exactly one batch, still at most 25 statements, so FINISH_RESERVE = 2 still covers it. Applied (created/updated) tabs are not added (`syncHotel` already writes their check row). Update the header comment and the "Failed reads and applied tabs are not in it" comment.
+2. Rewrite test `unchanged tabs refresh last_checked_at in one batch, unreadable tabs do not` (AC6, update the AC6 wording in this task to: "unchanged and failed tabs get their check time in one markTabsChecked batch; applied tabs through recordTabSuccess"): tab `file-1:3` unreadable now gets `LATER`, one check batch with 4 statements. Rename to e.g. `unchanged and failed tabs refresh the check time in one batch`.
+3. Add test `permanently failing tabs rotate and do not starve the rest`: 60 tabs, every `readCsv` fails (and a second variant or case where parse fails for every tab, i.e. the stub parser), cap 25: three runs at increasing times read 1..25, 26..50, 51..60 plus the oldest; assert `new Set(reads.flat()).size === 60` after three runs and that run 2 does not re-read run 1's tabs. Also assert a failed tab keeps its old `hash` (retry semantics) after a failing run.
+4. Add a short note to the TAB comment in `runSync.ts` that `last_checked_at` means "last attempt" for ordering. (The stale comments in `syncState.ts` lines 66-67 and in migration 0004 saying a failed tab keeps its old row are outside this task's list; do not edit them, pm may log a docs follow-up in TASK-71 which touches the wiring.)
+5. Re-run the full suite and report counts.
+
+Judgement on the other open items (no code change required):
+- (2) Fixed start-up calls are not gated. Idle run at 450 tabs: unfinished-runs read 1, startRun 1, listFiles 1, sync_files read 1 (TASK-70), getSyncState 1, seen batches 9 (450 / 50 per batch, not 1), settings read 1, markTabsChecked 1, finishRun 1 = about 16 D1/fetch calls, plus 1 fetch per changed file listing. That leaves 24 of 40 (34 of 50) and the per-tab gate (10) then stops cleanly, so the reserve is sufficient and finishRun is not at risk in practice. Consequence for TASK-70 AC7 ("at most 8 counted D1 calls"): that bound only holds for at most 50 tabs; with 450 tabs the seen batches alone are 9. TASK-70 must assert its bound on a small fixture (or state "7 + number of seen chunks"); pm/lead will adjust TASK-70's text when it is dispatched. Not a TASK-69 defect.
+- (3) A removal skipped by the budget stays unmarked and so stays in `plan.removed` next run (self-healing). A count is not worth a new summary field now; `removals_deferred` not added (AC9 surface kept minimal).
 
 ## Questions
