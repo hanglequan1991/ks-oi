@@ -42,6 +42,8 @@ For qalead (NOT in the dev list; qalead owns them): `.team/testcases/TC-1.md` (e
 - Red: apiSample (count 6 vs 5) and TC-1..TC-4 failed on the stale schema as expected.
 - Green: unit suite 52 files / 372 tests passed; TC-1..TC-4 chromium 4 passed.
 - Edits: apiSample (6 settings, sync_auto_publish), TC-1 (sync_state/sync_runs exist; prefixes crawl_/admin_; non-required non-sync tables checked), TC-2 (SETTINGS_KEYS + 6 counts), TC-3 (6 rows), TC-4 (EXPECTED_KEYS of six).
+- Rework 1 (2026-11-19): TC-4 now asserts `sync_auto_publish` is `'true'` (step 3b); step 5 comment says Version 1 keys plus the sync switch (six keys). Only `sheet-rag/e2e/TC-4.e2e.ts` touched.
+- Rework 1 verify: TC-4 chromium 1 passed; unit suite 52 files / 372 tests passed.
 
 ## Review
 
