@@ -72,8 +72,26 @@ Shared files: none with TASK-43 (it owns `bill.css` and `bill-css.spec.ts`). Mus
 - Config build line is still a placeholder-like `npx wrangler deploy --dry-run`; the build run above used `node scripts/build-client.mjs` as the user asked.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework
-1. Specific, actionable note. -->
+Verdict: approve
+
+Checked (changes are in commits 5d9c532 and 9b709db; diff range 2ca1242..HEAD):
+- `env -u CLOUDFLARE_API_TOKEN npm test -- --run` in sheet-rag/: 45 files, 326 tests pass.
+- Only the 12 listed source and test files changed (plus this task file). `main.ts`, `bill.css`, `app.css` and the wrangler files are untouched.
+- AC1 to AC3: `Bill.tsx` follows the markup contract in order (header, titlebox, tools with `no-print` status and `.lang-toggle`, print head, noscript, card with grid, `.bill-foot`, `.bill-bottom`, config script). VI comes first then EN, with one `<a data-lang>` and one `span.lang-current[aria-current]`. `Layout` skips the `<header>` only when `hideLangNav` is true. All four buttons keep `type="button"`, `no-print` and `data-action`; the button classes are as specified.
+- AC4: `rowTitle`, `defaultPriceText` and `resetText` are correct, with the plain-label fallback when there is no default price.
+- AC5 and AC6: `render.ts` puts the badge and the reset button in `.note-markers`, the last child of `.bill-note`, and rebuilds them in `patchRow`. `is-edited` is toggled in `applyRowState`. `.row-title` sits in the index cell and is patched on renumbering. `data-hint` is set on the hotel list only. The `li role="option"` children are unchanged. The `onReset` handler is kept. The `GHI CHÚ` label has no row number and the textarea `aria-label` keeps "dòng {n}". Every new class exists in `bill.css`.
+- AC7: copy matches the design text (draft-saved, "Đã sửa giá", "Dùng giá mặc định <price>", "Dòng n", hint, "Tổng cộng"). The new keys exist in both languages, and `LABEL_KEYS` has `rowLabel` and `comboHint`.
+- AC8: no `style=`, no `innerHTML`, no `insertAdjacent`. User text is set only through `textContent` or `.value`. There is no phone, Zalo or admin wording. The `scriptJson` escaping is unchanged. The disclaimer, fee note and noscript are intact.
+- Tests are meaningful and cover every criterion. The dev's red-then-green claim is plausible.
+
+Stale test case wording for qalead (TCs not edited; they are deferred):
+- TC-40 line 25: the vi column header list says "Giá" or "Pricing". It is now "Đơn giá (VND)". The vi title and print title are now "Bảng tính chi phí lưu trú" (was "Bảng tính tiền"), so any TC that quotes the old title is stale too.
+- TC-41 line 21: the en column list says "Pricing". It is now "Price (VND)". The en title "Hotel bill" is unchanged, but the en intro and the "Edited" badge text changed ("Price edited").
+- TC-47, TC-48, TC-50, TC-59, TC-62: prose uses "Pricing" as the column name. Reword to match the new header.
+- TC-49: the edited marker is now in the note block under the Pricing column (badge plus "Dùng giá mặc định <price>" link), not in the price cell. The marker text also changed: "Đã chỉnh sửa" is now "Đã sửa giá", and "Edited" is now "Price edited".
+- Also grep all TCs for these old strings: "Đã lưu bản nháp" (now "... trên trình duyệt này"), "Draft saved" (now "Draft saved in this browser"), "Nhập khách sạn, phòng và giá", the old intro sentences, the language link location (now inside main, not the page header), and the button order. Print and Clear draft now sit after the notes. Add row and Clear all sit in the card footer.
+
+Non-blocking: TASK-43 still reads `in-progress` in its file, although the commit log shows it approved. pm should check the board.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
