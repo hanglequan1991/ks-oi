@@ -3,7 +3,7 @@
 - id: TASK-70
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: blocked: question
+- status: todo
 - assignee: dev
 - rework count: 0
 - depends on: TASK-66 (sync_files), TASK-67 (`SheetFile.modified`, `skipSignature`), TASK-69 (runSync budget and ordering)
@@ -17,7 +17,8 @@ Design (lead):
 - Step 1: `source.listFiles()` (always; fetch failure ends the run as today, nothing removed).
 - Step 2: `getSyncFiles(db)` once.
 - Step 3, per file in listing order: if the cache row exists, `row.modified` is non-null and equals `file.modified`, `file.modified` is defined, `row.skipSig === source.skipSignature` (both defined or both undefined), and `row.tabs` is non-null: use the cached tabs, no fetch. Otherwise call `source.listTabs(file)` if the budget can afford it (`canAfford(LIST_RESERVE)`, a constant: 3 fetches + 1 `upsertSyncFile` call + enough left for `FINISH_RESERVE`), then `upsertSyncFile` with the new modified, skipSig and tabs.
-- A file that must be listed but cannot be afforded this run: use its cached tabs if any (stale but better than nothing; the next run relists), else mark the run `listing_incomplete`: its tabs are unknown this run, so removal handling is skipped for the whole run (conservative: never hide on partial knowledge). Note `{kind:"abort", reason:"budget_exhausted"}` is NOT used here; use note `{kind:"info", reason:"listing_incomplete"}` and summary `aborted` stays unset; the run continues with the tabs it knows.
+- The listing gate is `canAfford(LIST_RESERVE + TAB_RESERVE + FINISH_RESERVE)` (decision Q2, 6 + 8 + 2 = 16): a listing is only started if one tab can still be processed afterwards, so a refused listing never strands files that were just listed. Progress per run is guaranteed.
+- A file that must be listed but cannot be afforded this run: use its cached tabs if any AND `row.skipSig === source.skipSignature` (stale but better than nothing; the next run relists; with a different skip signature the cached list may contain tabs that are now skipped, so do not use it), else mark the run `listing_incomplete`: its tabs are unknown this run, so removal handling is skipped for the whole run (conservative: never hide on partial knowledge). Note `{kind:"abort", reason:"budget_exhausted"}` is NOT used here; use note `{kind:"info", reason:"listing_incomplete"}` and summary `aborted` stays unset; the run continues with the tabs it knows.
 - A `listTabs` throw for a file: as today it ends the run as a failed run (`failed_run`), nothing removed. Exception: if the throw has `networkCause` of `subrequest_limit` or `illegal_invocation`, the TASK-68 breaker rule applies (abort, finish row).
 - Cache rows for files that left the folder are ignored, not deleted (a later cleanup is out of scope).
 - Files with `modified` undefined are always relisted (cannot prove unchanged).
@@ -28,9 +29,9 @@ Design (lead):
 2. AC2: A file whose `modified` changed is relisted and its cache row updated.
 3. AC3: A changed skip signature relists every file even if `modified` is unchanged.
 4. AC4: `modified` undefined always relists.
-5. AC5: First run with a cold cache and 10 files and a budget that affords only 3 listings: 3 files are listed and cached, 7 are `listing_incomplete`; the run still processes the tabs of the 3 listed files; no tab is hidden or marked missing; the next run lists the next files (convergence over runs).
-6. AC6: When a file cannot be relisted but has a cached list, the cached tabs are used and removal logic stays valid.
-7. AC7: Idle-run cost, two assertions with `countingDb`/`countingFetch` around fakes, all files unchanged (same `modified` and skip signature, cache warm) and nothing to apply: (a) small fixture of at most 50 tabs: exactly 1 fetch (the folder listing; zero `listTabs` and zero `readCsv` fetches) and at most 8 counted D1 calls; (b) scaling fixture of 450 tabs: exactly 1 fetch (folder listing only, zero `listTabs`/`readCsv` fetches) and D1 calls `<= 7 + ceil(tabs / 50)` (so `<= 16`). Assert the exact measured numbers within these bounds.
+5. AC5: First run with a cold cache and 10 files and a budget sized so that exactly 3 listings pass the gate (each needs 16 left): 3 files are listed and cached, 7 are `listing_incomplete`; the run still processes the tabs of the 3 listed files (at least one tab starts, the tab gate is still affordable after the refused 4th listing); no tab is hidden or marked missing; the next run lists the next files (convergence over runs).
+6. AC6: When a file cannot be relisted but has a cached list with a matching skip signature, the cached tabs are used and removal logic stays valid; with a non-matching skip signature the cached tabs are NOT used and the file is `listing_incomplete`.
+7. AC7: Listing cost of an idle run, `countingFetch` around fakes, all files unchanged (same `modified` and skip signature, cache warm): zero `listTabs` fetches and exactly 1 listing fetch plus one `readCsv` per picked tab (at most maxTabsPerRun); for a 450-tab fixture `listTabs` count is 0 (so no per-file fetches). Zero `readCsv` and the D1 call bounds are NOT asserted here: they belong to TASK-73 (read-skip), decision Q1.
 8. AC8: A `listTabs` throw still yields a failed run with a code only; no cache row is written for that file.
 9. AC9: Existing runSync listing tests stay green; any that assumed `listAllTabs` call order is updated deliberately. `listAllTabs` in `sheetSource.ts` is left in place (still exported, unused by runSync; do not edit that file).
 
@@ -41,8 +42,7 @@ Design (lead):
 - [ ] `missing modified always relists`: covers AC4
 - [ ] `cold cache with small budget lists some files, defers others, hides nothing, converges`: covers AC5
 - [ ] `falls back to cached tabs when relisting is unaffordable`: covers AC6
-- [ ] `idle run with at most 50 tabs costs one fetch and at most 8 D1 calls`: covers AC7(a)
-- [ ] `idle run with 450 tabs costs one fetch and at most 7 + ceil(tabs / 50) D1 calls`: covers AC7(b)
+- [ ] `idle run makes zero listTabs fetches and one listing fetch`: covers AC7 (small and 450-tab fixtures)
 - [ ] `listTabs failure fails the run with a code and writes no cache row`: covers AC8
 - [ ] `subrequest_limit during listTabs trips the breaker and finishes the row`: covers AC8 and TASK-68
 
@@ -63,5 +63,12 @@ Design (lead):
 <!-- Written by lead. -->
 
 ## Questions
+(Answered by lead, status restored to todo.)
+
 1. AC7 (zero readCsv on an idle run) conflicts with the current hash check. runSync reads every picked tab each run (up to maxTabsPerRun), so an idle 50-tab run costs 25 readCsv fetches. Which do you want: (a) skip readCsv for tabs of files whose modified and skip signature are unchanged and whose state is clean (then a PARSER_VERSION change must be handled, e.g. a stored parser version), or (b) relax AC7 to zero listTabs with readCsv bounded by maxTabsPerRun? (technical, to lead)
 2. AC5 (budget) conflicts with the gates: listing needs canAfford(LIST_RESERVE = 6), tabs need canAfford(10). When the 4th listing is refused, fewer than 10 remain, so none of the 3 listed files' tabs are processed. Which do you want: (a) listing also reserves one tab's worst case (LIST_RESERVE + TAB_RESERVE + FINISH_RESERVE), or (b) AC5 asserts processing only when the tab gate allows? (technical, to lead)
+A1: Option (a), but split out. The read-skip needs two stored fields per tab, so it is now TASK-72 (migration 0004 amendment: `file_modified`, `parser_version` on `sync_tab_checks`; syncState and syncHotel helpers) plus TASK-73 (runSync read-skip, after this task). A tab's read is skipped when the file `modified` is non-null and equals the one stored at the tab's last successful check, parser version is current, state is clean (no last_error, not missing, hash present), `last_checked_at` is younger than 7 days (guards a coarse opaque `modified` text), and not force. This task keeps reading picked tabs as today; its AC7 is reduced to listTabs and listing-fetch counts. Scope change for this task: AC7 reduced, no storage work here, file list unchanged. TASK-70 no longer depends on anything new and can run in parallel with TASK-72.
+
+A2: Option (a). The listing gate is `canAfford(LIST_RESERVE + TAB_RESERVE + FINISH_RESERVE)` (16), so a refused listing always leaves room for one tab; AC5 updated (budget sized so exactly 3 listings pass the gate).
+
+Confirmed: (1) cached fallback (unaffordable relist) is used only when the stored skip_sig equals the current one, else `listing_incomplete`. (2) A `listTabs` throw with `networkCause` `subrequest_limit` or `illegal_invocation` sets summary `aborted: "circuit_breaker"`, the note `{kind:"abort", reason:"aborted_circuit_breaker"}` and `failed_run`; any other throw is `failed_run` only; neither writes a cache row for that file, and nothing is marked removed.
