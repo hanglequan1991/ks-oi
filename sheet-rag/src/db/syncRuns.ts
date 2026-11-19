@@ -64,6 +64,18 @@ export async function finishRun(
 		.run();
 }
 
+/**
+ * Ends a run that was left unfinished (stale, see STALE_RUN_MS in runSync). Sets finished_at to
+ * `now` and the note `{kind:"error", reason:"abandoned"}`; the counts stay as they were.
+ * Only a row that is still unfinished is updated, so a finished row is never overwritten.
+ */
+export async function abandonRun(db: D1Database, id: string, now: string): Promise<void> {
+	await db
+		.prepare("UPDATE sync_runs SET finished_at = ?, notes = ? WHERE id = ? AND finished_at IS NULL")
+		.bind(now, encodeNotes([{ kind: "error", reason: "abandoned" }]), id)
+		.run();
+}
+
 /** Most recent run by start time, or null when the log is empty. */
 export async function getLatestRun(db: D1Database): Promise<SyncRunRow | null> {
 	return db

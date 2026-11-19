@@ -52,6 +52,11 @@ Decisions (lead):
 
 ## Dev notes
 <!-- Written by dev. -->
+- Red: 9 new tests failed for the right reasons (no abandonRun, stale run not abandoned, no breaker, no deadline).
+- Green: `abandonRun` in syncRuns.ts (updates only rows with finished_at NULL, note `{kind:"error", reason:"abandoned"}`, counts kept). runSync.ts: `blockedByRecentRun` (a recent run blocks with no writes, otherwise every stale run is abandoned), `createDeadline` with injected `nowMs`, circuit breaker (BREAKER_THRESHOLD 5, threshold 1 for subrequest_limit and illegal_invocation), `aborted` on the summary, and `plan.removed` skipped when aborted.
+- Refactor: renamed hasRecentUnfinishedRun to blockedByRecentRun. Re-ran the tests after the rename.
+- Tests: `npm test -- --run test/sync/runSync.spec.ts test/db/syncRuns.spec.ts` gives 31 passed. `npm test -- --run test/sync test/db` gives 24 files and 205 tests passed.
+- Files changed: sheet-rag/src/sync/runSync.ts, sheet-rag/src/db/syncRuns.ts, sheet-rag/test/sync/runSync.spec.ts, sheet-rag/test/db/syncRuns.spec.ts.
 
 ## Review
 <!-- Written by lead. -->

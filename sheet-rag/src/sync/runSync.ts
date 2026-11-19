@@ -6,10 +6,19 @@
 // time (a failing tab never stops the others), hide the removed tabs, then write the run log.
 // The returned summary carries only counts and failure codes (AC9).
 
-import { finishRun, startRun, getUnfinishedRuns, type RunCounts, type RunNoteItem } from "../db/syncRuns";
+import {
+	abandonRun,
+	finishRun,
+	startRun,
+	getUnfinishedRuns,
+	type RunCounts,
+	type RunNoteItem,
+} from "../db/syncRuns";
 import { getSyncState, keyOf, markTabMissing, markTabSeen, recordTabError } from "../db/syncState";
 import { buildDataVersionStatement } from "./overrides";
 import { contentHash, hotelIdFor } from "./hash";
+import { createDeadline } from "./budget";
+import { NETWORK_CAUSES, type NetworkCause } from "./fetchErrors";
 import { planSync } from "./planSync";
 import { syncHotel } from "./syncHotel";
 import { listAllTabs, SheetReadError, type SheetSource, type SheetTab } from "./sheetSource";
@@ -20,6 +29,12 @@ export const PARSER_VERSION = "1";
 
 /** A run that started less than this long ago, and has no finished_at, blocks a new run. */
 const STALE_RUN_MS = 15 * 60 * 1000;
+
+/** Consecutive read failures with the same network cause that stop the run. */
+export const BREAKER_THRESHOLD = 5;
+
+/** These causes make retrying pointless, so the breaker trips on the first failure. */
+const IMMEDIATE_CAUSES: ReadonlySet<NetworkCause> = new Set<NetworkCause>(["subrequest_limit", "illegal_invocation"]);
 
 // Same effect as markTabMissing plus hidden_by_sync = 1. Kept as one statement so it can share a batch.
 const MARK_REMOVED_HIDDEN_SQL = `
@@ -42,6 +57,8 @@ export interface SyncDeps {
 	now: () => string;
 	/** Reserved for the folder import (TASK-55+). Not used by the run yet. */
 	extract?: (...args: unknown[]) => unknown;
+	/** Wall clock in ms for the run deadline. Defaults to Date.now. */
+	nowMs?: () => number;
 }
 
 export interface SyncOptions {
@@ -65,6 +82,8 @@ export interface SyncSummary {
 	failures: SyncFailure[];
 	failed_run?: true;
 	skipped?: "already_running";
+	/** Set when the run stopped reading tabs early. Nothing is hidden in that case. */
+	aborted?: "circuit_breaker" | "deadline";
 }
 
 /** Keeps only short lowercase codes. Anything else (a URL, a message) becomes the unknown code. */
@@ -74,6 +93,12 @@ function sanitizeReason(reason: unknown): string {
 
 function reasonOf(error: unknown): string {
 	return error instanceof SheetReadError ? sanitizeReason(error.reason) : UNKNOWN_REASON;
+}
+
+/** The network cause of a thrown fetch, or undefined (HTTP status failures and other errors). */
+function networkCauseOf(error: unknown): NetworkCause | undefined {
+	if (!(error instanceof SheetReadError) || error.networkCause === undefined) return undefined;
+	return (NETWORK_CAUSES as readonly string[]).includes(error.networkCause) ? error.networkCause : undefined;
 }
 
 function emptyCounts(): RunCounts {
@@ -87,10 +112,18 @@ async function readAutoPublish(db: D1Database): Promise<boolean> {
 	return row?.value === "true";
 }
 
-async function hasRecentUnfinishedRun(db: D1Database, now: string): Promise<boolean> {
+/**
+ * Checks for an unfinished run. Returns true when one is recent (blocks the run; nothing is
+ * written). Otherwise every stale one (older than STALE_RUN_MS) is abandoned and false is returned.
+ */
+async function blockedByRecentRun(db: D1Database, now: string): Promise<boolean> {
 	const cutoff = Date.parse(now) - STALE_RUN_MS;
 	const runs = await getUnfinishedRuns(db);
-	return runs.some((run) => Date.parse(run.started_at) > cutoff);
+	if (runs.some((run) => Date.parse(run.started_at) > cutoff)) return true;
+	for (const run of runs) {
+		await abandonRun(db, run.id, now);
+	}
+	return false;
 }
 
 /**
@@ -131,15 +164,18 @@ async function hideRemovedTab(
 export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<SyncSummary> {
 	const { db, source, parse } = deps;
 	const now = deps.now();
+	const nowMs = deps.nowMs ?? Date.now;
 
-	if (await hasRecentUnfinishedRun(db, now)) {
+	if (await blockedByRecentRun(db, now)) {
 		return { ...emptyCounts(), failures: [], skipped: "already_running" };
 	}
 
+	const deadline = createDeadline(nowMs(), nowMs);
 	const runId = await startRun(db, opts.kind ?? "manual", now);
 	const counts = emptyCounts();
 	const failures: SyncFailure[] = [];
 	const items: RunNoteItem[] = [];
+	let aborted: SyncSummary["aborted"];
 
 	const fail = (tab: string | null, reason: string): void => {
 		counts.failed++;
@@ -151,6 +187,7 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 		await finishRun(db, runId, counts, items, deps.now());
 		const summary: SyncSummary = { ...counts, failures };
 		if (failedRun) summary.failed_run = true;
+		if (aborted) summary.aborted = aborted;
 		return summary;
 	};
 
@@ -166,16 +203,42 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 	try {
 		// Read and hash each listed tab. A failed read is reported; the tab stays listed, so
 		// planSync never treats it as removed, and it is not applied.
+		// Stops early (no tab is hidden then) on the soft/hard deadline, or when the circuit breaker
+		// trips: the same network cause on BREAKER_THRESHOLD reads in a row (1 for IMMEDIATE_CAUSES).
+		// A success, an HTTP-status failure or another cause resets the streak.
 		const csvByKey = new Map<string, string>();
 		const hashes = new Map<string, string>();
+		let streakCause: NetworkCause | undefined;
+		let streak = 0;
 		for (const tab of tabs) {
+			if (deadline.softExceeded() || deadline.hardExceeded()) {
+				aborted = "deadline";
+				items.push({ kind: "abort", reason: "deadline" });
+				break;
+			}
 			const key = keyOf(tab.fileId, tab.gid);
 			try {
 				const csv = await source.readCsv(tab);
 				csvByKey.set(key, csv);
 				hashes.set(key, await contentHash(csv, PARSER_VERSION));
+				streak = 0;
+				streakCause = undefined;
 			} catch (error) {
 				fail(tab.tabName, reasonOf(error));
+				const cause = networkCauseOf(error);
+				if (cause === undefined) {
+					streak = 0;
+					streakCause = undefined;
+				} else {
+					streak = cause === streakCause ? streak + 1 : 1;
+					streakCause = cause;
+					const threshold = IMMEDIATE_CAUSES.has(cause) ? 1 : BREAKER_THRESHOLD;
+					if (streak >= threshold) {
+						aborted = "circuit_breaker";
+						items.push({ kind: "abort", reason: "aborted_circuit_breaker" });
+						break;
+					}
+				}
 			}
 		}
 
@@ -228,8 +291,11 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 		}
 
 		// An empty listing is treated as unknown by planSync, so nothing is hidden here.
-		for (const row of plan.removed) {
-			if (await hideRemovedTab(db, row, now)) counts.hidden++;
+		// After an early abort the listing is incomplete, so removals are not applied at all.
+		if (aborted === undefined) {
+			for (const row of plan.removed) {
+				if (await hideRemovedTab(db, row, now)) counts.hidden++;
+			}
 		}
 
 		return finish(false);
