@@ -1,9 +1,12 @@
-// Orchestrates one sheet sync run (STORY-14, TASK-54). Everything is injected: the D1
-// binding, the SheetSource, the parser and the clock. No Cloudflare imports here.
+// Orchestrates one sheet sync run (STORY-14, TASK-54, TASK-69). Everything is injected: the D1
+// binding, the SheetSource, the parser, the clock and the subrequest budget. No Cloudflare imports here.
 //
-// Order: list every file and tab (any failure ends the run with nothing removed), read and
-// hash each tab (a failed read leaves that tab alone), plan, apply the changed tabs one at a
-// time (a failing tab never stops the others), hide the removed tabs, then write the run log.
+// Order: list every file and tab (any failure ends the run with nothing removed), mark every listed
+// tab seen (one batch per 50 tabs), pick at most maxTabsPerRun tabs oldest-first (never checked first),
+// then for each picked tab, one at a time: read and hash it (a failed read leaves that tab alone),
+// skip it when unchanged, otherwise apply it (a failing tab never stops the others). Stops cleanly
+// with `budget_exhausted` when the next tab is not affordable, then marks the unchanged tabs checked,
+// hides the removed tabs (only after a complete run) and writes the run log. The run row is always finished.
 // The returned summary carries only counts and failure codes (AC9).
 
 import {
@@ -14,10 +17,26 @@ import {
 	type RunCounts,
 	type RunNoteItem,
 } from "../db/syncRuns";
-import { getSyncState, keyOf, markTabMissing, markTabSeen, recordTabError } from "../db/syncState";
+import {
+	getSyncState,
+	keyOf,
+	markTabMissing,
+	markTabsChecked,
+	markTabsSeenBatch,
+	pickOldestFirst,
+	recordTabError,
+	type TabKey,
+} from "../db/syncState";
 import { buildDataVersionStatement } from "./overrides";
 import { contentHash, hotelIdFor } from "./hash";
-import { createDeadline } from "./budget";
+import {
+	createDeadline,
+	createSubrequestBudget,
+	DEFAULT_MAX_TABS_PER_RUN,
+	DEFAULT_SUBREQUEST_BUDGET,
+	type RunLimits,
+	type SubrequestBudget,
+} from "./budget";
 import { NETWORK_CAUSES, type NetworkCause } from "./fetchErrors";
 import { planSync } from "./planSync";
 import { syncHotel } from "./syncHotel";
@@ -27,6 +46,30 @@ import type { ParsedHotel } from "./record";
 /** Version of the sheet parser. Changing it makes every tab hash differently, so all are re-applied. */
 export const PARSER_VERSION = "1";
 
+/**
+ * Tries of one tab read. The public page source retries up to 3 times (MAX_TRIES in publicGoogleSource),
+ * so one tab read can cost this many fetches.
+ */
+export const TAB_FETCH_TRIES = 3;
+
+/**
+ * D1 calls of one applied tab. Measured by the TAB_RESERVE test: countingDb over a full syncHotel, for a
+ * created tab, an updated tab and a tab whose batch fails. The test fails if syncHotel later grows.
+ */
+export const TAB_APPLY_CALLS = 5;
+
+/**
+ * Subrequests kept for one tab before it starts: its worst-case fetches plus its worst-case D1 calls.
+ * A tab starts only when this plus FINISH_RESERVE is affordable.
+ */
+export const TAB_RESERVE = TAB_FETCH_TRIES + TAB_APPLY_CALLS;
+
+/** Subrequests kept for the end of the run: the markTabsChecked batch and the finishRun call. */
+export const FINISH_RESERVE = 2;
+
+/** D1 calls of one hideRemovedTab: the hotel lookup and one write (markTabMissing or the batch). */
+const HIDE_CALLS = 2;
+
 /** A run that started less than this long ago, and has no finished_at, blocks a new run. */
 const STALE_RUN_MS = 15 * 60 * 1000;
 
@@ -35,6 +78,8 @@ export const BREAKER_THRESHOLD = 5;
 
 /** These causes make retrying pointless, so the breaker trips on the first failure. */
 const IMMEDIATE_CAUSES: ReadonlySet<NetworkCause> = new Set<NetworkCause>(["subrequest_limit", "illegal_invocation"]);
+
+const DEFAULT_LIMITS: RunLimits = { subrequestBudget: DEFAULT_SUBREQUEST_BUDGET, maxTabsPerRun: DEFAULT_MAX_TABS_PER_RUN };
 
 // Same effect as markTabMissing plus hidden_by_sync = 1. Kept as one statement so it can share a batch.
 const MARK_REMOVED_HIDDEN_SQL = `
@@ -59,6 +104,13 @@ export interface SyncDeps {
 	extract?: (...args: unknown[]) => unknown;
 	/** Wall clock in ms for the run deadline. Defaults to Date.now. */
 	nowMs?: () => number;
+	/** Per-run limits. Defaults to 40 subrequests and 25 tabs. Only maxTabsPerRun is read here. */
+	limits?: RunLimits;
+	/**
+	 * Subrequest counter shared with the wrapped db and fetch (countingDb, countingFetch). runSync only
+	 * reads it to decide whether the next tab can start; it wraps nothing itself. Defaults to unlimited.
+	 */
+	budget?: SubrequestBudget;
 }
 
 export interface SyncOptions {
@@ -80,10 +132,12 @@ export interface SyncSummary {
 	hidden: number;
 	unchanged: number;
 	failures: SyncFailure[];
+	/** Listed tabs not started this run (over the cap, or after a stop). Count only; they are never hidden. */
+	deferred: number;
 	failed_run?: true;
 	skipped?: "already_running";
 	/** Set when the run stopped reading tabs early. Nothing is hidden in that case. */
-	aborted?: "circuit_breaker" | "deadline";
+	aborted?: "circuit_breaker" | "deadline" | "budget_exhausted";
 }
 
 /** Keeps only short lowercase codes. Anything else (a URL, a message) becomes the unknown code. */
@@ -165,34 +219,44 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 	const { db, source, parse } = deps;
 	const now = deps.now();
 	const nowMs = deps.nowMs ?? Date.now;
+	const limits = deps.limits ?? DEFAULT_LIMITS;
+	const budget = deps.budget ?? createSubrequestBudget(Infinity);
 
 	if (await blockedByRecentRun(db, now)) {
-		return { ...emptyCounts(), failures: [], skipped: "already_running" };
+		return { ...emptyCounts(), failures: [], deferred: 0, skipped: "already_running" };
 	}
 
 	const deadline = createDeadline(nowMs(), nowMs);
 	const runId = await startRun(db, opts.kind ?? "manual", now);
 	const counts = emptyCounts();
+	// Read failures are reported before the others, as before the per-tab loop.
+	const readFailures: SyncFailure[] = [];
 	const failures: SyncFailure[] = [];
 	const items: RunNoteItem[] = [];
 	let aborted: SyncSummary["aborted"];
+	let tabs: SheetTab[] = [];
+	let started = 0;
 
-	const fail = (tab: string | null, reason: string): void => {
+	const fail = (tab: string | null, reason: string, readPhase = false): void => {
 		counts.failed++;
-		failures.push({ tab, reason });
+		(readPhase ? readFailures : failures).push({ tab, reason });
 		items.push(tab === null ? { kind: "failure", reason } : { kind: "failure", tab, reason });
 	};
 
 	const finish = async (failedRun: boolean): Promise<SyncSummary> => {
 		await finishRun(db, runId, counts, items, deps.now());
-		const summary: SyncSummary = { ...counts, failures };
+		// Every listed tab that was not started is deferred (cap, budget, deadline or breaker).
+		const summary: SyncSummary = {
+			...counts,
+			failures: [...readFailures, ...failures],
+			deferred: tabs.length - started,
+		};
 		if (failedRun) summary.failed_run = true;
 		if (aborted) summary.aborted = aborted;
 		return summary;
 	};
 
 	// Listing: any throw ends the run before anything is written.
-	let tabs: SheetTab[];
 	try {
 		tabs = await listAllTabs(source);
 	} catch (error) {
@@ -201,64 +265,76 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 	}
 
 	try {
-		// Read and hash each listed tab. A failed read is reported; the tab stays listed, so
-		// planSync never treats it as removed, and it is not applied.
-		// Stops early (no tab is hidden then) on the soft/hard deadline, or when the circuit breaker
-		// trips: the same network cause on BREAKER_THRESHOLD reads in a row (1 for IMMEDIATE_CAUSES).
-		// A success, an HTTP-status failure or another cause resets the streak.
-		const csvByKey = new Map<string, string>();
-		const hashes = new Map<string, string>();
+		const state = await getSyncState(db);
+		await markTabsSeenBatch(
+			db,
+			tabs.map((tab) => ({ fileId: tab.fileId, gid: tab.gid, tabName: tab.tabName })),
+			now,
+		);
+
+		const { picked } = pickOldestFirst(tabs, state, limits.maxTabsPerRun);
+		const autoPublish = await readAutoPublish(db);
+		const unchangedKeys: TabKey[] = [];
+		const csvOf = new Map<string, string>();
+
+		// Read, hash and apply the picked tabs one at a time. A tab starts only when its worst case
+		// (TAB_RESERVE) plus the end-of-run calls (FINISH_RESERVE) is affordable, so the run never
+		// runs out of budget in the middle of a tab.
+		// Stops early (no tab is hidden then) on the soft/hard deadline, on the budget, or when the
+		// circuit breaker trips: the same network cause on BREAKER_THRESHOLD reads in a row (1 for
+		// IMMEDIATE_CAUSES). A success, an HTTP-status failure or another cause resets the streak.
 		let streakCause: NetworkCause | undefined;
 		let streak = 0;
-		for (const tab of tabs) {
+		for (const tab of picked) {
 			if (deadline.softExceeded() || deadline.hardExceeded()) {
 				aborted = "deadline";
 				items.push({ kind: "abort", reason: "deadline" });
 				break;
 			}
+			if (!budget.canAfford(TAB_RESERVE + FINISH_RESERVE)) {
+				aborted = "budget_exhausted";
+				items.push({ kind: "abort", reason: "budget_exhausted" });
+				break;
+			}
+			started++;
+
 			const key = keyOf(tab.fileId, tab.gid);
+			let hash: string;
 			try {
 				const csv = await source.readCsv(tab);
-				csvByKey.set(key, csv);
-				hashes.set(key, await contentHash(csv, PARSER_VERSION));
+				hash = await contentHash(csv, PARSER_VERSION);
 				streak = 0;
 				streakCause = undefined;
+				csvOf.set(key, csv);
 			} catch (error) {
-				fail(tab.tabName, reasonOf(error));
+				fail(tab.tabName, reasonOf(error), true);
 				const cause = networkCauseOf(error);
 				if (cause === undefined) {
 					streak = 0;
 					streakCause = undefined;
-				} else {
-					streak = cause === streakCause ? streak + 1 : 1;
-					streakCause = cause;
-					const threshold = IMMEDIATE_CAUSES.has(cause) ? 1 : BREAKER_THRESHOLD;
-					if (streak >= threshold) {
-						aborted = "circuit_breaker";
-						items.push({ kind: "abort", reason: "aborted_circuit_breaker" });
-						break;
-					}
+					continue;
 				}
+				streak = cause === streakCause ? streak + 1 : 1;
+				streakCause = cause;
+				const threshold = IMMEDIATE_CAUSES.has(cause) ? 1 : BREAKER_THRESHOLD;
+				if (streak >= threshold) {
+					aborted = "circuit_breaker";
+					items.push({ kind: "abort", reason: "aborted_circuit_breaker" });
+					break;
+				}
+				continue;
 			}
-		}
 
-		const state = await getSyncState(db);
-		for (const tab of tabs) {
-			await markTabSeen(db, { fileId: tab.fileId, gid: tab.gid, tabName: tab.tabName, now });
-		}
-
-		const plan = planSync({ tabs, state, hashes, force: opts.force });
-		counts.unchanged = plan.unchanged.length;
-
-		const autoPublish = await readAutoPublish(db);
-		for (const tab of plan.changed) {
-			const key = keyOf(tab.fileId, tab.gid);
-			const csv = csvByKey.get(key);
-			if (csv === undefined) continue; // unreadable this run: already reported
+			const single = planSync({ tabs: [tab], state, hashes: new Map([[key, hash]]), force: opts.force });
+			if (single.unchanged.length > 0) {
+				counts.unchanged++;
+				unchangedKeys.push({ fileId: tab.fileId, gid: tab.gid });
+				continue;
+			}
 
 			let parsed: ParseResult;
 			try {
-				parsed = parse(csv, tab);
+				parsed = parse(csvOf.get(key) ?? "", tab);
 			} catch {
 				parsed = { ok: false, reason: UNKNOWN_REASON };
 			}
@@ -272,7 +348,7 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 			const result = await syncHotel(db, {
 				tab,
 				record: parsed.record,
-				hash: hashes.get(key) ?? "",
+				hash,
 				now,
 				autoPublish,
 			});
@@ -290,10 +366,16 @@ export async function runSync(deps: SyncDeps, opts: SyncOptions = {}): Promise<S
 			}
 		}
 
-		// An empty listing is treated as unknown by planSync, so nothing is hidden here.
-		// After an early abort the listing is incomplete, so removals are not applied at all.
+		// One batch for every unchanged tab read this run. Failed reads and applied tabs are not in it.
+		await markTabsChecked(db, unchangedKeys, now);
+
+		// Removed tabs come from the full listing, so a deferred tab is never one of them. After an
+		// early stop the removals are not applied at all. Each removal needs its own budget check;
+		// the ones left over wait for the next run (they stay removed in the next plan).
 		if (aborted === undefined) {
-			for (const row of plan.removed) {
+			const { removed } = planSync({ tabs, state, hashes: new Map() });
+			for (const row of removed) {
+				if (!budget.canAfford(HIDE_CALLS + FINISH_RESERVE)) break;
 				if (await hideRemovedTab(db, row, now)) counts.hidden++;
 			}
 		}

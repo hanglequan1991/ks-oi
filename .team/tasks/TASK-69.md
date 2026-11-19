@@ -54,6 +54,14 @@ Design (lead):
 
 ## Dev notes
 <!-- Written by dev. -->
+- GREEN: `runSync.spec.ts` 35/35 pass; full unit suite 69 files, 549 tests pass.
+- `TAB_APPLY_CALLS = 5` is the measured maximum (TAB_RESERVE test over four syncHotel scenarios). `TAB_RESERVE = 3 + 5 = 8`. `FINISH_RESERVE = 2`.
+- Per-tab loop replaces the `markTabSeen` loop: `markTabsSeenBatch` for all listed tabs, `pickOldestFirst` with `maxTabsPerRun`, gate `canAfford(TAB_RESERVE + FINISH_RESERVE)` before each tab, `abort budget_exhausted` when it fails. `finishRun` always runs.
+- Unchanged tabs go into one `markTabsChecked` batch. Unreadable tabs are not in it.
+- Read failures are listed before the other failures (the existing test pins this order, as the old two-pass code did).
+- Removed tabs are hidden only when the run was not aborted, with one `canAfford(HIDE_CALLS + FINISH_RESERVE)` check per removal. Deferred tabs are never removed.
+- `deferred` is a count in the summary (`listed - started`).
+- Not done / open: a tab whose read keeps failing has no check row, so it sorts first every run (possible starvation of the rest; needs a decision from lead). `startRun`, `getUnfinishedRuns`, `getSyncState`, the seen batches and listing are not gated by `canAfford`. A removal skipped by the budget is not reported in the summary.
 
 ## Review
 <!-- Written by lead. -->
