@@ -10,6 +10,19 @@ import { createFakeAi } from "../fakes/extractor";
 
 const reply = (value: unknown) => ({ response: JSON.stringify(value) });
 
+// json_schema must be the JSON Schema object itself, with no { name, schema } wrapper.
+function expectDirectSchema(jsonSchema: Record<string, any>) {
+	expect(Object.keys(jsonSchema)).not.toContain("name");
+	expect(Object.keys(jsonSchema)).not.toContain("schema");
+	expect(jsonSchema.type).toBe("object");
+	expect(jsonSchema.additionalProperties).toBe(false);
+	expect(jsonSchema.properties.descriptionVi).toEqual({ type: ["string", "null"] });
+	expect(jsonSchema.properties.facilities).toEqual({
+		type: "array",
+		items: { type: "string" },
+	});
+}
+
 describe("extract", () => {
 	it("passthrough returns raw text and splits facilities", async () => {
 		const extractor = createPassthroughExtractor();

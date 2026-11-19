@@ -3,8 +3,9 @@
 - id: TASK-61
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: todo
-- rework count: 0
+- status: in-progress
+- assignee: dev
+- rework count: 1
 - depends on: TASK-57 (done)
 - size: fits a 100k-token context (two files, one behaviour)
 
@@ -41,8 +42,13 @@ No other file may change (the fake at `sheet-rag/test/fakes/extractor.ts` is rea
 - Grep: no `extract-v1` or `llama-3.1-8b` strings remain under sheet-rag/src or sheet-rag/test, so no other file asserts the old version.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework
-1. Specific, actionable note. -->
+Verdict: rework
+
+Model constant, version bump, single retry, fallback and object-reply parsing are all correct and tested. One defect, from the Cloudflare docs check of 2026-11-19: for Workers AI text models such as `@cf/meta/llama-3.3-70b-instruct-fp8-fast` the documented JSON mode request is `response_format: { type: 'json_schema', json_schema: <the JSON Schema object itself> }`. The `{ name, schema }` wrapper is the OpenAI-style shape the docs show only for other model families (xai/grok, reflection-ai/beam). AC2's wording `json_schema: { name, schema }` was wrong for this model and is superseded by this note.
+1. In `sheet-rag/src/sync/extract.ts` `buildRequest`, pass the schema directly: `response_format: { type: "json_schema", json_schema: REPLY_SCHEMA }`. Drop the `name` wrapper. Keep `REPLY_SCHEMA` (type object, `descriptionVi` string or null, `facilities` array of strings, `additionalProperties: false`), the model, `EXTRACTOR_VERSION = "extract-v2"`, the single retry and the fallback.
+2. In `extract.spec.ts` update the assertions so that `input.response_format.json_schema` equals the schema object itself (has `type: 'object'`, `properties.descriptionVi`, `properties.facilities`, `additionalProperties: false`) and has no `schema` or `name` key; apply this to both the first call and the retry call test.
+3. Reply shape: docs show the reply as an object under `response`; parseReply already accepts it (test exists), no change.
+4. Update the Dev notes line about the unverified docs shape (now verified) and keep the Operational note (re-check deprecation before deploy).
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->

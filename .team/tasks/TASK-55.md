@@ -3,7 +3,7 @@
 - id: TASK-55
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 1
 - depends on: none (takes the sync as an injected function)
@@ -42,7 +42,11 @@ Related open check in decision.md (2026-11-19): the limiter trusts CF-Connecting
 
 ## Review
 
-Verdict: rework
+Re-review after rework 1 (2026-11-19). Verdict: approve
+
+Checked: `noStore` now sits after `secretGate` in the POST chain, so with the secret unset the 404 comes from `c.notFound()` with only the global headers; 401 and 429 still carry no-store (noStore wraps rateLimit and tokenCheck). Test `404 when token unset or empty...` compares status, body and the full sorted header set against `/internal/nope` for POST, GET, PUT, PATCH, DELETE and for both unset and empty secrets, and asserts runSync is never called. Only the two listed files are in the task's change set. Full suite (coordinator run) 60 files / 433 tests green. Residual notes (no change): per-isolate in-memory limiter (decision.md check open); 200 body filtering is TASK-54 AC9.
+
+Previous verdict (kept for history): rework
 
 Everything else is right (404 gate first, rate limit before token check, SHA-256 + full XOR compare, header-only token, noindex via global middleware, generic 500 with no echo, GET 404). One defect:
 
