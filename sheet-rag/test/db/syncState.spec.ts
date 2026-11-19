@@ -154,10 +154,15 @@ describe("syncState db helpers", () => {
 		expect(batch).toHaveBeenCalledTimes(1);
 
 		const state = await getSyncState(d1);
-		expect(state.get("f1:0")).toMatchObject({ last_checked_at: "t5", updated_at: "t5", last_seen_at: "t1" });
+		// Only sync_tab_checks changes: sync_state.updated_at and last_seen_at stay as they were.
+		expect(state.get("f1:0")).toMatchObject({ last_checked_at: "t5", updated_at: "t1", last_seen_at: "t1" });
 		expect(state.get("f2:0")?.last_checked_at).toBe("t5");
 		expect(state.get("f1:1")?.last_checked_at).toBeNull();
 		expect(state.has("f9:9")).toBe(false);
+		const checks = await db
+			.prepare("SELECT tab_key FROM sync_tab_checks ORDER BY tab_key")
+			.all<{ tab_key: string }>();
+		expect(checks.results.map((r) => r.tab_key)).toEqual(["f1:0", "f2:0"]);
 
 		// Empty input makes no D1 call.
 		batch.mockClear();
@@ -169,6 +174,7 @@ describe("syncState db helpers", () => {
 		const db = await migratedDb();
 		const d1 = asD1(db);
 
+		const batch = vi.spyOn(db, "batch");
 		await recordTabSuccess(d1, {
 			fileId: "f1",
 			gid: "0",
@@ -177,6 +183,9 @@ describe("syncState db helpers", () => {
 			hash: "h1",
 			now: "t1",
 		});
+		// The success row and the check upsert go in one batch.
+		expect(batch).toHaveBeenCalledTimes(1);
+		expect(batch.mock.calls[0][0]).toHaveLength(2);
 		expect((await getSyncState(d1)).get("f1:0")?.last_checked_at).toBe("t1");
 
 		await recordTabError(d1, {

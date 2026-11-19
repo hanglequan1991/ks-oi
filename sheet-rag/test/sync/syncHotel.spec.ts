@@ -397,6 +397,41 @@ describe("syncHotel", () => {
 		expect(fromBatch.hash).toBe(HASH_1);
 		expect(fromBatch.last_error).toBeNull();
 		expect(fromBatch.missing_since).toBeNull();
+
+		// The check upsert in the batch matches the one recordTabSuccess writes.
+		const checkOf = async (d: FakeD1) =>
+			(await (asDb(d))
+				.prepare("SELECT tab_key, last_checked_at FROM sync_tab_checks WHERE tab_key = ?")
+				.bind(`${tab.fileId}:${tab.gid}`)
+				.first<Record<string, unknown>>()) as Record<string, unknown>;
+		const checkFromBatch = await checkOf(dbA);
+		expect(checkFromBatch).toEqual(await checkOf(dbB));
+		expect(checkFromBatch).toEqual({ tab_key: `${tab.fileId}:${tab.gid}`, last_checked_at: LATER });
+	});
+
+	it("syncHotel success batch writes sync_tab_checks, invalid record does not", async () => {
+		const checkKey = `${tab.fileId}:${tab.gid}`;
+		const checkCount = async () =>
+			(await one<{ n: number }>("SELECT COUNT(*) AS n FROM sync_tab_checks WHERE tab_key = ?", checkKey)).n;
+
+		const invalid = await run(hotel({ stars: 9 }));
+		expect(invalid.outcome).toBe("invalid");
+		expect(await checkCount()).toBe(0);
+
+		const result = await run(hotel(), { now: NOW });
+		expect(result.outcome).toBe("created");
+		expect(await one<{ tab_key: string; last_checked_at: string }>(
+			"SELECT tab_key, last_checked_at FROM sync_tab_checks WHERE tab_key = ?",
+			checkKey,
+		)).toEqual({ tab_key: checkKey, last_checked_at: NOW });
+
+		// A later success moves the check time and keeps one row.
+		await run(hotel(), { hash: HASH_2, now: LATER });
+		expect(await checkCount()).toBe(1);
+		expect(await one<{ last_checked_at: string }>(
+			"SELECT last_checked_at FROM sync_tab_checks WHERE tab_key = ?",
+			checkKey,
+		)).toEqual({ last_checked_at: LATER });
 	});
 
 	it("second identical run is updated with identical rows", async () => {

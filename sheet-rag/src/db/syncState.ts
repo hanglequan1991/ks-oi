@@ -25,10 +25,13 @@ export interface TabKey {
 // D1 batch chunk size for markTabsSeenBatch.
 const SEEN_BATCH_CHUNK = 50;
 
+// last_checked_at comes from sync_tab_checks (NULL when the tab has no check row).
 const SELECT_ALL_SQL = `
-	SELECT source_file_id, source_gid, hotel_id, tab_name, hash, last_seen_at,
-		missing_since, hidden_by_sync, prior_status, last_error, updated_at, last_checked_at
-	FROM sync_state`;
+	SELECT s.source_file_id, s.source_gid, s.hotel_id, s.tab_name, s.hash, s.last_seen_at,
+		s.missing_since, s.hidden_by_sync, s.prior_status, s.last_error, s.updated_at,
+		c.last_checked_at AS last_checked_at
+	FROM sync_state s
+	LEFT JOIN sync_tab_checks c ON c.tab_key = s.source_file_id || ':' || s.source_gid`;
 
 // Creates the row if it is absent. Only tab name and last seen time change; hash, error and missing flag stay.
 const MARK_SEEN_SQL = `
@@ -39,17 +42,18 @@ const MARK_SEEN_SQL = `
 		last_seen_at = excluded.last_seen_at,
 		updated_at = excluded.updated_at`;
 
-// Sets last_checked_at for existing rows only, so tabs without a row are ignored.
-const MARK_CHECKED_SQL = `
-	UPDATE sync_state SET
-		last_checked_at = ?,
-		updated_at = ?
-	WHERE source_file_id = ? AND source_gid = ?`;
+// Upserts the check time of one tab. Only tabs that have a sync_state row get a check row.
+// Bind order: tab_key, now, fileId, gid. Used by recordTabSuccess, markTabsChecked and syncHotel.
+const TAB_CHECK_SQL = `
+	INSERT INTO sync_tab_checks (tab_key, last_checked_at)
+	SELECT ?, ? WHERE EXISTS (
+		SELECT 1 FROM sync_state WHERE source_file_id = ? AND source_gid = ?)
+	ON CONFLICT (tab_key) DO UPDATE SET last_checked_at = excluded.last_checked_at`;
 
-// A successful apply stores the hash, clears the error and the missing flag, and sets last_checked_at.
+// A successful apply stores the hash, clears the error and the missing flag (last_checked_at is in sync_tab_checks).
 const RECORD_SUCCESS_SQL = `
-	INSERT INTO sync_state (source_file_id, source_gid, hotel_id, tab_name, hash, last_seen_at, missing_since, last_error, updated_at, last_checked_at)
-	VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)
+	INSERT INTO sync_state (source_file_id, source_gid, hotel_id, tab_name, hash, last_seen_at, missing_since, last_error, updated_at)
+	VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?)
 	ON CONFLICT (source_file_id, source_gid) DO UPDATE SET
 		hotel_id = excluded.hotel_id,
 		tab_name = excluded.tab_name,
@@ -57,10 +61,9 @@ const RECORD_SUCCESS_SQL = `
 		last_seen_at = excluded.last_seen_at,
 		missing_since = NULL,
 		last_error = NULL,
-		updated_at = excluded.updated_at,
-		last_checked_at = excluded.last_checked_at`;
+		updated_at = excluded.updated_at`;
 
-// A failed apply keeps the old hash, so the next run retries the tab. It does not touch last_checked_at:
+// A failed apply keeps the old hash, so the next run retries the tab. It does not touch sync_tab_checks:
 // a failing tab is retried, but it sinks in the pickOldestFirst order only after a success elsewhere.
 const RECORD_ERROR_SQL = `
 	INSERT INTO sync_state (source_file_id, source_gid, tab_name, last_error, updated_at)
@@ -100,8 +103,19 @@ export async function markTabSeen(
 }
 
 /**
- * Marks the tabs as checked at `now` (last_checked_at and updated_at), in one batch.
- * Tabs without a row are ignored. Empty input makes no D1 call.
+ * The statement that sets the check time of one tab in sync_tab_checks to `now`.
+ * It writes nothing when the tab has no sync_state row. Shared by recordTabSuccess, markTabsChecked
+ * and syncHotel, so all of them use the same SQL.
+ */
+export function tabCheckStatement(db: D1Database, key: TabKey, now: string): D1PreparedStatement {
+	return db
+		.prepare(TAB_CHECK_SQL)
+		.bind(keyOf(key.fileId, key.gid), now, key.fileId, key.gid);
+}
+
+/**
+ * Marks the tabs as checked at `now` (sync_tab_checks.last_checked_at), in one batch.
+ * Tabs without a sync_state row are ignored. Empty input makes no D1 call.
  */
 export async function markTabsChecked(
 	db: D1Database,
@@ -109,9 +123,7 @@ export async function markTabsChecked(
 	now: string,
 ): Promise<void> {
 	if (keys.length === 0) return;
-	const statements = keys.map((key) =>
-		db.prepare(MARK_CHECKED_SQL).bind(now, now, key.fileId, key.gid),
-	);
+	const statements = keys.map((key) => tabCheckStatement(db, key, now));
 	await db.batch(statements);
 }
 
@@ -133,15 +145,19 @@ export async function markTabsSeenBatch(
 	}
 }
 
-/** Records a successful apply: stores the hash, clears last_error and missing_since, sets last_checked_at. */
+/**
+ * Records a successful apply: stores the hash, clears last_error and missing_since, and sets the
+ * check time in sync_tab_checks. Both writes go in one batch; the success row comes first so the
+ * check upsert sees it.
+ */
 export async function recordTabSuccess(
 	db: D1Database,
 	args: TabKey & { hotelId: string; tabName: string; hash: string; now: string },
 ): Promise<void> {
-	await db
+	const success = db
 		.prepare(RECORD_SUCCESS_SQL)
-		.bind(args.fileId, args.gid, args.hotelId, args.tabName, args.hash, args.now, args.now, args.now)
-		.run();
+		.bind(args.fileId, args.gid, args.hotelId, args.tabName, args.hash, args.now, args.now);
+	await db.batch([success, tabCheckStatement(db, args, args.now)]);
 }
 
 /**

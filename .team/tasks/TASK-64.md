@@ -3,7 +3,8 @@
 - id: TASK-64
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: todo
+- status: in-progress
+- assignee: dev
 - rework count: 0
 - depends on: TASK-63 (shares publicGoogleSource.ts and its spec), TASK-46 (done)
 - size: fits a 100k-token context (few files, one behaviour)

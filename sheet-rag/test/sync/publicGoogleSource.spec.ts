@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SheetConfigError, SheetReadError } from "../../src/sync/sheetSource";
-import { createPublicGoogleSource, parseSkipTabs } from "../../src/sync/publicGoogleSource";
+import { buildSkipMatcher, createPublicGoogleSource, parseSkipTabs } from "../../src/sync/publicGoogleSource";
 
 const FIXTURES = join(__dirname, "..", "fixtures", "google");
 const fixture = (name: string) => readFileSync(join(FIXTURES, name), "utf8");

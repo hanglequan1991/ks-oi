@@ -3,7 +3,7 @@
 - id: TASK-63
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-54, TASK-56, TASK-62 (all done)
