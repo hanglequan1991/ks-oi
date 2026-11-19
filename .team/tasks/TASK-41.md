@@ -3,7 +3,7 @@
 - id: TASK-41
 - story: [STORY-16](../stories/STORY-16.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-40 (done)

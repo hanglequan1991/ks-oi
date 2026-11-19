@@ -48,7 +48,7 @@ Follow-up candidate (lead): booking_rules does not enforce that room_id belongs 
 | [TASK-14](tasks/TASK-14.md) | backend | src/web/app.ts, test/web/app.spec.tsx | dev | done | 0 | deps: TASK-5, TASK-7, TASK-9, TASK-11, TASK-12, TASK-13; lead approved; guards only /search, /chat, /api/suggest, /api/hotels/*; mount must register each page at both /x and /en/x |
 | [TASK-15](tasks/TASK-15.md) | backend | src/index.ts, src/env.ts (new if needed), wrangler.jsonc, test/index.web.spec.ts (provisional list) | - | blocked | 0 | waiting for the owner's real sheet-rag source (src/index.ts, src/rag/); deps: TASK-14, TASK-10, TASK-9; TASK-13's body-size check only runs when bodyFields is non-empty; wiring must always pass bodyFields on POST routes; wiring must also guard /en/search and /en/chat with the same rate limit and input caps as /search and /chat (TASK-14 only guards the vi paths); mount must register each page at both /x and /en/x |
 | [TASK-40](tasks/TASK-40.md) | backend | playwright.node.config.ts (new), package.json (e2e:node script only), test/fakes/migrations.ts, test/fakes/migrations.spec.ts (one test), test/client/playwright-node-config.spec.ts (new) | dev | done | 0 | lead approved; deps: TASK-39, TASK-1 (both done); PREREQUISITE FOR ALL e2e TCs (now satisfied); sole package.json editor now; task file lists story as STORY-13, placed here per coordinator |
-| [TASK-41](tasks/TASK-41.md) | backend | playwright.node.config.ts, test/client/playwright-node-config.spec.ts | dev | in-progress | 0 | deps: TASK-40 (done); browser-path selection (PW_CHROMIUM_PATH, then installed Chromium/headless shell, only when Playwright's default is absent) in the node config; prerequisite for all browser TCs |
+| [TASK-41](tasks/TASK-41.md) | backend | playwright.node.config.ts, test/client/playwright-node-config.spec.ts | dev | done | 0 | lead approved; deps: TASK-40 (done); browser-path selection (PW_CHROMIUM_PATH, then installed Chromium/headless shell, only when Playwright's default is absent) in the node config; prerequisite for all browser TCs |
 
 Sequencing note: after TASK-41 is done, all browser TCs (TC-12 onwards) can run. Order: STORY-16 TC-12..22 first, then STORY-15 TC-25..38, then STORY-11 TC-40 (harness) then TC-41..61. Live TCs 23, 24, 39, 62 are blocked for the owner.
 
@@ -57,19 +57,19 @@ QA test cases for STORY-16 (TC-11 to TC-22 need Playwright from TASK-39 and, for
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
 | [TC-11](testcases/TC-11.md) | qa | e2e/TC-11.e2e.ts | qa | done | 0 | qalead approved; inline executablePath workaround is temporary (see TASK-41) |
-| [TC-12](testcases/TC-12.md) | qa | e2e/TC-12.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-13](testcases/TC-13.md) | qa | e2e/TC-13.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-14](testcases/TC-14.md) | qa | e2e/TC-14.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-15](testcases/TC-15.md) | qa | e2e/TC-15.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-16](testcases/TC-16.md) | qa | e2e/TC-16.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-17](testcases/TC-17.md) | qa | e2e/TC-17.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-18](testcases/TC-18.md) | qa | e2e/TC-18.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-19](testcases/TC-19.md) | qa | e2e/TC-19.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-20](testcases/TC-20.md) | qa | e2e/TC-20.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-21](testcases/TC-21.md) | qa | e2e/TC-21.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-22](testcases/TC-22.md) | qa | e2e/TC-22.e2e.ts | - | todo | 0 | needs Playwright (TASK-39) |
-| [TC-23](testcases/TC-23.md) | qa | e2e/TC-23.e2e.ts | - | todo | 0 | needs a live deployment |
-| [TC-24](testcases/TC-24.md) | qa | e2e/TC-24.e2e.ts | - | todo | 0 | needs a live deployment |
+| [TC-12](testcases/TC-12.md) | qa | e2e/TC-12.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-13](testcases/TC-13.md) | qa | e2e/TC-13.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-14](testcases/TC-14.md) | qa | e2e/TC-14.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-15](testcases/TC-15.md) | qa | e2e/TC-15.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-16](testcases/TC-16.md) | qa | e2e/TC-16.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-17](testcases/TC-17.md) | qa | e2e/TC-17.e2e.ts | qa | done | 0 | qalead approved |
+| [TC-18](testcases/TC-18.md) | qa | e2e/TC-18.e2e.ts | qa | blocked | 0 | not reworked in Version 1 (minimal testing); test passes via the X-Forwarded-For fallback; fix when next touched (send CF-Connecting-IP in the 429 step) |
+| [TC-19](testcases/TC-19.md) | qa | e2e/TC-19.e2e.ts | - | deferred | 0 | no automation file (half-written one deleted); not automated in Version 1 (minimal testing) |
+| [TC-20](testcases/TC-20.md) | qa | e2e/TC-20.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-21](testcases/TC-21.md) | qa | e2e/TC-21.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-22](testcases/TC-22.md) | qa | e2e/TC-22.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-23](testcases/TC-23.md) | qa | e2e/TC-23.e2e.ts | - | blocked | 0 | needs live deployment; owner |
+| [TC-24](testcases/TC-24.md) | qa | e2e/TC-24.e2e.ts | - | blocked | 0 | needs live deployment; owner |
 
 ## STORY-15: Hotel public API
 
@@ -90,21 +90,21 @@ QA test cases for STORY-15 (TC-39 needs a live deployment).
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TC-25](testcases/TC-25.md) | qa | e2e/TC-25.e2e.ts | - | todo | 0 | |
-| [TC-26](testcases/TC-26.md) | qa | e2e/TC-26.e2e.ts | - | todo | 0 | |
-| [TC-27](testcases/TC-27.md) | qa | e2e/TC-27.e2e.ts | - | todo | 0 | |
-| [TC-28](testcases/TC-28.md) | qa | e2e/TC-28.e2e.ts | - | todo | 0 | |
-| [TC-29](testcases/TC-29.md) | qa | e2e/TC-29.e2e.ts | - | todo | 0 | |
-| [TC-30](testcases/TC-30.md) | qa | e2e/TC-30.e2e.ts | - | todo | 0 | |
-| [TC-31](testcases/TC-31.md) | qa | e2e/TC-31.e2e.ts | - | todo | 0 | |
-| [TC-32](testcases/TC-32.md) | qa | e2e/TC-32.e2e.ts | - | todo | 0 | |
-| [TC-33](testcases/TC-33.md) | qa | e2e/TC-33.e2e.ts | - | todo | 0 | |
-| [TC-34](testcases/TC-34.md) | qa | e2e/TC-34.e2e.ts | - | todo | 0 | |
-| [TC-35](testcases/TC-35.md) | qa | e2e/TC-35.e2e.ts | - | todo | 0 | |
-| [TC-36](testcases/TC-36.md) | qa | e2e/TC-36.e2e.ts | - | todo | 0 | |
-| [TC-37](testcases/TC-37.md) | qa | e2e/TC-37.e2e.ts | - | todo | 0 | |
-| [TC-38](testcases/TC-38.md) | qa | e2e/TC-38.e2e.ts | - | todo | 0 | |
-| [TC-39](testcases/TC-39.md) | qa | e2e/TC-39.e2e.ts | - | todo | 0 | needs a live deployment |
+| [TC-25](testcases/TC-25.md) | qa | e2e/TC-25.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-26](testcases/TC-26.md) | qa | e2e/TC-26.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-27](testcases/TC-27.md) | qa | e2e/TC-27.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-28](testcases/TC-28.md) | qa | e2e/TC-28.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-29](testcases/TC-29.md) | qa | e2e/TC-29.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-30](testcases/TC-30.md) | qa | e2e/TC-30.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-31](testcases/TC-31.md) | qa | e2e/TC-31.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-32](testcases/TC-32.md) | qa | e2e/TC-32.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-33](testcases/TC-33.md) | qa | e2e/TC-33.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-34](testcases/TC-34.md) | qa | e2e/TC-34.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-35](testcases/TC-35.md) | qa | e2e/TC-35.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-36](testcases/TC-36.md) | qa | e2e/TC-36.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-37](testcases/TC-37.md) | qa | e2e/TC-37.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-38](testcases/TC-38.md) | qa | e2e/TC-38.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-39](testcases/TC-39.md) | qa | e2e/TC-39.e2e.ts | - | blocked | 0 | needs live deployment; owner |
 
 ## STORY-11: Billing page (/bill, /en/bill)
 
@@ -131,26 +131,26 @@ QA test cases for STORY-11 (TC-40 owns the shared harness e2e/support/billServer
 
 | Task | Type | Files | Assignee | Status | Rework count | Notes |
 |---|---|---|---|---|---|---|
-| [TC-40](testcases/TC-40.md) | qa | e2e/TC-40.e2e.ts, e2e/support/billServer.ts | - | todo | 0 | owns shared harness e2e/support/billServer.ts; must be done first |
-| [TC-41](testcases/TC-41.md) | qa | e2e/TC-41.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-42](testcases/TC-42.md) | qa | e2e/TC-42.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-43](testcases/TC-43.md) | qa | e2e/TC-43.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-44](testcases/TC-44.md) | qa | e2e/TC-44.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-45](testcases/TC-45.md) | qa | e2e/TC-45.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-46](testcases/TC-46.md) | qa | e2e/TC-46.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-47](testcases/TC-47.md) | qa | e2e/TC-47.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-48](testcases/TC-48.md) | qa | e2e/TC-48.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-49](testcases/TC-49.md) | qa | e2e/TC-49.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-50](testcases/TC-50.md) | qa | e2e/TC-50.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-51](testcases/TC-51.md) | qa | e2e/TC-51.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-52](testcases/TC-52.md) | qa | e2e/TC-52.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-53](testcases/TC-53.md) | qa | e2e/TC-53.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-54](testcases/TC-54.md) | qa | e2e/TC-54.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-55](testcases/TC-55.md) | qa | e2e/TC-55.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-56](testcases/TC-56.md) | qa | e2e/TC-56.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-57](testcases/TC-57.md) | qa | e2e/TC-57.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-58](testcases/TC-58.md) | qa | e2e/TC-58.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-59](testcases/TC-59.md) | qa | e2e/TC-59.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-60](testcases/TC-60.md) | qa | e2e/TC-60.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-61](testcases/TC-61.md) | qa | e2e/TC-61.e2e.ts | - | todo | 0 | after TC-40 |
-| [TC-62](testcases/TC-62.md) | qa | e2e/TC-62.e2e.ts | - | todo | 0 | needs a live deployment |
+| [TC-40](testcases/TC-40.md) | qa | e2e/TC-40.e2e.ts, e2e/support/billServer.ts | - | deferred | 0 | not automated in Version 1 (minimal testing); owns shared harness e2e/support/billServer.ts |
+| [TC-41](testcases/TC-41.md) | qa | e2e/TC-41.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-42](testcases/TC-42.md) | qa | e2e/TC-42.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-43](testcases/TC-43.md) | qa | e2e/TC-43.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-44](testcases/TC-44.md) | qa | e2e/TC-44.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-45](testcases/TC-45.md) | qa | e2e/TC-45.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-46](testcases/TC-46.md) | qa | e2e/TC-46.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-47](testcases/TC-47.md) | qa | e2e/TC-47.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-48](testcases/TC-48.md) | qa | e2e/TC-48.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-49](testcases/TC-49.md) | qa | e2e/TC-49.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-50](testcases/TC-50.md) | qa | e2e/TC-50.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-51](testcases/TC-51.md) | qa | e2e/TC-51.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-52](testcases/TC-52.md) | qa | e2e/TC-52.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-53](testcases/TC-53.md) | qa | e2e/TC-53.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-54](testcases/TC-54.md) | qa | e2e/TC-54.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-55](testcases/TC-55.md) | qa | e2e/TC-55.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-56](testcases/TC-56.md) | qa | e2e/TC-56.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-57](testcases/TC-57.md) | qa | e2e/TC-57.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-58](testcases/TC-58.md) | qa | e2e/TC-58.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-59](testcases/TC-59.md) | qa | e2e/TC-59.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-60](testcases/TC-60.md) | qa | e2e/TC-60.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-61](testcases/TC-61.md) | qa | e2e/TC-61.e2e.ts | - | deferred | 0 | not automated in Version 1 (minimal testing) |
+| [TC-62](testcases/TC-62.md) | qa | e2e/TC-62.e2e.ts | - | blocked | 0 | needs live deployment; owner |
