@@ -5,7 +5,7 @@
 - type: backend
 - status: in-progress
 - assignee: dev
-- rework count: 0
+- rework count: 1
 - depends on: TASK-59 (vitest include for test/sync, must run first), TASK-46, TASK-49, TASK-53
 - size: fits a 100k-token context (few files, one behaviour)
 
@@ -50,5 +50,19 @@ The test uses a stub parse function that reads a trivial format defined in the t
 - `kind` option is passed through to sync_runs.kind (default `manual`).
 
 ## Review
+
+Verdict: rework (2 small items; everything else approved).
+
+Checked: full suite 62 files / 454 tests green; only the 4 listed files are new/changed (plus this task file); no Cloudflare imports in runSync.
+
+Approved parts: AC1-AC8 covered by named tests; listing failures (folder_parse_empty, tab_list_parse_empty, fetch errors) fail the run via the listAllTabs catch before anything is written, nothing hidden or marked missing (tested, state rows compared before/after); empty listing is a no-op via planSync; per-tab errors isolated; concurrency guard is correct (strictly newer than 15 min blocks, stale/crashed run does not, tested); run row finished with failed_run on listing or unexpected throw; removed-tab flow matches TASK-49/53 (owner-hidden untouched, hidden_by_sync/prior_status, restore through syncHotel).
+
+Deviations judged: (1) `extract` optional and unused: acceptable. The AI extractor lives in TASK-57 (src/sync/extract.ts, `pickExtractor`) and is to be used inside the parser, TASK-58; runSync never needs it, since `parse` is injected. Remove the dead field only if TASK-58 does not need it; harmless otherwise. (2) Local `PARSER_VERSION = "1"`: acceptable, TASK-58 must move/own it (add to its notes). (3) Notes in D1 hold tab name, reason code, unmapped facility label, truncated valid JSON <= 4000: acceptable, the table is internal and never returned; reasons are sanitized to `^[a-z][a-z0-9_]*$`, source error messages are never stored. (4) `kind` default 'manual' and `finishRun` taking items instead of a JSON string: acceptable (encodeNotes is exported and tested).
+
+AC9 result type is fine by inspection: counts, `failures: {tab, reason}[]`, `failed_run`, `skipped` only; reasons pass through sanitizeReason, unmapped facilities are not in the result.
+
+Rework notes:
+1. AC9 test is not hostile enough. The hostile fixture only covers a readCsv Error carrying a URL. Extend the "returned summary ..." test (and assert on the serialized result) with: a parse function returning `{ ok:false, reason: SHEET_URL }`, a parse function that throws an Error containing SHEET_URL and the secret, a `listFiles` throwing `new SheetReadError(SHEET_URL)` (failed run), and a `SheetReadError` with a non-code reason on readCsv. Expect `unexpected_error` in each case and no URL, token, file id or row text in `JSON.stringify(result)`. Also include a facility label not in the map and assert it is absent from the result (present only in notes).
+2. `hideRemovedTab` is not atomic. `markTabMissing` is committed first, then the hotel is hidden in a separate batch. If the batch fails, the tab has `missing_since` set but the hotel stays visible, and planSync never lists it as removed again, so the hotel is never hidden (the opposite of STORY-14 AC9). Fix inside runSync.ts only: put the missing marking into the same `db.batch` as the hotel hide and the `hidden_by_sync` update (e.g. one `UPDATE sync_state SET missing_since = COALESCE(missing_since, ?), prior_status = ?, hidden_by_sync = 1, updated_at = ?` statement in the batch, without changing syncState.ts, which is outside the file list), keeping the owner-hidden branch using `markTabMissing`. Add a test that a failing batch (fake D1 throwing on batch) leaves `missing_since` null so the next run retries and hides it.
 
 ## Questions
