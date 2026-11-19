@@ -117,13 +117,19 @@ describe("runSync listing cache (TASK-70)", () => {
 		const first = newLog();
 		await runSync(deps(sourceOf(data, first), NOW));
 
+		const hotelsBefore = await rows<{ id: string; status: string }>("SELECT id, status FROM hotels ORDER BY id");
+
 		const second = newLog();
 		const result = await runSync(deps(sourceOf(data, second), LATER));
 
 		expect(second.listTabs).toEqual([]);
 		expect(second.listFiles).toBe(1);
-		expect(second.readCsv).toEqual(first.readCsv);
+		// Read-skip (TASK-73): the tabs are clean, unchanged and fresh, so the second run reads nothing.
+		expect(second.readCsv).toEqual([]);
 		expect(result).toMatchObject({ created: 0, updated: 0, failed: 0, hidden: 0, unchanged: 2 });
+		const hotelsAfter = await rows<{ id: string; status: string }>("SELECT id, status FROM hotels ORDER BY id");
+		expect(hotelsAfter).not.toHaveLength(0);
+		expect(hotelsAfter).toEqual(hotelsBefore);
 	});
 
 	it("changed modified relists and updates the cache", async () => {
@@ -240,9 +246,11 @@ describe("runSync listing cache (TASK-70)", () => {
 		await runSync(deps(sourceOf(small, idleSmall), LATER));
 		expect(idleSmall.listTabs).toEqual([]);
 		expect(idleSmall.listFiles).toBe(1);
-		expect(idleSmall.readCsv).toHaveLength(2);
+		expect(idleSmall.readCsv).toEqual([]);
 
 		// 450 tabs in 9 files: the idle run lists nothing per file and reads at most maxTabsPerRun.
+		// The cold run reads only 25 of 450 tabs (cap 25), so the next run still has unchecked tabs
+		// and reads 1 to 25 of them (read-skip, TASK-73, only covers tabs already checked).
 		const big = cities(9, 50);
 		await runSync(deps(sourceOf(big, newLog()), LATER2));
 		const idleBig = newLog();
@@ -252,6 +260,17 @@ describe("runSync listing cache (TASK-70)", () => {
 		expect(idleBig.readCsv.length).toBeGreaterThan(0);
 		expect(idleBig.readCsv.length).toBeLessThanOrEqual(25);
 		expect(result.failed_run).toBeUndefined();
+	});
+
+	it("idle run still reads when modified is missing", async () => {
+		const data = cities(2);
+		for (const file of data.files) delete file.modified;
+		await runSync(deps(sourceOf(data, newLog()), NOW));
+
+		const second = newLog();
+		await runSync(deps(sourceOf(data, second), LATER));
+		expect(second.listFiles).toBe(1);
+		expect(second.readCsv).toHaveLength(2);
 	});
 
 	it("listTabs failure fails the run with a code and writes no cache row", async () => {

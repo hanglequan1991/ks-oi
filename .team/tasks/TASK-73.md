@@ -63,6 +63,12 @@ Design (lead):
 - Measured idle-run D1 calls: 50 tabs = 7 (asserted `toBe(7)`, bound 8); 450 tabs = 15 = 6 + ceil(450/50) (asserted `toBe(15)`, bound 16). Fetches = 1 in both.
 - Convergence (AC8): 3 files x 150 tabs, cap 25, hourly steps: 18 reading runs then 1 idle run (19 cold runs in total). A changed file re-reads only its 150 tabs.
 - Full suite: 2 failures, both in `sheet-rag/test/sync/runSyncListing.spec.ts` (TASK-70). Both assert that an idle run still calls readCsv (`unchanged modified skips listTabs and plans identically`, `idle run makes zero listTabs fetches and one listing fetch`). TASK-73 intentionally removes those reads, so the assertions are now wrong. The file is not in this task's file list, so I did not edit it.
+- AC10 (answer A) applied to `sheet-rag/test/sync/runSyncListing.spec.ts`, test-only:
+  - `unchanged modified skips listTabs and plans identically`: `second.readCsv` now `toEqual([])`; added hotels `id, status` snapshot before the second run, equal after (and non-empty).
+  - `idle run makes zero listTabs fetches and one listing fetch`: small fixture `readCsv` now `toEqual([])`; 450-tab block unchanged, with a comment that the cold run reads 25 of 450 so the next run still reads 1 to 25.
+  - New `idle run still reads when modified is missing`: `modified` deleted from every file; second run has `listFiles` 1 and `readCsv` length 2.
+  - force:true variant skipped: the listing spec's `deps()` helper takes only `SyncDeps`, and `force` is a `runSync` option, so it is not exposed there. AC2 covers force in the read-skip spec.
+- Final runs: `env -u CLOUDFLARE_API_TOKEN npm test -- --run`: 71 files, 599 tests passed, 0 failed. `npx playwright test -c playwright.node.config.ts --project=chromium --trace off`: 32 passed.
 
 ## Review
 <!-- Written by lead. -->
