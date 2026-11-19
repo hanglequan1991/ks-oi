@@ -118,3 +118,19 @@ describe("DEPLOY-hotel-dictionary.md", () => {
 		}
 	});
 });
+
+describe("wrangler.hotel.jsonc: sync settings (TASK-56)", () => {
+	it("wrangler.hotel.jsonc has the cron trigger, the DRIVE_FOLDER_ID and SKIP_TABS vars and no secrets", () => {
+		const text = read("wrangler.hotel.jsonc");
+		const cfg = parseJsonc(text);
+
+		expect(cfg.triggers?.crons).toEqual(["0 * * * *"]);
+		expect(cfg.vars.DRIVE_FOLDER_ID).toBe("REPLACE_WITH_DRIVE_FOLDER_ID");
+		expect(cfg.vars.SKIP_TABS).toBe("[]");
+
+		// The secret is set with wrangler, never stored in the file.
+		expect(cfg.vars).not.toHaveProperty("SYNC_TOKEN");
+		expect(text).toContain("wrangler secret put SYNC_TOKEN");
+		expect(text).not.toMatch(/SYNC_TOKEN"?\s*:\s*"(?!\s*$)/);
+	});
+});

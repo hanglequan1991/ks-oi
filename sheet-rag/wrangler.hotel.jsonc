@@ -38,5 +38,28 @@
 	"assets": {
 		"directory": "./public",
 		"binding": "ASSETS"
+	},
+	/**
+	 * Sheet sync schedule (hourly). One string; the owner may change it.
+	 * The Worker runs the sync from the `scheduled` handler.
+	 */
+	"triggers": {
+		"crons": ["0 * * * *"]
+	},
+	/**
+	 * Plain variables (not secrets).
+	 * DRIVE_FOLDER_ID: the public Drive folder id. REPLACE_WITH_DRIVE_FOLDER_ID is a
+	 * placeholder; the Worker treats it as unconfigured and skips the sync (logged).
+	 * SKIP_TABS: JSON array of "File name/Tab name" to skip, for example ["File/Tab"].
+	 *
+	 * Secret (not in this file): SYNC_TOKEN, set with `wrangler secret put SYNC_TOKEN`.
+	 * Without it, POST /internal/sync answers 404.
+	 *
+	 * Optional AI binding (not used by the site), left off:
+	 * "ai": { "binding": "AI" }
+	 */
+	"vars": {
+		"DRIVE_FOLDER_ID": "REPLACE_WITH_DRIVE_FOLDER_ID",
+		"SKIP_TABS": "[]"
 	}
 }

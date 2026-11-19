@@ -70,3 +70,20 @@ npx wrangler deploy --dry-run -c wrangler.hotel.jsonc --outdir .wrangler/dry-run
 ```
 
 or `npm run dry-run:hotel`. The output lists the `DB` and `ASSETS` bindings.
+
+## Sheet sync (folder import)
+
+The Worker syncs hotel data from a public Google Drive folder. It reads the same public Google pages as sheet-rag (no Google credentials).
+
+1. Share the Drive folder and every sheet in it as "Anyone with the link can view". Without this, the sync cannot read them.
+2. Set the folder id in `vars` in `wrangler.hotel.jsonc`: replace `REPLACE_WITH_DRIVE_FOLDER_ID` with the public folder id. It is not a secret. Until you do, the scheduled run is skipped and logged.
+3. Optional: set `SKIP_TABS` in `vars` to a JSON array of `"File name/Tab name"` strings to leave out. The default `"[]"` skips nothing.
+4. Set the secret that guards the manual trigger (not stored in the file):
+   ```sh
+   npx wrangler secret put SYNC_TOKEN
+   ```
+   Without `SYNC_TOKEN`, `POST /internal/sync` answers 404. With it, send `Authorization: Bearer <token>`.
+5. Deploy with `npx wrangler deploy -c wrangler.hotel.jsonc` (or `npm run deploy:hotel`). The cron `0 * * * *` runs the sync every hour. This is one string in `triggers.crons`; change it there if you want a different schedule (for example daily).
+6. After the first run, check the file and tab counts against the Drive folder. The sync reports counts and failure codes only (no sheet content).
+
+Until the row parser is in place, every tab is reported with `parser_not_configured` and nothing is published. This is expected for this release.

@@ -39,6 +39,9 @@
 ## Dev notes
 Cron frequency: the story says hourly, the user message said daily; hourly is the story text, so it is the default here (decision C, 2026-11-19: keep hourly; the owner may change it). One string in the jsonc to change.
 
+- Implemented: site.ts (SiteEnv fields, scheduled handler, registerInternalSyncRoute in mount, placeholder treated as unconfigured), src/sync/rowParser.ts stub, wrangler.hotel.jsonc (triggers, vars), DEPLOY-hotel-dictionary.md section, tests in test/web/siteSync.spec.tsx (new) and test/web/site-config.spec.ts (new describe appended).
+- Unit suite: 63 files, 461 tests passed. Dry run exit 0.
+
 ## Review
 
 ## Questions
