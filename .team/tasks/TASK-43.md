@@ -62,6 +62,14 @@ Nothing else (no `app.css`, no `.tsx`, no `render.ts`). Shared with TASK-44: non
 
 ## Dev notes
 <!-- Written by dev: anything the reviewer should know. -->
+- Red: extended `bill-css.spec.ts` (TEMPLATE updated, mobile `.bill-note` 1fr assertion dropped, 11 new `it` blocks plus updated mobile, print and contract tests). 13 of 15 failed on the old CSS.
+- Green: rewrote `public/bill.css` to AC1-AC12. `bill-css.spec.ts` 15/15 pass. Full suite: 45 files, 318 tests pass.
+- Refactor: removed a duplicate `.bill-note.is-empty` print rule.
+- The `.row-title` class is hidden on desktop and shown on mobile only (AC10 only specifies mobile).
+- `.bill-foot` in print is flex (right-aligned) instead of grid, because AC11 specifies right alignment only.
+- `.btn-danger` keeps its old values (AC12 says keep screen defaults).
+- Comments in bill.css avoid the words `@import`, `Inter` and `googleapis` because the spec checks the whole file text.
+- Not deployed. TASK-44 must land before the page is fully correct.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework
