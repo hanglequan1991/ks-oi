@@ -59,6 +59,13 @@ Decisions (lead):
 - Files changed: sheet-rag/src/sync/runSync.ts, sheet-rag/src/db/syncRuns.ts, sheet-rag/test/sync/runSync.spec.ts, sheet-rag/test/db/syncRuns.spec.ts.
 
 ## Review
-<!-- Written by lead. -->
+Verdict: approve (lead, 2026-11-19).
+- Concurrency guard vs the 06:00 orphan: `blockedByRecentRun` reads `finished_at IS NULL` rows; if any has `started_at` newer than now - 15 min it blocks with no writes (test: 14 min old still skips, row stays NULL). Otherwise every stale row is abandoned (`abandonRun`, `WHERE finished_at IS NULL`, note error/abandoned, counts kept) and the run proceeds (tests: one stale at 09:30 vs now 10:00, and several). So an orphan older than 15 minutes is closed by the next run and a younger one still blocks.
+- Known minor limitation, not a defect: if a recent run and a stale one coexist, the stale one stays open until the next run after the recent one ends.
+- Deadline: soft or hard exceeded stops before the next read, note abort/deadline, summary aborted "deadline", row finished (injected nowMs, 9 and 11 min tested).
+- Breaker: threshold 5 same networkCause, streak reset by success, HTTP/no-cause failure and a different cause; 1 for subrequest_limit and illegal_invocation; note abort/aborted_circuit_breaker, summary aborted "circuit_breaker".
+- After an early abort `plan.removed` is skipped, unread tabs stay listed (never removed, `csv === undefined` is skipped), tested with a vanished tab staying published.
+- AC9: the hostile fixture (URL plus token in the error message) is run through the breaker path; summary and notes contain only codes. Existing csv_network assertions were handled; suite 532 green.
+- Only the four listed files changed.
 
 ## Questions

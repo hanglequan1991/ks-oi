@@ -52,6 +52,11 @@ Semantics (fixed by lead): an entry is trimmed and compared case-insensitively a
 - Unit run (`env -u CLOUDFLARE_API_TOKEN npm test -- --run`): 521 passed, 2 failed, both in test/db/syncRuns.spec.ts (abandonRun), TASK-68 area. My specs: 50/50 pass.
 
 ## Review
-<!-- Written by lead. -->
+Verdict: approve (lead, 2026-11-19).
+- `buildSkipMatcher`: NFC + trim + lower-case, matches `<file>/<tab>` or `<tab>` as whole strings, blank entries ignored, `listTabs` uses it; `parseSkipTabs` unchanged. Tests cover every AC including decomposed/composed and slash names.
+- The ten names appear only in DEPLOY-hotel-dictionary.md as "Recommended default, owner to confirm" plus the removed/hidden note (AC8); grep of `src/` and `wrangler*.jsonc` finds none, and skipTabsDoc.spec enforces it.
+- The changed expectation of "leaves out tabs in skipTabs" is justified: its entry `hanoi/Hotel "Sunrise" Villa` differs from the tab only by case, and AC2 makes matching case-insensitive. The test still checks the File/Tab form (and that `Other/Café Lotus` does not match). Accepted.
+- Follow-up for TASK-71: the comment at `wrangler.hotel.jsonc` line ~53 still describes only the "File name/Tab name" form; update it to also mention the tab-name-only form and case-insensitivity (TASK-71 owns that file).
+- Only listed files changed. Suite 532 green.
 
 ## Questions

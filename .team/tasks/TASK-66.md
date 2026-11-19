@@ -79,11 +79,16 @@ A (lead): Yes. `src/sync/syncHotel.ts` and `test/sync/syncHotel.spec.ts` are add
 - `env -u CLOUDFLARE_API_TOKEN npm test -- --run`: 504 passed, 13 failed. All 13 are in two files outside this task (see Questions).
 
 ## Review
-<!-- Written by lead. -->
+Verdict: approve (lead, 2026-11-19).
+- Migration 0004 has no ALTER, both tables CREATE IF NOT EXISTS; applied twice in spec and e2e TC-2/3/9 green (32 passed).
+- getSyncState LEFT JOIN on `s.source_file_id || ':' || s.source_gid` with `c.last_checked_at`; legacy rows null (tested).
+- `tabCheckStatement` is exported and reused by recordTabSuccess (one db.batch, success row first), markTabsChecked (one batch, empty is a no-op, guarded by WHERE EXISTS) and syncHotel's success batch. recordTabError untouched.
+- pickOldestFirst: never-checked first, ascending, stable, limit/deferred correct. The pinning test is extended to sync_tab_checks and a syncHotel batch test exists.
+- All SQL bound; only listed files changed. Full unit suite 69 files / 532 tests green.
 
 ## Questions
 Q2 (technical, to lead, rework 1 of TASK-66): the unit suite is red in two files that TASK-66 does not touch, and both come from uncommitted work in the tree, not from this change:
 - `test/sync/publicGoogleSource.spec.ts` > `listTabs parses names and gids including escapes and honours skipTabs` (`src/sync/publicGoogleSource.ts` is modified in the tree)
 - `test/sync/skipTabsDoc.spec.ts` (untracked) > `deploy doc lists the ten recommended tab names and src has none of them` (`DEPLOY-hotel-dictionary.md` is modified)
 Only these 2 of 68 files fail (13 tests); every file touched by TASK-66 is green. TASK-66's file list does not allow editing them. Which task owns these two files (probably TASK-63 or TASK-65, which run in parallel), and should TASK-66 be closed on its own green files? Until answered the status is `blocked: question`.
-A (lead): (pending)
+A (lead): TASK-64 owns `publicGoogleSource.ts`, `skipTabsDoc.spec.ts` and `DEPLOY-hotel-dictionary.md` (it was in progress then, now green). TASK-66 closes on its own green files. No scope or file-list change.
