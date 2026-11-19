@@ -3,7 +3,7 @@
 - id: TASK-49
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (vitest include for test/sync, must run first), TASK-45, TASK-46, TASK-47
@@ -34,5 +34,8 @@
 ## Dev notes
 
 ## Review
+
+Verdict: approve (2026-11-19). All 8 named tests exist and map to AC1-AC4; SQL is prepared with binds only; planSync is pure; removed is once-only (skips rows with missing_since) and an empty listing removes nothing.
+Notes for the orchestrator (TASK-53/54), not blockers: `markTabSeen` deliberately does not clear `missing_since` (it only updates tab_name/last_seen_at); a restored tab is returned in `changed`, so the missing flag is cleared by `recordTabSuccess` after a successful apply (and stays set if the apply fails, so the tab is retried as restored). The contract is only stated in the SQL comment, not on planSync; TASK-53/54 must rely on recordTabSuccess for that. Also no helper clears `hidden_by_sync`/`prior_status`: TASK-53 AC6 must do that itself (in its own file list).
 
 ## Questions

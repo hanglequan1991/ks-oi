@@ -3,7 +3,7 @@
 - id: TASK-51
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (vitest include for test/sync, must run first), TASK-48 (record type), TASK-47 (hash helpers)
@@ -36,5 +36,9 @@
 - Tests: 6 in `test/sync/writeRooms.spec.ts` on the fake D1 with real migrations. Full unit suite: 56 files, 394 tests pass.
 
 ## Review
+
+Verdict: approve (2026-11-19). 6 tests cover AC2-AC7; all SQL prepared with binds; room id sha256(hotelId:foldedName) 16 hex; base_price NULL kept; sheet-only delete and upsert guarded by `WHERE rooms.source='sheet'`, so mytour rooms are untouched; rule ids are 16 hex; raw_text stored unmodified.
+Confirmed: status 'review' is allowed by the booking_rules CHECK (review|confirmed) and the API returns rules regardless of status.
+Caveat (follows AC5 as written, not a rework): `DELETE FROM booking_rules WHERE hotel_id = ?` also deletes rules with status 'confirmed', and their structured columns, so such rules are neither kept nor reported. Nothing in STORY-14 creates confirmed rules yet (structured columns stay NULL), but whoever adds rule confirmation must change this (keep confirmed rows or report them). Flag for the story report.
 
 ## Questions

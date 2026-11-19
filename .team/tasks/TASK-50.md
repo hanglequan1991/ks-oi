@@ -3,7 +3,7 @@
 - id: TASK-50
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-59 (vitest include for test/sync, must run first), TASK-45, TASK-48 (record type), TASK-47 (hotelIdFor)
@@ -41,5 +41,8 @@ The facility_catalog is empty after migrations (no seed exists); tests insert th
 - Tests: `test/sync/writeHotel.spec.ts`, 7 passing. Full unit suite: 56 files, 394 tests passing.
 
 ## Review
+
+Verdict: approve (2026-11-19). 7 tests cover AC2-AC7; statements are prepared with binds; status is written only on INSERT so existing hotels (published, review, owner-hidden) keep their status and an owner-hidden hotel is never un-hidden; new hotel is published when autoPublish true. Idempotent (upserts, delete+insert of images and sheet facilities, mytour/other-source facility rows untouched).
+Hotel id = first 16 hex of sha256(fileId:gid) (hotelIdFor): independent of file name, tab name and city, so renaming a file or tab updates in place and creates no duplicate. Updating city_slug on conflict is fine (renamed city file moves its hotels; city row is inserted first in the same batch); the old city row stays, which is harmless. Slug is never updated. Only listed files changed.
 
 ## Questions
