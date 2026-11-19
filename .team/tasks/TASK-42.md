@@ -3,7 +3,7 @@
 - id: TASK-42
 - story: [STORY-16](../stories/STORY-16.md)
 - type: backend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-14, TASK-25, TASK-38, TASK-36, TASK-34 (all done)
@@ -74,8 +74,14 @@ Shared files: `package.json` (nothing else is in flight on it; TASK-39/40 are do
 - Process note: once I ran `git stash` in `sheet-rag/` by mistake and popped it at once. The stash held only my `package.json` edit; the tree is restored, the stash list is empty, and `wrangler.jsonc` and `src/index.ts` are unchanged.
 
 ## Review
-<!-- Written by lead. Verdict: approve | rework
-1. Specific, actionable note. -->
+Verdict: approve
+
+- AC1-AC5: each is covered by a named test in `test/web/site.spec.tsx` (12 tests in total with the config spec). The tests use the real `getSettings` with the fake D1 and the real migrations. `src/site.ts` caches the app in a WeakMap keyed on `env.DB`. Static paths go to ASSETS for GET/HEAD only. `/bill`, `/en/bill` and the API run through `createApp`, so security headers, noindex and rate limits apply. The tests check the five headers on 200, 404 and 429 responses.
+- AC6/AC7: `wrangler.hotel.jsonc` matches every listed field. It has no `ai`, `vectorize` or `run_worker_first`, and the text `sheet-rag` does not appear. The `package.json` diff is only the two new scripts. `git status` shows `wrangler.jsonc` and `src/index.ts` unchanged.
+- AC8: the DEPLOY doc lists the steps in the required order with the correct commands, including `-c wrangler.hotel.jsonc` on `migrations apply`. It has the smoke URL table, the empty-hotel-list warning until the Phase 2 sync, the `CF-Connecting-IP` edge caveat, the in-memory per-isolate note and the dry-run command. The order is asserted in the test.
+- No base price leak: `/api/hotels` is the existing handler, whose code says base prices never leave the server. The new code adds no price fields.
+- The coordinator ran the suite (45 files / 309 tests pass) and the dry-run (exit 0).
+- Minor, no action needed: the `/api/config` test asserts only that the body contains "10", which is a weak check. The dev's accidental `git stash` and `pop` was restored with no side effects, and the stash list is empty.
 
 ## Questions
 <!-- Q: ...   A: ... (answer goes right under the question) -->
