@@ -3,7 +3,7 @@
 - id: TASK-56
 - story: [STORY-14](../stories/STORY-14.md)
 - type: backend
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 1
 - depends on: TASK-46, TASK-54, TASK-55
@@ -44,7 +44,11 @@ Cron frequency: the story says hourly, the user message said daily; hourly is th
 - Rework 1 (doc only, sheet-rag/DEPLOY-hotel-dictionary.md): secret step uses `-c wrangler.hotel.jsonc`; curl manual trigger with bearer header (token not in URL) and status table (200, 401, 404, 429, 500); `?force=1` documented (supported: passed to runSync, planSync re-applies all tabs); JSON summary described (counts, failures codes, failed_run, skipped); sync_runs query with real columns from migrations/0003_sync.sql; optional AI binding documented as off, not read by the current code (extractor not wired into the sync yet), with model deprecation check before deploy. Unit suite: 63 files, 461 tests passed.
 
 ## Review
-Verdict: rework
+Re-review after rework 1 (2026-11-19): Verdict: approve
+
+All four notes resolved in DEPLOY-hotel-dictionary.md, and the doc was checked against the code: `-c wrangler.hotel.jsonc` on the secret put; curl with bearer header and a 200/401/404/429/500 table (matches internalSync.ts: 404 when secret unset, 5 per minute per IP, `too_many_requests`, `unauthorized`, `sync_failed`); `?force=1` is supported (`c.req.query("force") === "1"` goes to runSync, then planSync force re-applies all tabs); summary fields match runSync.ts (counts, failures with tab/null and reason, failed_run, skipped already_running, unexpected_error fallback); sync_runs columns match migrations/0003_sync.sql, and `kind` scheduled/manual matches site.ts; cron `0 * * * *`, vars names and the placeholder behaviour match wrangler.hotel.jsonc and site.ts. The AI binding is stated truthfully as off and not read by the current Worker, with the extractor not wired into the sync (extract.ts exists, nothing in site.ts or runSync uses it). Only the DEPLOY doc changed in this rework.
+
+Earlier verdict (rework 1, now resolved): rework
 
 Code, tests and config are good: all code ACs covered by tests, suite green (63 files), only listed files changed (siteSync.spec.tsx is in the file list; wrangler.jsonc, src/index.ts, site.spec.tsx untouched), scheduled never throws and skips on unset/blank/placeholder/bad SKIP_TABS without calling Google, route 404 without SYNC_TOKEN (manual run with unconfigured folder gives a generic 500 sync_failed, no leak), no real id or secret in wrangler.hotel.jsonc, AI binding left commented. Only the DEPLOY doc is incomplete:
 1. Step 4 must use `npx wrangler secret put SYNC_TOKEN -c wrangler.hotel.jsonc` (without -c it targets the wrong Worker).
