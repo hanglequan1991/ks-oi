@@ -161,6 +161,30 @@ describe("listTabs parses names and gids including escapes and honours skipTabs"
 		]);
 	});
 
+	it("decodes \\xNN escapes in tab names (Google htmlview writes & as \\x26)", async () => {
+		const html = 'items.push({name: "Hotel \\x26 Spa", pageUrl: "https://example.test/p", gid: "42"});';
+		const { fetchFn } = fakeFetch({ [HTMLVIEW]: () => new Response(html, { status: 200 }) });
+		const tabs = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn }).listTabs(file);
+		expect(tabs).toEqual([{ fileId: "FILE1", fileName: "Hanoi", gid: "42", tabName: "Hotel & Spa" }]);
+	});
+
+	it("keeps a \\x3c decoded tab name as plain text, never as HTML", async () => {
+		const html = 'items.push({name: "\\x3cb\\x3eBold\\x3c/b\\x3e", pageUrl: "https://example.test/p", gid: "43"});';
+		const { fetchFn } = fakeFetch({ [HTMLVIEW]: () => new Response(html, { status: 200 }) });
+		const tabs = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn }).listTabs(file);
+		expect(tabs.map((t) => t.tabName)).toEqual(["<b>Bold</b>"]);
+		expect(tabs[0].gid).toBe("43");
+	});
+
+	it("an invalid \\xZZ escape does not throw and the tab is still parsed", async () => {
+		const html = 'items.push({name: "Bad \\xZZ Tab", pageUrl: "https://example.test/p", gid: "44"});';
+		const { fetchFn } = fakeFetch({ [HTMLVIEW]: () => new Response(html, { status: 200 }) });
+		const tabs = await createPublicGoogleSource({ folderId: "FOLDER123", fetchFn }).listTabs(file);
+		expect(tabs).toHaveLength(1);
+		expect(tabs[0].gid).toBe("44");
+		expect(tabs[0].tabName).toBe("Bad xZZ Tab");
+	});
+
 	it("leaves out tabs in skipTabs, matched as File/Tab after the xlsx strip", async () => {
 		const { fetchFn } = fakeFetch({ [HTMLVIEW]: () => new Response(fixture("htmlview.html"), { status: 200 }) });
 		const source = createPublicGoogleSource({

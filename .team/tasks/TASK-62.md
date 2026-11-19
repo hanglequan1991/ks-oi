@@ -63,6 +63,7 @@ Notes:
 - "no URL" test checks for `://` and `docs.google` (the `_http_` code itself contains "http").
 - Header comment of publicGoogleSource.ts updated to describe the real tab shape and retries.
 - Files changed: sheet-rag/src/sync/publicGoogleSource.ts, sheet-rag/test/sync/publicGoogleSource.spec.ts, sheet-rag/test/fixtures/google/htmlview.html, .team/tasks/TASK-62.md. sheetSource.ts and htmlview-empty.html not touched (not needed).
+- Follow-up (lead non-blocking gap): JS_ESCAPE_RE now decodes `\xNN` like `\uNNNN` (String.fromCharCode). Tests: `\x26` gives `Hotel & Spa`, `\x3c` stays plain text, invalid `\xZZ` does not throw (gives `Bad xZZ Tab`). Full suite: 63 files, 470 tests passed. Files changed: sheet-rag/src/sync/publicGoogleSource.ts, sheet-rag/test/sync/publicGoogleSource.spec.ts, .team/tasks/TASK-62.md.
 
 ## Review
 <!-- Written by lead. Verdict: approve | rework -->

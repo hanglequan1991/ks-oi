@@ -38,8 +38,8 @@ const MAX_JITTER_MS = 500;
 /** Trailing `.xlsx` of a Drive file name (the city is the name without it). */
 const XLSX_SUFFIX_RE = /\.xlsx$/i;
 
-/** Escape sequences in the htmlview JS string literal (\", \\, \uXXXX, ...). */
-const JS_ESCAPE_RE = /\\(u[0-9a-fA-F]{4}|[\s\S])/g;
+/** Escape sequences in the htmlview JS string literal (\", \\, \xNN, \uXXXX, ...). */
+const JS_ESCAPE_RE = /\\(u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|[\s\S])/g;
 
 /** HTML character references in a folder title (named, decimal, hex). */
 const HTML_ENTITY_RE = /&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g;
@@ -192,7 +192,7 @@ function parseTabs(html: string): Array<{ tabName: string; gid: string }> {
 
 function decodeJsString(raw: string): string {
 	return raw.replace(JS_ESCAPE_RE, (_all, esc: string) => {
-		if (esc.length === 5 && esc[0] === "u") {
+		if ((esc.length === 5 && esc[0] === "u") || (esc.length === 3 && esc[0] === "x")) {
 			return String.fromCharCode(parseInt(esc.slice(1), 16));
 		}
 		return JS_SIMPLE_ESCAPES.get(esc) ?? esc;
