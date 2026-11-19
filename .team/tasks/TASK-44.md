@@ -3,7 +3,7 @@
 - id: TASK-44
 - story: [STORY-11](../stories/STORY-11.md)
 - type: frontend        <!-- frontend | backend -->
-- status: in-progress
+- status: done
 - assignee: dev
 - rework count: 0
 - depends on: TASK-43 (defines the CSS for every class below), plus TASK-35, TASK-36, TASK-37 (done)
