@@ -8,7 +8,7 @@
 As an admin, I want to import hotel info, base prices and image links from Google Sheets with differing layouts and multiple tabs, so that the chatbot can use the data the hotel teams already keep.
 
 ## Scope
-- In: registering a Google Sheets link (public, read-only); reading every tab; mapping each tab's columns to standard fields (hotel name, city/area, address, star rating, room type, base price, price unit per night, max guests, amenities, description, image URL(s)); saving the mapping; automatic hourly refresh plus manual refresh; reporting import status, row-level errors and a stale warning.
+- In: registering a Google Sheets link (public, read-only); reading every tab; mapping each tab's columns to standard fields (hotel name, city/area, address, star rating, room type, base price, price unit per night, max guests, amenities, description, image URL(s); plus optional fields: room furniture, floors, number of rooms, year built, distance to beach in metres, facility tags/list); saving the mapping; automatic hourly refresh plus manual refresh; reporting import status, row-level errors and a stale warning.
 - Out: writing to Sheets; private Sheets; Google Docs (STORY-1); add-on fees (STORY-4/8); per-hotel contact details (contacts are global only, STORY-9); seasonal or date-based pricing; images embedded in the Sheet; currencies other than VND; the admin login (STORY-7).
 - Dependencies: none for the import. Required by STORY-3 and STORY-4. Mapping screens for admins need STORY-7.
 - Assumption: the Sheet price is one flat VND base price per room type per night, and is never shown to guests without the add-on fees (see STORY-4).
@@ -27,6 +27,7 @@ As an admin, I want to import hotel info, base prices and image links from Googl
 11. AC11: Given registered Sheets, then they are refreshed automatically at least every 60 minutes, and an admin can also trigger "refresh now".
 12. AC12: Given a source has had no successful import for more than 24 hours, then the admin sees a stale warning and the bot keeps answering from the last good data.
 13. AC13: Given a tab has no column mapped to a contact field, then no per-hotel contact data is imported (contacts are global only).
+14. AC14: Given a tab maps any of the optional fields (room furniture, floors, number of rooms, year built, distance to beach in metres, facility tags/list), when imported, then each mapped value is stored against the hotel (or room for furniture); a facility list in one cell is split into separate tags; a tab that does not map them still imports normally, and an empty value is simply not shown to guests (these fields are never required, and an empty one never causes a row to be skipped).
 
 ## Linked files
 - Tasks: TASK-
@@ -38,6 +39,7 @@ A: Default accepted. (answered by user: all data defaults accepted)
 
 Q2: Standard fields?
 A: Hotel name, city/area, address, star rating, room type, base price, price unit (per night), max guests, amenities, description, image URL(s). The optional per-hotel "contact override" column is removed. (answered by user)
+Update (from STORY-11 Q1, answered by user): optional standard fields added: room furniture, floors, number of rooms, year built, distance to beach (m), facility tags/list. See scope and AC14.
 
 Q3: Seasonal pricing?
 A: No. One flat price per room type. (answered by user)
