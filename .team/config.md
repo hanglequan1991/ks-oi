@@ -12,6 +12,16 @@ Detection result: the repository was empty when the team was set up (no manifest
 | E2E / automation tests (all) | `TODO: e.g. npx playwright test` |
 | E2E / automation tests (single file) | `TODO: e.g. npx playwright test tests/e2e/<file>` |
 
+## Local model (local-dev agent)
+
+| Setting | Value |
+|---|---|
+| Script | `scripts/local-dev.ps1` (run with `pwsh -File`; falls back to `powershell -File` on Windows) |
+| Ollama endpoint | `http://localhost:11434` (script auto-starts `ollama serve` from `%LOCALAPPDATA%\Programs\Ollama`) |
+| Model | `mimo-v2.6:9b-q4_K_M` (script default; `TODO: confirm it is pulled: ollama list`) |
+| Context / max output | 8192 / 2000 tokens (script defaults) |
+| Runs on | the user's Windows machine only; not available in cloud sessions |
+
 ## Where tests live
 
 - Unit tests: `TODO: e.g. next to the code, or tests/unit/, or <Project>.Tests/`

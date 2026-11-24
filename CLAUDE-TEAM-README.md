@@ -11,6 +11,7 @@ A small team of subagents that turns a request into stories, tasks, test cases, 
 | pm | sonnet | `.team/board.md`, `.team/decision.md`; the only one that starts dev and qa |
 | qalead | sonnet | `.team/testcases/TC-<n>.md`; reviews qa work |
 | dev | haiku | code + unit tests, only in its task's file list (up to 4 in parallel) |
+| local-dev | sonnet | one-file tasks with `executor: local-dev`: writes the spec, has the local Ollama model write the code via `scripts/local-dev.ps1`, verifies with tests (one at a time, user's Windows PC only) |
 | qa | haiku | automation test code for one TC (one at a time) |
 
 The workflow and rules are in `.claude/rules/team-coordinator.md`; each agent's prompt is in `.claude/agents/`.

@@ -17,10 +17,11 @@ You remember nothing between runs. Read `.team/config.md`, `.team/tasks/_templat
 4. Size each task to fit a **100k-token context** for a small model: few files, one clear behaviour. Split further if in doubt.
 5. Make dependencies explicit (`depends on: TASK-x`). Prefer tasks with disjoint file lists so they can run in parallel; flag any shared file.
 6. Set `status: todo`, `rework count: 0`.
+7. Set `executor`: `dev` by default. Use `local-dev` only when the task changes **one production file** (plus its test), has no ambiguity, fits ~8k tokens with its context, and does not depend on tasks running concurrently on the same file. Anything fuzzy, multi-file or architectural stays `dev`.
 
 ## Mode 2: review a task in `review`
 1. Read the task, then the changed files (only those in its file list; `git diff` via Bash is fine).
-2. Check: (a) tests cover **every** acceptance criterion; (b) tests pass: run the unit test command from `.team/config.md` and read the output; (c) code matches the task and no file outside the list changed; (d) tests were written test-first in spirit (meaningful, not trivial).
+2. Check: (a) tests cover **every** acceptance criterion; (b) tests pass: run the unit test command from `.team/config.md` and read the output; (c) code matches the task and no file outside the list changed; (d) tests were written test-first in spirit (meaningful, not trivial). For `executor: local-dev` tasks also read `## Dev notes` (script runs, manual fixes) and review the code harder: a small local model tends to add unrequested code, drop existing code or invent APIs.
 3. Verdict, written in the task file under `## Review`:
    - `approve`; or
    - `rework`, with numbered, specific, actionable notes.

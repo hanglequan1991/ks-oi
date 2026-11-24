@@ -4,6 +4,7 @@
 - story: [STORY-<n>](../stories/STORY-<n>.md)
 - type: backend        <!-- frontend | backend -->
 - status: todo         <!-- todo | in-progress | review | rework | done | blocked | blocked: question -->
+- executor: dev        <!-- dev | local-dev (small, single-file, precisely specifiable; runs on the local Ollama model) -->
 - rework count: 0
 - depends on: none
 - size: fits a 100k-token context (few files, one behaviour)
