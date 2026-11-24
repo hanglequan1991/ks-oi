@@ -83,7 +83,7 @@ Data freshness
 43. AC43: Given a hotel has data rows skipped by the import (STORY-2 AC5), then the skipped rows do not appear, and the page does not error.
 
 ## Linked files
-- Tasks: TASK-
+- Tasks (all `executor: local-dev`, one production file + one test file each; run serially in this order): [TASK-1](../tasks/TASK-1.md), [TASK-2](../tasks/TASK-2.md), [TASK-3](../tasks/TASK-3.md), [TASK-4](../tasks/TASK-4.md), [TASK-5](../tasks/TASK-5.md), [TASK-6](../tasks/TASK-6.md), [TASK-7](../tasks/TASK-7.md), [TASK-8](../tasks/TASK-8.md), [TASK-9](../tasks/TASK-9.md), [TASK-10](../tasks/TASK-10.md), [TASK-11](../tasks/TASK-11.md), [TASK-12](../tasks/TASK-12.md), [TASK-13](../tasks/TASK-13.md), [TASK-14](../tasks/TASK-14.md), [TASK-16](../tasks/TASK-16.md), [TASK-15](../tasks/TASK-15.md), [TASK-17](../tasks/TASK-17.md), [TASK-18](../tasks/TASK-18.md), [TASK-19](../tasks/TASK-19.md), [TASK-20](../tasks/TASK-20.md), [TASK-21](../tasks/TASK-21.md), [TASK-22](../tasks/TASK-22.md), [TASK-23](../tasks/TASK-23.md), [TASK-24](../tasks/TASK-24.md), [TASK-25](../tasks/TASK-25.md), [TASK-26](../tasks/TASK-26.md), [TASK-27](../tasks/TASK-27.md), [TASK-28](../tasks/TASK-28.md), [TASK-29](../tasks/TASK-29.md), [TASK-30](../tasks/TASK-30.md), [TASK-31](../tasks/TASK-31.md), [TASK-32](../tasks/TASK-32.md)
 - Test cases: TC-
 
 ## Questions
